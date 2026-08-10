@@ -66,6 +66,13 @@ namespace MiniBank.Web.Infrastructure.Repositories
             return isUnique == 1;
         }
 
+        public async Task<AccountType?> FindInactiveByCodeAsync(string code)
+        {
+            await EnsureOpenAsync();
+            const string sql = "SELECT AccountTypeId, Code, Name, Description, IsActive, CreatedAt FROM dbo.AccountTypes WHERE Code = @code AND IsActive = 0";
+            return await _db.QuerySingleOrDefaultAsync<AccountType>(sql, new { code });
+        }
+
         public async Task<bool> IsUsedInAccountsAsync(int accountTypeId)
         {
             await EnsureOpenAsync();
@@ -79,6 +86,25 @@ namespace MiniBank.Web.Infrastructure.Repositories
             await EnsureOpenAsync();
             const string sql = @"SELECT COUNT(1) FROM dbo.Accounts WHERE AccountType = @accountTypeId";
             return await _db.ExecuteScalarAsync<int>(sql, new { accountTypeId });
+        }
+
+        public async Task<bool> HasJournalLinesByAccountTypeAsync(int accountTypeId)
+        {
+            await EnsureOpenAsync();
+            try
+            {
+                const string sql = @"SELECT COUNT(1)
+                    FROM dbo.JournalLines jl
+                    INNER JOIN dbo.Accounts a ON jl.AccountId = a.AccountId
+                    WHERE a.AccountType = @accountTypeId";
+                var count = await _db.ExecuteScalarAsync<int>(sql, new { accountTypeId });
+                return count > 0;
+            }
+            catch
+            {
+                // JournalLines table might not exist yet
+                return false;
+            }
         }
 
         private async Task EnsureOpenAsync()

@@ -19,7 +19,8 @@
 
   <!-- Controls -->
   <div class="duo-controls">
-    <DsSearchCard @bind-Value="searchTerm" 
+    <DsSearchCard Value="@searchTerm"
+                  ValueChanged="OnSearchChanged"
                   Placeholder="جستجو در گروه..." />
   </div>
   
@@ -90,7 +91,21 @@
 <AccountTypeIOSSheet Model="@selectedAccountType" 
                      IsNew="@isNewAccountType" 
                      @bind-IsOpen="showEditSheet"
-                     OnClose="HandleSheetClose" />
+                     OnClose="HandleSheetClose"
+                     OnDeleteRequest="@HandleDeleteRequest" />
+
+<!-- Delete Confirmation Dialog -->
+<DsConfirm Show="@_showDeleteConfirm"
+           Title="@(_deactivateOnly ? "غیرفعال کردن گروه" : "حذف گروه")"
+           Message="@_deleteConfirmMessage"
+           Variant="@(_deactivateOnly ? "warning" : "danger")"
+           ConfirmText="@(_deactivateOnly ? "غیرفعال کن" : "حذف")"
+           CancelText="انصراف"
+           ShowWarning="@_deactivateOnly"
+           WarningText="@(_deactivateOnly ? "این گروه دارای زیرمجموعه یا تراکنش است و صرفاً غیرفعال خواهد شد." : null)"
+           Loading="@_deleting"
+           OnConfirm="ConfirmDelete"
+           OnCancel="CancelDelete" />
 
 @code {
   // FAB Navigation
@@ -100,7 +115,7 @@
   private List<AccountType> filteredAccountTypes = new();
   private bool loading = true;
   private string searchTerm = string.Empty;
-  private string activeFilter = "all";
+  private string activeFilter = "active";
   private string activeSortKey = "code";
   private bool sortDesc = false;
 
@@ -144,15 +159,9 @@
     }
   }
 
-  private void OnSearchInput(ChangeEventArgs e)
+  private void OnSearchChanged(string value)
   {
-    searchTerm = e.Value?.ToString() ?? string.Empty;
-    ApplyFiltersAndSort();
-  }
-
-  private void ClearSearch()
-  {
-    searchTerm = string.Empty;
+    searchTerm = value ?? string.Empty;
     ApplyFiltersAndSort();
   }
 
@@ -222,6 +231,47 @@
     {
       await LoadAccountTypes();
     }
+  }
+
+  // Delete confirmation
+  private bool _showDeleteConfirm = false;
+  private string _deleteConfirmMessage = string.Empty;
+  private bool _deleting = false;
+  private bool _deactivateOnly = false;
+  private int _accountToDeleteId;
+
+  private async Task HandleDeleteRequest((int AccountTypeId, string Code, string Name, string Message, bool DeactivateOnly) args)
+  {
+    _accountToDeleteId = args.AccountTypeId;
+    _deleteConfirmMessage = args.Message;
+    _deactivateOnly = args.DeactivateOnly;
+    _showDeleteConfirm = true;
+  }
+
+  private async Task ConfirmDelete()
+  {
+    _showDeleteConfirm = false;
+    _deleting = true;
+
+    try
+    {
+      await AccountTypeRepo.DeleteAsync(_accountToDeleteId);
+      Toast.Success(_deactivateOnly ? "گروه با موفقیت غیرفعال شد" : "گروه با موفقیت حذف شد");
+      await LoadAccountTypes();
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در حذف گروه: {ex.Message}");
+    }
+    finally
+    {
+      _deleting = false;
+    }
+  }
+
+  private void CancelDelete()
+  {
+    _showDeleteConfirm = false;
   }
 
   private void GoBack()

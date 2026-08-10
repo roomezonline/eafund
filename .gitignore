@@ -20,3 +20,5 @@ src/MiniBank.Web/Properties/PublishProfiles/*.pubxml
 
 # Logs
 *.log
+
+src/MiniBank.Web/logs/

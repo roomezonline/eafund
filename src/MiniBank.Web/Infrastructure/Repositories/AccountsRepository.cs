@@ -351,6 +351,16 @@ namespace MiniBank.Web.Infrastructure.Repositories
             return await _db.QuerySingleOrDefaultAsync<Account>(sql, new { code });
         }
 
+        public async Task<Account?> FindInactiveByCodeAndLevelAsync(string code, byte level)
+        {
+            await EnsureOpenAsync();
+            var hasLevelColumn = await HasLevelColumnAsync();
+            var sql = hasLevelColumn 
+                ? "SELECT AccountId, Code, Name, AccountType, ParentAccountId, IsActive, CreatedAt, Level FROM dbo.Accounts WHERE Code = @code AND IsActive = 0 AND Level = @level"
+                : "SELECT AccountId, Code, Name, AccountType, ParentAccountId, IsActive, CreatedAt FROM dbo.Accounts WHERE Code = @code AND IsActive = 0";
+            return await _db.QuerySingleOrDefaultAsync<Account>(sql, new { code, level });
+        }
+
         public async Task ReactivateAsync(long accountId)
         {
             await EnsureOpenAsync();
@@ -379,7 +389,7 @@ namespace MiniBank.Web.Infrastructure.Repositories
         public async Task<bool> HasChildAccountsAsync(long accountId)
         {
             await EnsureOpenAsync();
-            const string sql = "SELECT COUNT(1) FROM dbo.Accounts WHERE ParentAccountId = @accountId AND IsActive = 1";
+            const string sql = "SELECT COUNT(1) FROM dbo.Accounts WHERE ParentAccountId = @accountId";
             var count = await _db.QuerySingleAsync<int>(sql, new { accountId });
             return count > 0;
         }
@@ -392,8 +402,8 @@ namespace MiniBank.Web.Infrastructure.Repositories
             await EnsureOpenAsync();
             var hasLevelColumn = await HasLevelColumnAsync();
             var sql = hasLevelColumn 
-                ? "SELECT Code, Name, Level FROM dbo.Accounts WHERE ParentAccountId = @accountId AND IsActive = 1 ORDER BY Code"
-                : "SELECT Code, Name, 0 as Level FROM dbo.Accounts WHERE ParentAccountId = @accountId AND IsActive = 1 ORDER BY Code";
+                ? "SELECT Code, Name, Level FROM dbo.Accounts WHERE ParentAccountId = @accountId ORDER BY Code"
+                : "SELECT Code, Name, 0 as Level FROM dbo.Accounts WHERE ParentAccountId = @accountId ORDER BY Code";
             return await _db.QueryAsync<(string, string, byte)>(sql, new { accountId });
         }
 

@@ -60,7 +60,7 @@
   [Parameter] public bool IsOpen { get; set; }
   [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
   [Parameter] public EventCallback<bool> OnClose { get; set; }
-  [Parameter] public EventCallback<(long AccountId, string Code, string Name, string Message)> OnDeleteRequest { get; set; }
+  [Parameter] public EventCallback<(long AccountId, string Code, string Name, string Message, bool DeactivateOnly)> OnDeleteRequest { get; set; }
 
   private bool _saving = false;
   private List<Account> _parentKols = new();
@@ -152,7 +152,7 @@
       var codeToSave = _model.Code.Trim();
 
       // Check if inactive record exists with same code
-      var inactiveRecord = await AccountsRepo.FindInactiveByCodeAsync(codeToSave);
+      var inactiveRecord = await AccountsRepo.FindInactiveByCodeAndLevelAsync(codeToSave, 3);
       if (inactiveRecord != null && IsNew)
       {
         // Reactivate existing inactive record instead of creating new one
@@ -174,14 +174,44 @@
       // Pre-check: unique code among active records (skip check if code hasn't changed)
       if (IsNew || codeToSave != Model.Code)
       {
-        // Debug: Check what codes exist in database
-        var allCodes = await AccountsRepo.SearchAsync("", 3, true); // Get all Moeen codes
-        var existingCodes = allCodes.Where(a => a.Code == codeToSave && a.AccountId != _model.AccountId).ToList();
-        
-        if (existingCodes.Any())
+        var isUnique = await AccountsRepo.IsCodeUniqueAsync(codeToSave, IsNew ? null : _model.AccountId);
+        if (!isUnique)
         {
-          _errors[nameof(_model.Code)] = $"این کد قبلاً ثبت شده است (AccountId: {existingCodes.First().AccountId})";
-          Toast.Error("کد معین تکراری است. لطفاً کد دیگری وارد کنید");
+          var other = await AccountsRepo.FindInactiveByCodeAsync(codeToSave);
+          if (other != null)
+          {
+            _errors[nameof(_model.Code)] = $"این کد قبلاً برای یک {GetLevelName(other.Level)} غیرفعال استفاده شده است. ابتدا آن را فعال یا تغییر دهید.";
+            Toast.Error($"کد «{codeToSave}» قبلاً برای {GetLevelName(other.Level)} «{other.Name}» ثبت شده است. آن را مجدداً فعال کنید یا کد دیگری انتخاب کنید.");
+          }
+          else
+          {
+            _errors[nameof(_model.Code)] = "این کد قبلاً ثبت شده است";
+            Toast.Error("کد معین تکراری است. لطفاً کد دیگری وارد کنید");
+          }
+          return;
+        }
+      }
+
+      // Prevent changing code of an account that has children or transactions
+      if (!IsNew && codeToSave != Model.Code)
+      {
+        var dependency = await AccountsRepo.GetDependencyInfoAsync(_model.AccountId);
+        if (!dependency.CanDelete)
+        {
+          _errors[nameof(_model.Code)] = "تغییر کد معین دارای زیرمجموعه یا تراکنش مجاز نیست";
+          Toast.Error($"تغییر کد این معین مجاز نیست؛ زیرا {dependency.GetDependencyMessage()}. برای حفظ یکپارچگی داده‌ها کد ثابت می‌ماند و فقط نام قابل تغییر است.");
+          return;
+        }
+      }
+
+      // Prevent changing the parent Kol of a Moeen that has children (type desync)
+      if (!IsNew && _model.ParentAccountId != Model.ParentAccountId)
+      {
+        var hasChildren = await AccountsRepo.HasChildAccountsAsync(_model.AccountId);
+        if (hasChildren)
+        {
+          _errors[nameof(_model.ParentAccountId)] = "تغییر کل والد معین دارای زیرمجموعه مجاز نیست";
+          Toast.Error("تغییر کل والد این معین مجاز نیست؛ زیرا دارای زیرمجموعه (تفصیلی) است و نوع آن‌ها از این معین پیروی می‌کند. برای حفظ یکپارچگی داده‌ها ابتدا زیرمجموعه‌ها را جابه‌جا کنید.");
           return;
         }
       }
@@ -241,25 +271,39 @@
     return parent?.AccountType ?? 1;
   }
 
+  private string GetLevelName(byte? level)
+  {
+    return level switch
+    {
+      1 => "گروه",
+      2 => "کل",
+      3 => "معین",
+      4 => "تفصیلی",
+      _ => "حساب"
+    };
+  }
+
   private async Task HandleDelete()
   {
     // Check dependencies before deletion
     var dependencyInfo = await AccountsRepo.GetDependencyInfoAsync(_model.AccountId);
     
-    if (!dependencyInfo.CanDelete)
-    {
-      var message = dependencyInfo.GetDependencyMessage();
-      Toast.Error($"امکان حذف وجود ندارد: {message}");
-      return;
-    }
-
     // Close the sheet first, then request delete confirmation from parent
     await OnClose.InvokeAsync(false);
     await Task.Delay(300); // Wait for sheet close animation
+
+    if (!dependencyInfo.CanDelete)
+    {
+      // Has children or transactions -> cannot be deleted, only deactivated
+      var message = dependencyInfo.GetDependencyMessage();
+      var warningMessage = $"معین <strong>'{_model.Name}'</strong> قابل حذف نیست ({message}).<br/><br/>در صورت تأیید، این معین <strong>غیرفعال</strong> می‌شود و در فرم‌ها نمایش داده نمی‌شود.<br/><br/>کد: <code>{_model.Code}</code>";
+      await OnDeleteRequest.InvokeAsync((_model.AccountId, _model.Code, _model.Name, warningMessage, true));
+      return;
+    }
     
     // Request delete confirmation from parent page
     var deleteMessage = $"آیا از حذف معین <strong>'{_model.Name}'</strong> اطمینان دارید؟<br><br>کد: <code>{_model.Code}</code>";
-    await OnDeleteRequest.InvokeAsync((_model.AccountId, _model.Code, _model.Name, deleteMessage));
+    await OnDeleteRequest.InvokeAsync((_model.AccountId, _model.Code, _model.Name, deleteMessage, false));
   }
 
 

@@ -24,7 +24,8 @@
 
   <!-- Controls -->
   <div class="duo-controls">
-    <DsSearchCard @bind-Value="searchTerm" 
+    <DsSearchCard Value="@searchTerm"
+                  ValueChanged="OnSearchChanged"
                   Placeholder="جستجو در تفضیلی‌ها..." />
   </div>
   
@@ -118,11 +119,13 @@
 
 <!-- Delete Confirmation Dialog -->
 <DsConfirm Show="@_showDeleteConfirm"
-           Title="حذف تفضیلی"
+           Title="@(_deactivateOnly ? "غیرفعال کردن تفضیلی" : "حذف تفضیلی")"
            Message="@_deleteConfirmMessage"
-           Variant="danger"
-           ConfirmText="حذف"
+           Variant="@(_deactivateOnly ? "warning" : "danger")"
+           ConfirmText="@(_deactivateOnly ? "غیرفعال کن" : "حذف")"
            CancelText="انصراف"
+           ShowWarning="@_deactivateOnly"
+           WarningText="@(_deactivateOnly ? "این تفضیلی دارای تراکنش است و صرفاً غیرفعال خواهد شد." : null)"
            Loading="@_deleting"
            OnConfirm="ConfirmDelete"
            OnCancel="CancelDelete" />
@@ -144,7 +147,7 @@
   private bool _deleting = false;
   private long _accountToDeleteId;
   private string searchTerm = string.Empty;
-  private string activeFilter = "all";
+  private string activeFilter = "active";
   private string activeSortKey = "code";
   private bool sortDesc = false;
 
@@ -202,7 +205,7 @@
     try
     {
       // Load Level 4 accounts (Subsidiary)
-      subsidiaryAccounts = (await AccountsRepo.SearchAsync("", 4, true)).ToList();
+      subsidiaryAccounts = (await AccountsRepo.SearchAsync("", 4, false)).ToList();
       await LoadMembersForSubsidiaries();
       ApplyFiltersAndSort();
     }
@@ -241,6 +244,12 @@
         // ignore individual failures
       }
     }
+  }
+
+  private void OnSearchChanged(string value)
+  {
+    searchTerm = value ?? string.Empty;
+    ApplyFiltersAndSort();
   }
 
   private void OnFilterChanged(string filterKey)
@@ -372,10 +381,12 @@
   }
 
   // Delete handling methods
-  private async Task HandleDeleteRequest((long AccountId, string Code, string Name, string Message) args)
+  private bool _deactivateOnly = false;
+  private async Task HandleDeleteRequest((long AccountId, string Code, string Name, string Message, bool DeactivateOnly) args)
   {
     _accountToDeleteId = args.AccountId;
     _deleteConfirmMessage = args.Message;
+    _deactivateOnly = args.DeactivateOnly;
     _showDeleteConfirm = true;
   }
 
@@ -387,7 +398,7 @@
     try
     {
       await AccountsRepo.DeleteAsync(_accountToDeleteId);
-      Toast.Success("تفضیلی با موفقیت حذف شد");
+      Toast.Success(_deactivateOnly ? "تفضیلی با موفقیت غیرفعال شد" : "تفضیلی با موفقیت حذف شد");
       await LoadSubsidiaryAccounts();
     }
     catch (Exception ex)

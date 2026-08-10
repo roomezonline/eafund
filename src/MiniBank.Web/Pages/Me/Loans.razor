@@ -28,6 +28,7 @@
   .muted{color:#64748b;font-weight:800;font-size:12px}
 
   .loan{border:1px solid #eef2f7;border-radius:18px;padding:12px;background:linear-gradient(180deg,#ffffff,#f8fafc)}
+  .loan.settled{border-color:#86efac;background:linear-gradient(180deg,#ecfdf5,#ffffff);box-shadow:0 10px 25px rgba(22,101,52,.08)}
   .loan-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
   .loan-name{font-weight:950;color:#0f172a;font-size:13px}
   .loan-meta{font-weight:900;color:#64748b;font-size:11px;white-space:nowrap}
@@ -112,10 +113,10 @@
                   ? _instForLoan.Sum(x => Math.Max(0m, x.InterestAmount - x.PaidInterest))
                   : 0m;
                 var remainingTotal = remainingPrincipal + remainingInterest;
-                <div class="loan">
+                <div class="loan @(l.Status == LoanStatus.Settled ? "settled" : null)">
                   <div class="loan-top">
                     <div style="min-width:0">
-                      <div class="loan-name">وام #@l.LoanId</div>
+                      <div class="loan-name">وام شماره @l.LoanId</div>
                       <div class="loan-meta">@FmtDate(l.DisbursedAt) | <span class="badge @LoanBadge(l.Status)">@FmtLoanStatus(l.Status)</span></div>
                     </div>
                   </div>
@@ -123,6 +124,13 @@
                   <div class="kpis">
                     <div class="kv"><span class="k">مدت</span><span class="v">@l.TermMonths ماه</span></div>
                     <div class="kv"><span class="k">قسط ماهانه</span><span class="v">@FmtMoney(l.EmiAmount)</span></div>
+                    @{
+                      var paidCount = _instForLoan != null ? _instForLoan.Count(x => x.Status == LoanInstallmentStatus.Paid) : 0;
+                      var totalCount = _instForLoan != null ? _instForLoan.Count : 0;
+                      var remainingCount = totalCount - paidCount;
+                    }
+                    <div class="kv"><span class="k">اقساط وصول‌شده</span><span class="v">@paidCount از @totalCount</span></div>
+                    <div class="kv"><span class="k">اقساط باقی‌مانده</span><span class="v">@remainingCount</span></div>
                     <div class="kv"><span class="k">مانده وام</span><span class="v">@FmtMoney(remainingTotal)</span></div>
                     @{
                       DateTime? nextDueDate = null;
@@ -326,7 +334,7 @@
     {
       LoanStatus.Draft => "پیش‌نویس",
       LoanStatus.Approved => "تایید شده",
-      LoanStatus.Disbursed => "پرداخت شده",
+      LoanStatus.Disbursed => "فعال",
       LoanStatus.Active => "فعال",
       LoanStatus.Settled => "تسویه شده",
       LoanStatus.Cancelled => "لغو شده",
@@ -338,7 +346,7 @@
   {
     return s switch
     {
-      LoanStatus.Active => "b-loan-active",
+      LoanStatus.Active or LoanStatus.Disbursed => "b-loan-active",
       LoanStatus.Settled => "b-loan-settled",
       LoanStatus.Cancelled => "b-loan-cancelled",
       _ => "b-loan-other"

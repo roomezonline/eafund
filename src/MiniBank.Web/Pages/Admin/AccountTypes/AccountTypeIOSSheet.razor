@@ -56,6 +56,7 @@
   [Parameter] public bool IsOpen { get; set; }
   [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
   [Parameter] public EventCallback<bool> OnClose { get; set; }
+  [Parameter] public EventCallback<(int AccountTypeId, string Code, string Name, string Message, bool DeactivateOnly)> OnDeleteRequest { get; set; }
 
   private bool _saving = false;
   private Dictionary<string, string> _errors = new();
@@ -145,6 +146,16 @@
 
   private async Task CreateAccountType()
   {
+    // Check if an inactive group with the same code exists -> reactivate it
+    var inactive = await AccountTypeRepo.FindInactiveByCodeAsync(_model.Code);
+    if (inactive != null)
+    {
+      await AccountTypeRepo.UpdateAsync(inactive.AccountTypeId, _model.Code, _model.Name, _model.Description, true);
+      _model.AccountTypeId = inactive.AccountTypeId;
+      Toast.Success($"گروه غیرفعال «{inactive.Name}» با همین کد مجدداً فعال شد");
+      return;
+    }
+
     // Check if code is unique
     var isUnique = await AccountTypeRepo.IsCodeUniqueAsync(_model.Code);
     if (!isUnique)
@@ -159,6 +170,22 @@
 
   private async Task UpdateAccountType()
   {
+    // Prevent changing the code of a group that is used in accounts or has transactions
+    if (!string.Equals(_model.Code, Model.Code, StringComparison.Ordinal))
+    {
+      var usageCount = await AccountTypeRepo.CountUsagesAsync(_model.AccountTypeId);
+      var hasTransactions = await AccountTypeRepo.HasJournalLinesByAccountTypeAsync(_model.AccountTypeId);
+      if (usageCount > 0 || hasTransactions)
+      {
+        var reasons = new List<string>();
+        if (usageCount > 0) reasons.Add($"در {usageCount} حساب استفاده شده");
+        if (hasTransactions) reasons.Add("تراکنش دارد");
+        _errors[nameof(_model.Code)] = "تغییر کد گروه دارای حساب یا تراکنش مجاز نیست";
+        Toast.Error($"تغییر کد این گروه مجاز نیست؛ زیرا {string.Join(" و ", reasons)} است. برای حفظ یکپارچگی داده‌ها کد ثابت می‌ماند و فقط نام قابل تغییر است.");
+        return;
+      }
+    }
+
     // Check if code is unique (excluding current account type)
     var isUnique = await AccountTypeRepo.IsCodeUniqueAsync(_model.Code, _model.AccountTypeId);
     if (!isUnique)
@@ -217,24 +244,27 @@
 
     try
     {
-      // Check usage in accounts first
+      // Check usage in accounts first (children) and transactions
       var usageCount = await AccountTypeRepo.CountUsagesAsync(_model.AccountTypeId);
-      if (usageCount > 0)
+      var hasTransactions = await AccountTypeRepo.HasJournalLinesByAccountTypeAsync(_model.AccountTypeId);
+
+      // Close the sheet first, then request confirmation from parent
+      await HandleClose(false);
+      await Task.Delay(300); // Wait for sheet close animation
+
+      if (usageCount > 0 || hasTransactions)
       {
-        Toast.Error($"این گروه در {usageCount} حساب استفاده شده است و قابل حذف نیست.");
+        // Has children or transactions -> cannot be deleted, only deactivated
+        var reasons = new List<string>();
+        if (usageCount > 0) reasons.Add($"در {usageCount} حساب استفاده شده");
+        if (hasTransactions) reasons.Add("تراکنش دارد");
+        var warningMessage = $"گروه <strong>'{_model.Name}'</strong> قابل حذف نیست ({string.Join(" و ", reasons)}).<br/><br/>در صورت تأیید، این گروه <strong>غیرفعال</strong> می‌شود و در فرم‌ها نمایش داده نمی‌شود.<br/><br/>کد: <code>{_model.Code}</code>";
+        await OnDeleteRequest.InvokeAsync((_model.AccountTypeId, _model.Code, _model.Name, warningMessage, true));
         return;
       }
 
-      var ok = await AccountTypeRepo.DeleteAsync(_model.AccountTypeId);
-      if (ok)
-      {
-        Toast.Success("گروه حذف شد");
-        await HandleClose(true);
-      }
-      else
-      {
-        Toast.Error("حذف گروه ناموفق بود");
-      }
+      var deleteMessage = $"آیا از حذف گروه <strong>'{_model.Name}'</strong> اطمینان دارید؟<br><br>کد: <code>{_model.Code}</code>";
+      await OnDeleteRequest.InvokeAsync((_model.AccountTypeId, _model.Code, _model.Name, deleteMessage, false));
     }
     catch (Exception ex)
     {

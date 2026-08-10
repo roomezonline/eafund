@@ -23,7 +23,8 @@
 
   <!-- Controls -->
   <div class="duo-controls">
-    <DsSearchCard @bind-Value="searchTerm" 
+    <DsSearchCard Value="@searchTerm"
+                  ValueChanged="OnSearchChanged"
                   Placeholder="جستجو در معین‌ها..." />
   </div>
   
@@ -104,11 +105,13 @@
 
 <!-- Delete Confirmation Dialog -->
 <DsConfirm Show="@_showDeleteConfirm"
-           Title="حذف معین"
+           Title="@(_deactivateOnly ? "غیرفعال کردن معین" : "حذف معین")"
            Message="@_deleteConfirmMessage"
-           Variant="danger"
-           ConfirmText="حذف"
+           Variant="@(_deactivateOnly ? "warning" : "danger")"
+           ConfirmText="@(_deactivateOnly ? "غیرفعال کن" : "حذف")"
            CancelText="انصراف"
+           ShowWarning="@_deactivateOnly"
+           WarningText="@(_deactivateOnly ? "این معین دارای زیرمجموعه یا تراکنش است و صرفاً غیرفعال خواهد شد." : null)"
            Loading="@_deleting"
            OnConfirm="ConfirmDelete"
            OnCancel="CancelDelete" />
@@ -119,7 +122,7 @@
   private Dictionary<long, string> parentKolNames = new();
   private bool loading = true;
   private string searchTerm = string.Empty;
-  private string activeFilter = "all";
+  private string activeFilter = "active";
   private string activeSortKey = "code";
   private bool sortDesc = false;
   
@@ -177,7 +180,7 @@
     try
     {
       // Load Level 3 accounts (Moeen)
-      moeenAccounts = (await AccountsRepo.SearchAsync("", 3, true)).ToList();
+      moeenAccounts = (await AccountsRepo.SearchAsync("", 3, false)).ToList();
       ApplyFiltersAndSort();
     }
     catch (Exception ex)
@@ -188,6 +191,12 @@
     {
       loading = false;
     }
+  }
+
+  private void OnSearchChanged(string value)
+  {
+    searchTerm = value ?? string.Empty;
+    ApplyFiltersAndSort();
   }
 
   private void OnFilterChanged(string filterKey)
@@ -309,13 +318,15 @@
   private bool _showDeleteConfirm = false;
   private string _deleteConfirmMessage = string.Empty;
   private bool _deleting = false;
+  private bool _deactivateOnly = false;
   private long _accountToDeleteId;
 
   // Delete handling methods
-  private async Task HandleDeleteRequest((long AccountId, string Code, string Name, string Message) args)
+  private async Task HandleDeleteRequest((long AccountId, string Code, string Name, string Message, bool DeactivateOnly) args)
   {
     _accountToDeleteId = args.AccountId;
     _deleteConfirmMessage = args.Message;
+    _deactivateOnly = args.DeactivateOnly;
     _showDeleteConfirm = true;
   }
 
@@ -327,7 +338,7 @@
     try
     {
       await AccountsRepo.DeleteAsync(_accountToDeleteId);
-      Toast.Success("معین با موفقیت حذف شد");
+      Toast.Success(_deactivateOnly ? "معین با موفقیت غیرفعال شد" : "معین با موفقیت حذف شد");
       await LoadMoeenAccounts();
     }
     catch (Exception ex)
