@@ -8,6 +8,12 @@ obj/
 # App config with secrets (DB connection strings, API keys)
 **/appsettings*.json
 
+# Files containing DB credentials
+ConstraintFix/Program.cs
+DirectConstraintFix.cs
+src/MiniBank.Web/Migrations/Run-SqlScript.ps1
+src/MiniBank.Web/Properties/PublishProfiles/*.pubxml
+
 # User-specific files
 *.user
 *.suo
