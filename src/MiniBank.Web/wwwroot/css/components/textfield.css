@@ -1,0 +1,300 @@
+/* Material Design 3 Text Field Components */
+
+/* Base Text Field */
+.md-textfield {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Filled Text Field */
+.md-textfield-filled {
+  position: relative;
+}
+
+.md-textfield-filled .md-textfield-container {
+  position: relative;
+  background-color: var(--md-sys-color-surface-container-highest);
+  border-radius: 4px 4px 0 0;
+  border-bottom: 1px solid var(--md-sys-color-on-surface-variant);
+  transition: border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.md-textfield-filled .md-textfield-container:hover {
+  background-color: color-mix(in srgb, var(--md-sys-color-surface-container-highest) 92%, var(--md-sys-color-on-surface) 8%);
+  border-bottom-color: var(--md-sys-color-on-surface);
+}
+
+.md-textfield-filled .md-textfield-container:focus-within {
+  border-bottom: 2px solid var(--md-sys-color-primary);
+}
+
+.md-textfield-filled .md-textfield-input {
+  width: 100%;
+  padding: 24px 16px 8px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--md-sys-typescale-body-large-font-family-name);
+  font-size: var(--md-sys-typescale-body-large-font-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  color: var(--md-sys-color-on-surface);
+}
+
+.md-textfield-filled .md-textfield-label {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  font-family: var(--md-sys-typescale-body-large-font-family-name);
+  font-size: var(--md-sys-typescale-body-large-font-size);
+  color: var(--md-sys-color-on-surface-variant);
+  pointer-events: none;
+  transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+  transform-origin: right top;
+}
+
+.md-textfield-filled .md-textfield-input:focus + .md-textfield-label,
+.md-textfield-filled .md-textfield-input:not(:placeholder-shown) + .md-textfield-label {
+  top: 8px;
+  font-size: var(--md-sys-typescale-body-small-font-size);
+  color: var(--md-sys-color-primary);
+}
+
+/* Outlined Text Field */
+.md-textfield-outlined {
+  position: relative;
+}
+
+.md-textfield-outlined .md-textfield-container {
+  position: relative;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: 4px;
+  background-color: transparent;
+  transition: border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.md-textfield-outlined .md-textfield-container:hover {
+  border-color: var(--md-sys-color-on-surface);
+}
+
+.md-textfield-outlined .md-textfield-container:focus-within {
+  border: 2px solid var(--md-sys-color-primary);
+}
+
+.md-textfield-outlined .md-textfield-input {
+  width: 100%;
+  padding: 16px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--md-sys-typescale-body-large-font-family-name);
+  font-size: var(--md-sys-typescale-body-large-font-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  color: var(--md-sys-color-on-surface);
+}
+
+.md-textfield-outlined .md-textfield-label {
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  padding: 0 4px;
+  background-color: var(--md-sys-color-surface);
+  font-family: var(--md-sys-typescale-body-small-font-family-name);
+  font-size: var(--md-sys-typescale-body-small-font-size);
+  color: var(--md-sys-color-on-surface-variant);
+  pointer-events: none;
+  transition: color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.md-textfield-outlined .md-textfield-container:focus-within .md-textfield-label {
+  color: var(--md-sys-color-primary);
+}
+
+/* Persian/RTL Specific Styles */
+.md-textfield-persian .md-textfield-input {
+  text-align: right;
+  direction: rtl;
+}
+
+.md-textfield-persian .md-textfield-label {
+  right: 16px;
+  left: auto;
+  transform-origin: right top;
+}
+
+.md-textfield-persian.md-textfield-outlined .md-textfield-label {
+  right: 12px;
+  left: auto;
+}
+
+/* Leading/Trailing Icons */
+.md-textfield-with-leading-icon .md-textfield-input {
+  padding-right: 52px;
+}
+
+.md-textfield-with-trailing-icon .md-textfield-input {
+  padding-left: 52px;
+}
+
+.md-textfield-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  color: var(--md-sys-color-on-surface-variant);
+  pointer-events: none;
+}
+
+.md-textfield-icon-leading {
+  right: 16px;
+}
+
+.md-textfield-icon-trailing {
+  left: 16px;
+}
+
+/* Supporting Text */
+.md-textfield-supporting-text {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 4px;
+  padding: 0 16px;
+  font-family: var(--md-sys-typescale-body-small-font-family-name);
+  font-size: var(--md-sys-typescale-body-small-font-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.md-textfield-helper-text {
+  flex: 1;
+}
+
+.md-textfield-character-counter {
+  flex-shrink: 0;
+}
+
+/* Error State */
+.md-textfield-error .md-textfield-container {
+  border-color: var(--md-sys-color-error) !important;
+}
+
+.md-textfield-error .md-textfield-label {
+  color: var(--md-sys-color-error) !important;
+}
+
+.md-textfield-error .md-textfield-supporting-text {
+  color: var(--md-sys-color-error);
+}
+
+.md-textfield-error .md-textfield-icon {
+  color: var(--md-sys-color-error);
+}
+
+/* Disabled State */
+.md-textfield-disabled .md-textfield-container {
+  background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 4%, transparent);
+  border-color: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent);
+}
+
+.md-textfield-disabled .md-textfield-input {
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  cursor: not-allowed;
+}
+
+.md-textfield-disabled .md-textfield-label {
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+}
+
+.md-textfield-disabled .md-textfield-icon {
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+}
+
+/* Dense Variant */
+.md-textfield-dense .md-textfield-input {
+  padding: 12px 16px;
+}
+
+.md-textfield-dense.md-textfield-filled .md-textfield-input {
+  padding: 20px 16px 6px;
+}
+
+.md-textfield-dense.md-textfield-filled .md-textfield-label {
+  top: 14px;
+}
+
+.md-textfield-dense.md-textfield-filled .md-textfield-input:focus + .md-textfield-label,
+.md-textfield-dense.md-textfield-filled .md-textfield-input:not(:placeholder-shown) + .md-textfield-label {
+  top: 6px;
+}
+
+/* Textarea */
+.md-textfield-textarea .md-textfield-input {
+  resize: vertical;
+  min-height: 56px;
+  font-family: var(--md-sys-typescale-body-large-font-family-name);
+}
+
+/* Search Field */
+.md-textfield-search {
+  border-radius: 28px;
+}
+
+.md-textfield-search .md-textfield-container {
+  border-radius: 28px;
+  background-color: var(--md-sys-color-surface-container-high);
+  border: none;
+}
+
+.md-textfield-search .md-textfield-input {
+  padding: 12px 48px 12px 16px;
+}
+
+.md-textfield-search .md-textfield-icon-leading {
+  right: 16px;
+}
+
+/* Custom Persian Banking Styles */
+.persian-amount-field .md-textfield-input {
+  font-family: 'Vazir', monospace;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.persian-code-field .md-textfield-input {
+  font-family: 'Vazir', monospace;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+/* Focus Ring for Accessibility */
+.md-textfield-container:focus-within {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-textfield-label {
+    transition: none;
+  }
+  
+  .md-textfield-container {
+    transition: none;
+  }
+}
+
+/* Touch Target Optimization */
+@media (max-width: 768px) {
+  .md-textfield-input {
+    min-height: 44px;
+  }
+  
+  .md-textfield-icon {
+    width: 28px;
+    height: 28px;
+  }
+}

@@ -1,0 +1,1186 @@
+@page "/admin/dashboard2"
+@inject NavigationManager NavigationManager
+@inject MiniBank.Web.Services.DatabaseMigrationService Migrator
+@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+@inject HttpClient Http
+@inject IWebHostEnvironment Env
+@inject MiniBank.Web.Infrastructure.Repositories.TrialBalanceRepository TrialBalanceRepo
+@inject MiniBank.Web.Infrastructure.Repositories.LoanInstallmentReminderRepository LoanReminderRepo
+@inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Infrastructure.Repositories.CashFlowBudgetRepository BudgetRepo
+@using MiniBank.Web.Models
+@using System.Text.Json
+
+<section class="baam-dashboard">
+    @if (updateAvailable)
+    {
+        <div class="baam-update-banner">
+            <div class="update-content">
+                <div class="update-icon">
+                    <i class="fa-solid fa-download"></i>
+                </div>
+                <div class="update-text">
+                    <div class="update-title">بروزرسانی در دسترس است</div>
+                    <div class="update-desc">نسخه جدید اپلیکیشن آماده است</div>
+                </div>
+                <button class="update-btn" @onclick="ApplyUpdate">
+                    <i class="fa-solid fa-arrow-down"></i>
+                </button>
+            </div>
+        </div>
+    }
+
+    <div class="overdue-chip-wrap">
+        <a href="/admin/loan-installment-reminders" class="overdue-chip-card @(_balanceLoading ? "is-loading" : "")" title="ورود به صفحه یادآوری اقساط">
+            <div class="overdue-chip-icon">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            <div class="overdue-chip-text">
+                @if (_balanceLoading)
+                {
+                    <span class="overdue-chip-title">یادآوری:</span>
+                    <span class="overdue-chip-desc">در حال بارگذاری...</span>
+                }
+                else if (_overdueBorrowersCount > 0)
+                {
+                    <span class="overdue-chip-title">یادآوری:</span>
+                    <span class="overdue-chip-desc"><b>@_overdueBorrowersCount</b> نفر قسطِ معوق دارند.</span>
+                }
+                else
+                {
+                    <span class="overdue-chip-title">یادآوری:</span>
+                    <span class="overdue-chip-desc">مورد معوقی ثبت نشده است.</span>
+                }
+            </div>
+            <div class="overdue-chip-action">
+                <span>مشاهده</span>
+                <i class="fa-solid fa-chevron-left"></i>
+            </div>
+        </a>
+    </div>
+
+    <div class="balance-cards-row">
+        <div class="balance-card-new balance-card-snap">
+            <div class="card-header">
+                <div class="header-right">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-piggy-bank"></i>
+                    </div>
+                    <div class="card-title">موجودی سپرده اعضا</div>
+                </div>
+                <div class="header-left">
+                    <button class="details-btn" @onclick="ToggleDepositAmounts">
+                        <i class="fa-solid @(_showDepositAmounts ? "fa-eye" : "fa-eye-slash")"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="balance-row">
+                    <span class="balance-label">+خالص اصل سپرده</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showDepositAmounts, PrincipalBalance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">+خالص سودسپرده</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showDepositAmounts, InterestBalance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">=جمع خالص کل سپرده</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showDepositAmounts, TotalBalance))</span>
+                </div>
+
+                <div class="balance-row">
+                    <span class="balance-label">@AnnualYieldText</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : (AnnualYield.ToString("N2") + "%"))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">@TotalYieldText</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : (TotalYield.ToString("N2") + "%"))</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="balance-card-new balance-card-snap">
+            <div class="card-header">
+                <div class="header-right">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-money-check-dollar"></i>
+                    </div>
+                    <div class="card-title">وام پرداختی به اعضا</div>
+                </div>
+                <div class="header-left">
+                    <button class="details-btn" @onclick="ToggleLoanAmounts">
+                        <i class="fa-solid @(_showLoanAmounts ? "fa-eye" : "fa-eye-slash")"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="balance-row">
+                    <span class="balance-label">مانده اصل وام</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showLoanAmounts, LoanPrincipalBalance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">مانده سود وام</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showLoanAmounts, LoanInterestBalance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">مانده کل وام</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showLoanAmounts, LoanTotalBalance))</span>
+                </div>
+
+                <div class="balance-row">
+                    <span class="balance-label">1301 = @LoanPrincipalAccountTitle</span>
+                    <span class="balance-value"></span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">1302 = @LoanInterestAccountTitle</span>
+                    <span class="balance-value"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="balance-card-new balance-card-snap">
+            <div class="card-header">
+                <div class="header-right">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div class="card-title">موجودی سرمایه گذاری بورس</div>
+                </div>
+                <div class="header-left">
+                    <button class="details-btn" @onclick="ToggleBourseAmounts">
+                        <i class="fa-solid @(_showBourseAmounts ? "fa-eye" : "fa-eye-slash")"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="balance-row">
+                    <span class="balance-label">مانده بورس ۱</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showBourseAmounts, Bourse1Balance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">مانده بورس ۲</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showBourseAmounts, Bourse2Balance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">جمع کل سرمایه گذاری بورس</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showBourseAmounts, BourseTotalBalance))</span>
+                </div>
+
+                <div class="balance-row">
+                    <span class="balance-label">120101 = @Bourse1AccountTitle</span>
+                    <span class="balance-value"></span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">120201 = @Bourse2AccountTitle</span>
+                    <span class="balance-value"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="balance-card-new balance-card-snap">
+            <div class="card-header">
+                <div class="header-right">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-coins"></i>
+                    </div>
+                    <div class="card-title">بودجه بندی نقدینگی</div>
+                </div>
+                <div class="header-left" style="gap:5px">
+                    <a href="/admin/cashflow-budget" class="details-btn" title="تنظیم بودجه">
+                        <i class="fa-solid fa-sliders"></i>
+                    </a>
+                    <button class="details-btn" @onclick="ToggleBudgetAmounts">
+                        <i class="fa-solid @(_showBudgetAmounts ? "fa-eye" : "fa-eye-slash")"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-body">
+                @foreach (var b in _budgetItems)
+                {
+                    var isFirst = b == _budgetItems.FirstOrDefault();
+                    <div class="balance-row @(isFirst && IsBudgetLoanOver8PercentOfLoanPrincipal ? "budget-bad" : "budget-ok")">
+                        <span class="balance-label">@b.Title (@b.PercentText)</span>
+                        <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showBudgetAmounts, b.Amount))</span>
+                    </div>
+                }
+                <div class="balance-row">
+                    <span class="balance-label">جمع کل (۱۰۰٪)</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showBudgetAmounts, BudgetTotal))</span>
+                </div>
+
+                <div class="balance-row @(IsBudgetLoanOver8PercentOfLoanPrincipal ? "budget-bad" : "budget-ok")">
+                    <span class="balance-value budget-delta-text budget-delta-autofit @(IsBudgetLoanOver8PercentOfLoanPrincipal ? "budget-bad-text" : "budget-ok-text")">@BudgetLoanDeltaText</span>
+                </div>
+            </div>
+        </div>
+
+        @*
+        <div class="balance-card-new balance-card-snap">
+            <div class="card-header">
+                <div class="header-right">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                    </div>
+                    <div class="card-title">جمع حقوق صاحبان سرمایه</div>
+                </div>
+                <div class="header-left">
+                    <button class="details-btn" @onclick="ToggleEquityAmounts">
+                        <i class="fa-solid @(_showEquityAmounts ? "fa-eye" : "fa-eye-slash")"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="balance-row">
+                    <span class="balance-label">@Equity310101Title</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showEquityAmounts, Equity310101Balance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">@Equity310102Title</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showEquityAmounts, Equity310102Balance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">حقوق صاحبان سرمایه</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showEquityAmounts, EquityCapitalBalance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">سود (زیان) انباشته</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showEquityAmounts, EquityRetainedEarningsBalance))</span>
+                </div>
+                <div class="balance-row">
+                    <span class="balance-label">اندوخته‌ها</span>
+                    <span class="balance-value">@(_balanceLoading ? "..." : DisplayAmount(_showEquityAmounts, EquityReservesBalance))</span>
+                </div>
+            </div>
+        </div>
+        *@
+    </div>
+
+    <!-- Popular Services -->
+    <div class="baam-services-section">
+        <PermittedAnyContent Paths="@(new[] { "/admin/manual-journal-entry-v2", "/admin/manual-journal-entry-v2/history", "/admin/reports/trial-balance", "/admin/reports/financial-statements", "/admin/loans", "/admin/deposit-interest-calc", "/admin/loan-installment-reminders" })">
+            <div class="section-title">خدمات پرکاربرد</div>
+            <div class="services-grid">
+                <PermittedContent Path="/admin/manual-journal-entry-v2">
+                    <a href="/admin/manual-journal-entry-v2" class="service-item green">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-file-invoice"></i>
+                        </div>
+                        <span>صدور سند حسابداری</span>
+                    </a>
+                </PermittedContent>
+                
+                <PermittedContent Path="/admin/reports/trial-balance">
+                    <a href="/admin/reports/trial-balance" class="service-item pink">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-balance-scale"></i>
+                        </div>
+                        <span>مرور حسابها</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/reports/financial-statements">
+                    <a href="/admin/reports/financial-statements" class="service-item purple">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </div>
+                        <span>صورت های مالی</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/loans">
+                    <a href="/admin/loans" class="service-item orange">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-money-check-dollar"></i>
+                        </div>
+                        <span>وام‌ها</span>
+                    </a>
+                </PermittedContent>
+                
+                <PermittedContent Path="/admin/deposit-interest-calc">
+                    <a href="/admin/deposit-interest-calc" class="service-item blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-calculator"></i>
+                        </div>
+                        <span>محاسبه سود</span>
+                    </a>
+                </PermittedContent>
+
+                <PermittedContent Path="/admin/loan-installment-reminders">
+                    <a href="/admin/loan-installment-reminders" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-bell"></i>
+                        </div>
+                        <span>یادآوری اقساط</span>
+                    </a>
+                </PermittedContent>
+            </div>
+        </PermittedAnyContent>
+
+        <PermittedAnyContent Paths="@(new[] { "/admin/members", "/admin/households" })">
+            <div class="section-title" style="margin-top: 14px;">کاربران</div>
+            <div class="services-grid" style="margin-top: 12px;">
+                <PermittedContent Path="/admin/members">
+                    <a href="admin/members" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <span>مدیریت کاربران</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/households">
+                    <a href="/admin/households" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-house-user"></i>
+                        </div>
+                        <span>مدیریت خانوار</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/online-users">
+                    <a href="/admin/online-users" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-signal"></i>
+                        </div>
+                        <span>کاربران آنلاین</span>
+                    </a>
+                </PermittedContent>
+            </div>
+        </PermittedAnyContent>
+
+        <PermittedAnyContent Paths="@(new[] { "/admin/auth/users", "/admin/auth/roles" })">
+            <div class="section-title" style="margin-top: 14px;">مدیریت دسترسی‌ها</div>
+            <div class="services-grid" style="margin-top: 12px;">
+                <PermittedContent Path="/admin/auth/users">
+                    <a href="/admin/auth/users" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <span>کاربران سیستم</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/auth/roles">
+                    <a href="/admin/auth/roles" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <span>نقش‌ها و دسترسی‌ها</span>
+                    </a>
+                </PermittedContent>
+            </div>
+        </PermittedAnyContent>
+    </div>
+
+  
+
+    <!-- Account Services -->
+    <div class="baam-services-section">
+        <PermittedAnyContent Paths="@(new[] { "/admin/deposit-types", "/admin/loan-rates", "/admin/loans" })">
+            <div class="section-title">خدمات حساب</div>
+            <div class="services-grid">
+                <PermittedContent Path="/admin/deposit-types">
+                    <a href="/admin/deposit-types" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-piggy-bank"></i>
+                        </div>
+                        <span>نرخ سود سپرده</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/loan-rates">
+                    <a href="/admin/loan-rates" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-hand-holding-dollar"></i>
+                        </div>
+                        <span>نرخ سود وام</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/loans">
+                    <a href="/admin/loans" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-money-check-dollar"></i>
+                        </div>
+                        <span>وام‌ها</span>
+                    </a>
+                </PermittedContent>
+            </div>
+        </PermittedAnyContent>
+    </div>
+
+
+  
+
+
+
+
+    <!-- Card Services -->
+    <div class="baam-services-section">
+        <PermittedAnyContent Paths="@(new[] { "/admin/account-types", "/admin/kol", "/admin/moeen", "/admin/subsidiary", "/admin/posting-templates", "/admin/manual-journal-entry-v2", "/admin/manual-journal-entry-v2/history", "/admin/reports/finalize-journals", "/admin/accounting/profit-loss" })">
+            <div class="section-title">عملیات حسابداری</div>
+            <div class="services-grid">
+                <PermittedContent Path="/admin/account-types">
+                    <a href="/admin/account-types" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-layer-group"></i>
+                        </div>
+                        <span>گروه حساب</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/kol">
+                    <a href="/admin/kol" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-list"></i>
+                        </div>
+                        <span>کل</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/moeen">
+                    <a href="/admin/moeen" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-sitemap"></i>
+                        </div>
+                        <span>معین</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/subsidiary">
+                    <a href="/admin/subsidiary" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-indent"></i>
+                        </div>
+                        <span>تفضیلی</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/posting-templates">
+                    <a href="/admin/posting-templates" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-diagram-project"></i>
+                        </div>
+                        <span>الگوی حساب</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/manual-journal-entry-v2">
+                    <a href="/admin/manual-journal-entry-v2" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-file-invoice"></i>
+                        </div>
+                        <span>صدور سند دستی</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/manual-journal-entry-v2/history">
+                    <a href="/admin/manual-journal-entry-v2/history" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <span>تاریخچه صدور سند</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/reports/finalize-journals">
+                    <a href="/admin/reports/finalize-journals" class="service-item green">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-check-double"></i>
+                        </div>
+                        <span>تبدیل قطعی اسناد</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/accounting/profit-loss">
+                    <a href="/admin/accounting/profit-loss" class="service-item purple">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                        </div>
+                        <span>سند سود و زیان</span>
+                    </a>
+                </PermittedContent>
+            </div>
+        </PermittedAnyContent>
+    </div>
+
+    <div class="baam-services-section">
+        <PermittedAnyContent Paths="@(new[] { "/admin/fiscal-years", "/admin/fiscal-years/closing/*", "/admin/fiscal-years/opening/*" })">
+            <div class="section-title">سال مالی</div>
+            @if (_fyStatus != null)
+            {
+                <div class="fy2-status">
+                    <div class="fy2-icon @(_fyStatus.IsClosed ? "closed" : "open")">
+                        <i class="fa-solid @(_fyStatus.IsClosed ? "fa-lock" : "fa-lock-open")"></i>
+                    </div>
+                    <div class="fy2-info">
+                        <div class="fy2-title">@_fyStatus.Title</div>
+                        <div class="fy2-sub">@_fyStatus.YearCode</div>
+                    </div>
+                    <span class="fy2-badge @(_fyStatus.IsClosed ? "badge-closed" : "badge-open")">
+                        @(_fyStatus.IsClosed ? "بسته" : "باز")
+                    </span>
+                </div>
+            }
+            <div class="services-grid" style="margin-top: 8px;">
+                <PermittedContent Path="/admin/fiscal-years">
+                    <a href="/admin/fiscal-years" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-calendar"></i>
+                        </div>
+                        <span>سال‌های مالی</span>
+                    </a>
+                </PermittedContent>
+            </div>
+        </PermittedAnyContent>
+    </div>
+
+    <div class="baam-services-section">
+        <PermittedAnyContent Paths="@(new[] { "/admin/reports/loans", "/admin/reports/whatsapp-shares" })">
+            <div class="section-title">گزارشات</div>
+            <div class="services-grid">
+                <PermittedContent Path="/admin/reports/loans">
+                    <a href="/admin/reports/loans" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
+                        <span>گزارش وام‌ها</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/reports/whatsapp-shares">
+                    <a href="/admin/reports/whatsapp-shares" class="service-item orange">
+                        <div class="service-icon">
+                            <i class="fa-brands fa-whatsapp"></i>
+                        </div>
+                        <span>گزارش واتساپ</span>
+                    </a>
+                </PermittedContent>
+            </div>
+        </PermittedAnyContent>
+    </div>
+
+
+    <!-- Facilities Services -->
+    <div class="baam-services-section">
+        <PermittedAnyContent Paths="@(new[] { "/admin/settings", "/admin/sms-panel", "/admin/sms-reports", "/admin/db-backups" })">
+            <div class="section-title">تنظیمات سامانه</div>
+            <div class="services-grid">
+                <PermittedContent Path="/admin/settings">
+                    <a href="/admin/settings" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-cog"></i>
+                        </div>
+                        <span>تنظیمات</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/db-backups">
+                    <a href="/admin/db-backups" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-database"></i>
+                        </div>
+                        <span>پشتیبان‌گیری دیتابیس</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/sms-panel">
+                    <a href="/admin/sms-panel" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-message"></i>
+                        </div>
+                        <span>پنل پیامک</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/sms-reports">
+                    <a href="/admin/sms-reports" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </div>
+                        <span>گزارش پیامک‌ها</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/dashboard">
+                    <a href="/dashboard" class="service-item green">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <span>داشبورد اعضا</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/my-profile">
+                    <a href="/admin/my-profile" class="service-item light-blue">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <span>پروفایل کاربری</span>
+                    </a>
+                </PermittedContent>
+            </div>
+        </PermittedAnyContent>
+    </div>
+
+    @* Curved Navigation Bar Disabled *@
+    @* <CurvedNavigationBar Items="@navigationItems" 
+                        ActiveIndex="@activeNavIndex" 
+                        OnActiveIndexChanged="@OnNavigationChanged" 
+                        OnItemSelected="@OnNavigationItemSelected" /> *@
+</section>
+
+<script>
+    (function () {
+        function fitOne(el, minPx, maxPx) {
+            if (!el) return;
+            var parent = el.parentElement;
+            if (!parent) return;
+
+            el.style.whiteSpace = 'nowrap';
+
+            var max = maxPx || 16;
+            var min = minPx || 10;
+            var size = max;
+            var parentRect = parent.getBoundingClientRect();
+            var parentStyle = window.getComputedStyle(parent);
+            var padL = parseFloat(parentStyle.paddingLeft) || 0;
+            var padR = parseFloat(parentStyle.paddingRight) || 0;
+            var available = Math.max(0, parentRect.width - padL - padR - 10);
+
+            el.style.setProperty('font-size', size + 'px', 'important');
+
+            var guard = 0;
+            while (guard++ < 40 && el.scrollWidth > available && size > min) {
+                size -= 1;
+                el.style.setProperty('font-size', size + 'px', 'important');
+            }
+
+            guard = 0;
+            while (guard++ < 40 && el.scrollWidth <= available - 6 && size < max) {
+                size += 1;
+                el.style.setProperty('font-size', size + 'px', 'important');
+                if (el.scrollWidth > available) {
+                    size -= 1;
+                    el.style.setProperty('font-size', size + 'px', 'important');
+                    break;
+                }
+            }
+        }
+
+        window.baamBudgetDeltaFitAll = function () {
+            var els = document.querySelectorAll('.budget-delta-autofit');
+            els.forEach(function (el) {
+                fitOne(el, 8, 13);
+            });
+        };
+
+        var _initDone = false;
+        var _resizeTimer = 0;
+        window.baamBudgetDeltaInit = function () {
+            if (_initDone) return;
+            _initDone = true;
+
+            window.addEventListener('resize', function () {
+                clearTimeout(_resizeTimer);
+                _resizeTimer = setTimeout(function () {
+                    window.baamBudgetDeltaFitAll();
+                }, 150);
+            });
+        };
+    })();
+</script>
+
+<style>
+    .balance-cards-row {
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
+        padding: 0 2px;
+    }
+
+    .balance-card-snap {
+        scroll-snap-align: start;
+        flex: 0 0 360px;
+    }
+
+    @@media (max-width: 768px) {
+        .balance-cards-row {
+            gap: 10px;
+        }
+
+        .balance-card-snap {
+            flex: 0 0 100%;
+        }
+    }
+</style>
+
+@code {
+    private bool updateAvailable = false;
+    private string? serverVersion;
+    private string? serverVersionDate;
+    private List<string> serverNotes = new();
+    private string? currentVersion;
+    private string? currentVersionDate;
+    private List<string> currentNotes = new();
+
+    private bool _balanceLoading;
+    private bool _showDepositAmounts = true;
+    private bool _showLoanAmounts = true;
+    private bool _showBourseAmounts = true;
+    private bool _showBudgetAmounts = true;
+    private bool _showEquityAmounts = true;
+    private decimal PrincipalBalance;
+    private decimal InterestBalance;
+    private decimal TotalBalance;
+
+    private string DepositPrincipalAccountTitle = "-";
+    private string DepositInterestAccountTitle = "-";
+
+    private decimal LoanPrincipalBalance;
+    private decimal LoanInterestBalance;
+    private decimal LoanTotalBalance;
+
+    private string LoanPrincipalAccountTitle = "-";
+    private string LoanInterestAccountTitle = "-";
+
+    private decimal Bourse1Balance;
+    private decimal Bourse2Balance;
+    private decimal BourseTotalBalance;
+
+    private string Bourse1AccountTitle = "-";
+    private string Bourse2AccountTitle = "-";
+
+    private List<BudgetItemVm> _budgetItems = new();
+    private decimal BudgetTotal;
+
+    private decimal AnnualYield;
+    private decimal TotalYield;
+    private string AnnualYieldText = "بازده سالانه (یکسال اخیر)";
+    private string TotalYieldText = "بازده کل";
+
+
+    // If true => budget is over loan principal (negative delta)
+    private bool IsBudgetLoanOver8PercentOfLoanPrincipal;
+    private string BudgetLoanDeltaText = string.Empty;
+
+    private string Equity310101Title = "تفضیلی ۳۱۰۱۰۱";
+    private string Equity310102Title = "-";
+    private decimal Equity310101Balance;
+    private decimal Equity310102Balance;
+    private decimal EquityCapitalBalance;
+    private decimal EquityRetainedEarningsBalance;
+    private decimal EquityReservesBalance;
+    private FiscalYear? _fyStatus;
+
+    // Navigation Configuration
+    private int activeNavIndex = 2; // Default to center item (تسهیلات)
+    private List<CurvedNavigationItem> navigationItems = new();
+
+    protected override void OnInitialized()
+    {
+        InitializeNavigationItems();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _balanceLoading = true;
+        await InvokeAsync(StateHasChanged);
+
+        await Task.WhenAll(
+            LoadBalanceCardAsync(),
+            LoadOverdueBorrowersChipAsync(),
+            LoadFyStatusAsync());
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadFyStatusAsync()
+    {
+        try { _fyStatus = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.UtcNow); } catch { }
+    }
+
+    private int _overdueBorrowersCount;
+
+    private async Task LoadOverdueBorrowersChipAsync()
+    {
+        try
+        {
+            _overdueBorrowersCount = await LoanReminderRepo.CountOverdueBorrowersAsync();
+        }
+        catch
+        {
+            _overdueBorrowersCount = 0;
+        }
+    }
+
+    private async Task LoadBalanceCardAsync()
+    {
+        try
+        {
+            // loading flag is managed by caller to avoid multiple renders
+
+            // 2201: اصل سپرده (معین)
+            // 2202: سود سپرده (معین)
+            var principal = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("2201");
+            var interest = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("2202");
+
+            // 1301: اصل وام (معین)
+            // 1302: سود وام (معین)
+            var loanPrincipal = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("1301");
+            var loanInterest = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("1302");
+
+            // 1201: سرمایه گذاری بورس (معین)
+            // 120101: بورس 1 (تفضیلی)
+            // 120201: بورس 2 (تفضیلی)
+            var bourse1 = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("120101");
+            var bourse2 = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("120201");
+
+            var equity310101 = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("310101");
+            var equity310102 = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("310102");
+            var equityCapital = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("3101");
+            var equityRE1 = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("3102");
+            var equityRE2 = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("3302");
+            decimal resVal = 0;
+            var level1Accounts = (await TrialBalanceRepo.GetByLevelAsync(1, null, false, null, null, null)).ToList();
+            var equityRoot = level1Accounts.FirstOrDefault(x => x.AccountType == 3);
+            if (equityRoot != null)
+            {
+                var equityLevel2 = (await TrialBalanceRepo.GetChildrenAsync(equityRoot.AccountId, null, null, null))
+                    .Where(x => x.AccountType == 3 && x.Level == 2)
+                    .OrderBy(x => x.Code)
+                    .ToList();
+                var reservesNode = equityLevel2.FirstOrDefault(c =>
+                    c.Code.StartsWith("3304") || c.Name.Contains("اندوخته"));
+                if (reservesNode != null)
+                    resVal = ToPositive(ComputeDisplayNet(reservesNode.AccountType, reservesNode.DebitBalance, reservesNode.CreditBalance));
+            }
+
+            PrincipalBalance = principal is null ? 0 : ComputeDisplayNet(principal.AccountType, principal.DebitBalance, principal.CreditBalance);
+            InterestBalance = interest is null ? 0 : ComputeDisplayNet(interest.AccountType, interest.DebitBalance, interest.CreditBalance);
+            TotalBalance = PrincipalBalance + InterestBalance;
+
+            var dbBudget = await BudgetRepo.GetAllAsync();
+            _budgetItems = dbBudget.Select(x => new BudgetItemVm
+            {
+                Title = x.Title,
+                Percentage = x.Percentage,
+                PercentText = $"{x.Percentage:0.#}%",
+                Amount = 0
+            }).ToList();
+
+            DepositPrincipalAccountTitle = await GetAccountTitleByAccountIdAsync(principal?.AccountId) ?? "-";
+            DepositInterestAccountTitle = await GetAccountTitleByAccountIdAsync(interest?.AccountId) ?? "-";
+
+            LoanPrincipalBalance = loanPrincipal is null ? 0 : ComputeDisplayNet(loanPrincipal.AccountType, loanPrincipal.DebitBalance, loanPrincipal.CreditBalance);
+            LoanInterestBalance = loanInterest is null ? 0 : ComputeDisplayNet(loanInterest.AccountType, loanInterest.DebitBalance, loanInterest.CreditBalance);
+            LoanTotalBalance = LoanPrincipalBalance + LoanInterestBalance;
+
+            LoanPrincipalAccountTitle = await GetAccountTitleByAccountIdAsync(loanPrincipal?.AccountId) ?? "-";
+            LoanInterestAccountTitle = await GetAccountTitleByAccountIdAsync(loanInterest?.AccountId) ?? "-";
+
+            Bourse1Balance = bourse1 is null ? 0 : ComputeDisplayNet(bourse1.AccountType, bourse1.DebitBalance, bourse1.CreditBalance);
+            Bourse2Balance = bourse2 is null ? 0 : ComputeDisplayNet(bourse2.AccountType, bourse2.DebitBalance, bourse2.CreditBalance);
+            BourseTotalBalance = Bourse1Balance + Bourse2Balance;
+
+            Bourse1AccountTitle = await GetAccountTitleByAccountIdAsync(bourse1?.AccountId) ?? "-";
+            Bourse2AccountTitle = await GetAccountTitleByAccountIdAsync(bourse2?.AccountId) ?? "-";
+
+            BudgetTotal = 0;
+            foreach (var b in _budgetItems)
+            {
+                b.Amount = decimal.Round(TotalBalance * b.Percentage / 100m, 0, MidpointRounding.AwayFromZero);
+                BudgetTotal += b.Amount;
+            }
+
+            var firstBudget = _budgetItems.FirstOrDefault();
+            var budgetDelta = (firstBudget?.Amount ?? 0) - LoanPrincipalBalance;
+            IsBudgetLoanOver8PercentOfLoanPrincipal = budgetDelta < 0;
+            var budgetDeltaAbs = ToPositive(budgetDelta);
+            if (IsBudgetLoanOver8PercentOfLoanPrincipal)
+                BudgetLoanDeltaText = $"بودجه وام {budgetDeltaAbs.ToString("N0")} ریال منفی است";
+            else
+                BudgetLoanDeltaText = $"بودجه وام {budgetDeltaAbs.ToString("N0")} ریال مثبت است";
+
+            Equity310101Balance = equity310101 is null ? 0 : ToPositive(ComputeDisplayNet(equity310101.AccountType, equity310101.DebitBalance, equity310101.CreditBalance));
+            Equity310102Balance = equity310102 is null ? 0 : ToPositive(ComputeDisplayNet(equity310102.AccountType, equity310102.DebitBalance, equity310102.CreditBalance));
+
+            var capitalVal = equityCapital is null ? 0 : ToPositive(ComputeDisplayNet(equityCapital.AccountType, equityCapital.DebitBalance, equityCapital.CreditBalance));
+            var re1Val = equityRE1 is null ? 0 : ToPositive(ComputeDisplayNet(equityRE1.AccountType, equityRE1.DebitBalance, equityRE1.CreditBalance));
+            var re2Val = equityRE2 is null ? 0 : ToPositive(ComputeDisplayNet(equityRE2.AccountType, equityRE2.DebitBalance, equityRE2.CreditBalance));
+
+            EquityCapitalBalance = capitalVal;
+            EquityRetainedEarningsBalance = re1Val + re2Val;
+            EquityReservesBalance = resVal;
+
+            Equity310102Title = await GetAccountTitleByAccountIdAsync(equity310102?.AccountId) ?? "-";
+            Equity310101Title = await GetAccountTitleByAccountIdAsync(equity310101?.AccountId) ?? "تفضیلی ۳۱۰۱۰۱";
+
+            // محاسبه بازده‌ها
+            var oneYearAgo = DateTime.Today.AddYears(-1);
+            var lastYearInterest = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("2202", from: oneYearAgo);
+            var lastYearInterestVal = lastYearInterest is null ? 0 : ComputeDisplayNet(lastYearInterest.AccountType, lastYearInterest.DebitBalance, lastYearInterest.CreditBalance);
+            
+            AnnualYield = PrincipalBalance > 0 ? (lastYearInterestVal / PrincipalBalance) * 100 : 0;
+            TotalYield = PrincipalBalance > 0 ? (InterestBalance / PrincipalBalance) * 100 : 0;
+        }
+        catch (Exception ex)
+        {
+            PrincipalBalance = 0;
+            InterestBalance = 0;
+            TotalBalance = 0;
+
+            DepositPrincipalAccountTitle = "-";
+            DepositInterestAccountTitle = "-";
+
+            LoanPrincipalBalance = 0;
+            LoanInterestBalance = 0;
+            LoanTotalBalance = 0;
+
+            LoanPrincipalAccountTitle = "-";
+            LoanInterestAccountTitle = "-";
+
+            Bourse1Balance = 0;
+            Bourse2Balance = 0;
+            BourseTotalBalance = 0;
+
+            Bourse1AccountTitle = "-";
+            Bourse2AccountTitle = "-";
+
+            _budgetItems.Clear();
+            BudgetTotal = 0;
+
+            IsBudgetLoanOver8PercentOfLoanPrincipal = false;
+            BudgetLoanDeltaText = string.Empty;
+
+            Equity310101Title = "تفضیلی ۳۱۰۱۰۱";
+            Equity310102Title = "-";
+            Equity310101Balance = 0;
+            Equity310102Balance = 0;
+            EquityCapitalBalance = 0;
+            EquityRetainedEarningsBalance = 0;
+            EquityReservesBalance = 0;
+            Toasts.Error($"خطا در محاسبه موجودی صندوق: {ex.Message}");
+        }
+        finally
+        {
+            _balanceLoading = false;
+        }
+    }
+
+    private decimal ComputeDisplayNet(byte accountType, decimal debit, decimal credit)
+    {
+        var net = debit - credit;
+        if (accountType == 2 || accountType == 3 || accountType == 4)
+            net = -net;
+        return net;
+    }
+
+    private static string DisplayAmount(bool show, decimal value)
+    {
+        return show ? value.ToString("N0") : "•••";
+    }
+
+    private void ToggleDepositAmounts() { _showDepositAmounts = !_showDepositAmounts; }
+    private void ToggleLoanAmounts() { _showLoanAmounts = !_showLoanAmounts; }
+    private void ToggleBourseAmounts() { _showBourseAmounts = !_showBourseAmounts; }
+    private void ToggleBudgetAmounts() { _showBudgetAmounts = !_showBudgetAmounts; }
+    private void ToggleEquityAmounts() { _showEquityAmounts = !_showEquityAmounts; }
+
+    private static decimal ToPositive(decimal v)
+    {
+        return v < 0 ? -v : v;
+    }
+
+    private async Task<string?> GetAccountTitleByAccountIdAsync(long? accountId)
+    {
+        if (!accountId.HasValue || accountId.Value <= 0) return null;
+        try
+        {
+            var d = await TrialBalanceRepo.GetAccountDisplayByIdAsync(accountId.Value);
+            if (!d.HasValue) return null;
+            return string.IsNullOrWhiteSpace(d.Value.Name) ? null : d.Value.Name;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void InitializeNavigationItems()
+    {
+        navigationItems = new List<CurvedNavigationItem>
+        {
+            new CurvedNavigationItem
+            {
+                Icon = @<i class="fa-solid fa-credit-card"></i>,
+                Label = "کارت‌ها",
+                Route = "/admin/cards"
+            },
+            new CurvedNavigationItem
+            {
+                Icon = @<i class="fa-solid fa-folder"></i>,
+                Label = "حساب‌ها",
+                Route = "/admin/accounts"
+            },
+            new CurvedNavigationItem
+            {
+                Icon = @<i class="fa-solid fa-home"></i>,
+                Label = "تسهیلات",
+                Route = "/admin/dashboard2"
+            },
+            new CurvedNavigationItem
+            {
+                Icon = @<i class="fa-solid fa-user"></i>,
+                Label = "پروفایل",
+                Route = "/admin/profile"
+            },
+            new CurvedNavigationItem
+            {
+                Icon = @<i class="fa-solid fa-calculator"></i>,
+                Label = "محاسبه‌گر",
+                Route = "/admin/calculator"
+            }
+        };
+    }
+
+    private async Task OnNavigationChanged(int newIndex)
+    {
+        activeNavIndex = newIndex;
+        StateHasChanged();
+    }
+
+    private async Task OnNavigationItemSelected(CurvedNavigationItem item)
+    {
+        // Handle navigation to different routes
+        if (!string.IsNullOrEmpty(item.Route))
+        {
+            NavigationManager.NavigateTo(item.Route);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                // Avoid PWA service worker registration and version checks in Development to prevent caching issues
+                if (!Env.IsDevelopment())
+                {
+                    await JS.InvokeVoidAsync("SWUpdate.register", DotNetObjectReference.Create(this));
+                    _ = LoadVersionAsync();
+                    _ = LoadLocalVersionAsync();
+                }
+            }
+            catch { }
+
+            try
+            {
+                await JS.InvokeVoidAsync("baamBudgetDeltaInit");
+            }
+            catch { }
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("baamBudgetDeltaFitAll");
+        }
+        catch { }
+    }
+
+    [JSInvokable("OnUpdateAvailable")]
+    public void OnUpdateAvailable()
+    {
+        updateAvailable = true;
+        _ = LoadVersionAsync();
+        StateHasChanged();
+    }
+
+    private async Task ApplyUpdate()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("SWUpdate.apply");
+            Toasts.Info("در حال اعمال بروزرسانی...");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"اعمال بروزرسانی با خطا مواجه شد: {ex.Message}");
+        }
+    }
+
+    private async Task LoadVersionAsync()
+    {
+        try
+        {
+            // Cache-busting to ensure we fetch the latest version.json when SW indicates update
+            var url = $"/version.json?t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            using var resp = await Http.GetAsync(url);
+            resp.EnsureSuccessStatusCode();
+            var json = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            serverVersion = doc.RootElement.TryGetProperty("version", out var v) ? v.GetString() : null;
+            serverVersionDate = doc.RootElement.TryGetProperty("date", out var d) ? d.GetString() : null;
+            if (doc.RootElement.TryGetProperty("notes", out var notesElement) && notesElement.ValueKind == JsonValueKind.Array)
+            {
+                serverNotes = notesElement.EnumerateArray().Select(x => x.GetString() ?? string.Empty).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            }
+            StateHasChanged();
+        }
+        catch { /* ignore */ }
+    }
+    private async Task LoadLocalVersionAsync()
+    {
+        try
+        {
+            var local = await JS.InvokeAsync<LocalVersion>("SWUpdate.getLocalVersion");
+            currentVersion = local?.version;
+            currentVersionDate = local?.date;
+            currentNotes = local?.notes ?? new List<string>();
+            StateHasChanged();
+        }
+        catch { /* ignore */ }
+    }
+
+    private class LocalVersion
+    {
+        public string? version { get; set; }
+        public string? date { get; set; }
+        public List<string> notes { get; set; } = new();
+    }
+    private async Task RebuildDb()
+    {
+        try
+        {
+            Loading?.Show("بانک اطلاعاتی", "در حال اجرای اسکریپت و بازسازی جداول...", "fa-solid fa-database");
+            // اجرای سیستم متمرکز مهاجرت: کلیه فایل‌های پوشه database به ترتیب نام اعمال می‌شوند
+            await Migrator.ApplyMigrationsAsync();
+            Toasts.Success("مهاجرت/بازسازی بانک با موفقیت انجام شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بازسازی بانک: {ex.Message}");
+        }
+        finally
+        {
+            Loading?.Hide();
+        }
+    }
+
+    private void NavigateToReceipts()
+    {
+        NavigationManager.NavigateTo("/admin/receipts/household-wizard");
+    }
+
+    private void NavigateToMembers()
+    {
+        NavigationManager.NavigateTo("/admin/members");
+    }
+
+    private void NavigateToReports()
+    {
+        NavigationManager.NavigateTo("/admin/reports/trial-balance");
+    }
+
+    private void NavigateToHouseholds()
+    {
+        NavigationManager.NavigateTo("/admin/households");
+    }
+
+    private class BudgetItemVm
+    {
+        public string Title { get; set; } = "";
+        public decimal Percentage { get; set; }
+        public string PercentText { get; set; } = "";
+        public decimal Amount { get; set; }
+    }
+}

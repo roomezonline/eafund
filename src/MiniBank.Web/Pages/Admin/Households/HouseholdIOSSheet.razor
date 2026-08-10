@@ -1,0 +1,384 @@
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Services.HouseholdService HouseholdService
+@inject MiniBank.Web.Services.MemberService MemberService
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+
+@if (_isVisible)
+{
+  <div class="ios-sheet-overlay visible" @onclick="HandleOverlayClick">
+    <div class="ios-sheet open" @onclick:stopPropagation="true">
+      <!-- Handle Bar -->
+      <div class="ios-handle"></div>
+      
+      <!-- Header -->
+      <div class="ios-header">
+        <button class="ios-cancel" @onclick="Cancel">لغو</button>
+        <h2 class="ios-title">@(IsNew ? "خانوار جدید" : "ویرایش خانوار")</h2>
+        <div class="hdr-actions">
+          @if (!IsNew)
+          {
+            <button class="ios-delete" title="حذف" @onclick="OnDeleteClick">حذف</button>
+          }
+          <button class="ios-done" @onclick="OnConfirm">
+            @if (_isSaving)
+            {
+              <div class="ios-spinner"></div>
+            }
+            else
+            {
+              <span>تایید</span>
+            }
+          </button>
+        </div>
+      </div>
+
+      <DsConfirm Show="_showDeleteConfirm"
+                 Title="@_deleteTitle"
+                 Message="@_deleteMessage"
+                 Variant="danger"
+                 ConfirmText="حذف"
+                 CancelText="لغو"
+                 OnConfirm="ConfirmDelete"
+                 OnCancel="CancelDelete" />
+
+      <!-- Content -->
+      <div class="ios-content">
+        <div class="ios-form-section">
+          <div class="ios-form-header">
+            <i class="fa-solid fa-info-circle"></i>
+            <span>اطلاعات خانوار</span>
+          </div>
+          
+          <div class="ios-form-group">
+            <div class="ios-field">
+              <label class="field-label">کد خانوار</label>
+              <input type="tel" 
+                     @ref="_codeInput"
+                     @bind="Model.HouseholdCode" 
+                     @oninput="OnCodeInput"
+                     placeholder="مثال: 1001"
+                     class="ios-input center-text @(_codeError ? "error" : "")"
+                     maxlength="10"
+                     inputmode="numeric"
+                     pattern="[0-9]*"
+                     autocomplete="one-time-code" />
+              @if (_codeError)
+              {
+                <div class="field-error">@_codeErrorText</div>
+              }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">نام خانوار</label>
+              <input type="text" 
+                     @ref="_nameInput"
+                     @bind="Model.Name" 
+                     @oninput="OnNameInput"
+                     placeholder="نام خانوادگی یا عنوان"
+                     class="ios-input center-text @(_nameError ? "error" : "")"
+                     maxlength="100" />
+              @if (_nameError)
+              {
+                <div class="field-error">@_nameErrorText</div>
+              }
+            </div>
+
+            @if (!IsNew)
+            {
+              <div class="ios-field">
+                <label class="field-label">اعضای این خانوار</label>
+                @if (_membersLoading)
+                {
+                  <div class="loading-state" style="text-align:center; color: var(--muted, #6b7280);">
+                    <div class="loading-spinner" style="margin:6px auto;"></div>
+                    <div>در حال دریافت اعضا...</div>
+                  </div>
+                }
+                else if (!_members.Any())
+                {
+                  <div class="ios-input" style="text-align:center; background:transparent; border:none; color: var(--muted, #6b7280);">عضوی ثبت نشده است</div>
+                }
+                else
+                {
+                  <div style="display:grid; gap:6px;">
+                    @{ 
+                       var i = 1; 
+                       var ordered = _members
+                         .OrderByDescending(m => Model?.OwnerMemberId.HasValue == true && Model.OwnerMemberId.Value == m.MemberId)
+                         .ThenBy(m => m.MemberId);
+                    }
+                    @foreach (var m in ordered)
+                    {
+                      var isHead = Model?.OwnerMemberId.HasValue == true && Model.OwnerMemberId.Value == m.MemberId;
+                      <div class="hh-member-row @(isHead ? "head" : null)" style="display:grid; grid-template-columns: 28px 1fr auto; align-items:center; gap:8px; padding:8px 10px; border-radius:10px;">
+                        <div class="hh-member-index">@i</div>
+                        <div class="hh-member-name" title="@m.FullName">
+                          @m.FullName
+                          @if (isHead)
+                          {
+                            <span class="hh-badge-head">سرخانوار</span>
+                          }
+                        </div>
+                        <div class="hh-member-code">@(string.IsNullOrWhiteSpace(m.NationalCode) ? "—" : m.NationalCode)</div>
+                      </div>
+                      i++;
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            <div class="ios-toggle-row">
+              <div class="ios-toggle-label">
+                <i class="fa-solid fa-toggle-on"></i>
+                <div>
+                  <span class="ios-toggle-title">وضعیت فعال</span>
+                  <span class="ios-toggle-subtitle">خانوار در سیستم فعال باشد</span>
+                </div>
+              </div>
+              <label class="ios-toggle">
+                <input type="checkbox" @bind="Model.IsActive" />
+                <span class="ios-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+    [Parameter] public Household Model { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+    [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+    private ElementReference _codeInput;
+    private ElementReference _nameInput;
+    private bool _isVisible = false;
+    private bool _isSaving = false;
+    private bool _codeError;
+    private bool _nameError;
+    private string? _codeErrorText;
+    private string? _nameErrorText;
+    private List<Member> _members = new();
+    private bool _membersLoading;
+    private bool _showDeleteConfirm;
+    private string? _deleteError;
+    private string _deleteTitle = "تایید حذف خانوار";
+    private string _deleteMessage = "آیا از حذف این خانوار اطمینان دارید؟ این عملیات غیرقابل بازگشت است.";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Set default active status for new households
+            if (IsNew)
+            {
+                Model.IsActive = true;
+            }
+            
+            // Start invisible, then animate in
+            await Task.Delay(50);
+            _isVisible = true;
+            StateHasChanged();
+            if (!IsNew && Model.HouseholdId > 0)
+            {
+                await LoadMembersAsync();
+            }
+        }
+    }
+
+    private void OnCodeInput()
+    {
+        // Keep only digits and enforce max length 10
+        if (!string.IsNullOrEmpty(Model.HouseholdCode))
+        {
+            var digits = new string(Model.HouseholdCode.Where(char.IsDigit).ToArray());
+            if (digits.Length > 10) digits = digits.Substring(0, 10);
+            if (!string.Equals(digits, Model.HouseholdCode, StringComparison.Ordinal))
+            {
+                Model.HouseholdCode = digits;
+            }
+        }
+
+        if (_codeError)
+        {
+            _codeError = false;
+            _codeErrorText = null;
+            StateHasChanged();
+        }
+    }
+
+    private void OnNameInput()
+    {
+        if (_nameError)
+        {
+            _nameError = false;
+            _nameErrorText = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnConfirm()
+    {
+        if (_isSaving) return;
+
+        // Reset previous errors
+        _codeError = false;
+        _nameError = false;
+        _codeErrorText = null;
+        _nameErrorText = null;
+
+        // Validate on submit
+        var hasError = false;
+
+        if (string.IsNullOrWhiteSpace(Model.HouseholdCode))
+        {
+            _codeError = true;
+            _codeErrorText = "کد خانوار الزامی است";
+            hasError = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(Model.Name) || Model.Name.Length < 2)
+        {
+            _nameError = true;
+            _nameErrorText = "نام خانوار باید حداقل 2 کاراکتر باشد";
+            hasError = true;
+        }
+
+        if (hasError)
+        {
+            // Focus first error field
+            if (_codeError)
+                await _codeInput.FocusAsync();
+            else if (_nameError)
+                await _nameInput.FocusAsync();
+            
+            StateHasChanged();
+            return;
+        }
+
+        _isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            if (IsNew)
+            {
+                var id = await HouseholdService.CreateAsync(Model);
+                Model.HouseholdId = id;
+            }
+            else
+            {
+                await HouseholdService.UpdateAsync(Model);
+            }
+            
+            await CloseSheet(true);
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره: {ex.Message}");
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Cancel()
+    {
+        await CloseSheet(false);
+    }
+
+    private async Task HandleOverlayClick()
+    {
+        await CloseSheet(false);
+    }
+
+    private async Task CloseSheet(bool success)
+    {
+        _isVisible = false;
+        StateHasChanged();
+        
+        await Task.Delay(300); // Wait for animation
+        await OnClose.InvokeAsync(success);
+    }
+
+    private async Task LoadMembersAsync()
+    {
+        try
+        {
+            _membersLoading = true; StateHasChanged();
+            var list = await MemberService.GetAsync(null, null, Model.HouseholdId, 200);
+            _members = list.ToList();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری اعضای خانوار: {ex.Message}");
+        }
+        finally
+        {
+            _membersLoading = false; StateHasChanged();
+        }
+    }
+
+    private void OnDeleteClick()
+    {
+        if (IsNew || _isSaving) return;
+        _deleteError = null;
+        _deleteTitle = "تایید حذف خانوار";
+        _deleteMessage = "آیا از حذف این خانوار اطمینان دارید؟ این عملیات غیرقابل بازگشت است.";
+        _showDeleteConfirm = true;
+        StateHasChanged();
+    }
+
+    private void CancelDelete()
+    {
+        _showDeleteConfirm = false;
+        _deleteError = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (IsNew || _isSaving) { _showDeleteConfirm = false; return; }
+        try
+        {
+            // Check if this household has any members
+            var hasMember = (await MemberService.GetAsync(null, null, Model.HouseholdId, 1)).Any();
+            if (hasMember)
+            {
+                _deleteError = "این خانوار دارای عضو است و امکان حذف وجود ندارد.";
+                _deleteTitle = "تایید حذف خانوار";
+                _deleteMessage = $"آیا از حذف این خانوار اطمینان دارید؟ این عملیات غیرقابل بازگشت است.<div style='margin-top:8px; color:#ef4444; font-weight:700;'>{_deleteError}</div>";
+                _showDeleteConfirm = true;
+                StateHasChanged();
+                return;
+            }
+
+            _isSaving = true;
+            StateHasChanged();
+
+            await HouseholdService.DeleteAsync(Model.HouseholdId);
+
+            // Close overlays first, then show snackbar to ensure visibility
+            _showDeleteConfirm = false;
+            await CloseSheet(true);
+            Toasts.Success("خانوار با موفقیت حذف شد");
+        }
+        catch (Exception ex)
+        {
+            _deleteError = $"خطا در حذف خانوار: {ex.Message}";
+            StateHasChanged();
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    
+}

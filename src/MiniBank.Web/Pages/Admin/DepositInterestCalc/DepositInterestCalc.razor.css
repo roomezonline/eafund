@@ -1,0 +1,75 @@
+.deposit-interest-page{direction:rtl;max-width:1400px;margin:0 auto;padding:12px}
+.dic-toolbar{margin-top:10px}
+.dic-filter-card{background:linear-gradient(135deg,rgba(16,185,129,.10),rgba(59,130,246,.08));border:1px solid rgba(148,163,184,.35);border-radius:16px;padding:12px 12px 10px}
+.dic-filter-title{font-weight:900;color:#0f172a;margin-bottom:8px}
+.dic-filter-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.dic-field{display:flex;flex-direction:column;gap:6px;min-width:200px}
+.dic-field-compact{min-width:120px}
+.dic-field label{font-size:12px;color:#334155}
+.dic-input{height:40px;border-radius:12px;border:1px solid rgba(148,163,184,.55);padding:0 10px;background:#fff;outline:none}
+.dic-period-chip{display:inline-flex;align-items:center;justify-content:center;margin-right:8px;padding:4px 12px;border-radius:999px;border:2px solid rgba(2,132,199,.65);background:linear-gradient(135deg,rgba(2,132,199,.18),rgba(16,185,129,.14));color:#0b3b74;font-size:13px;font-weight:900;white-space:nowrap;box-shadow:0 6px 16px rgba(2,132,199,.12)}
+.dic-rate-chip,.dic-days-chip{height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid rgba(148,163,184,.55);background:rgba(255,255,255,.75);font-weight:900;color:#0f172a}
+.dic-cutoff-chip{height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:1px dashed rgba(2,132,199,.25);background:rgba(255,255,255,.70);font-weight:900;color:#0f172a}
+.dic-cutoff-credit{border:1px dashed rgba(16,185,129,.35);background:rgba(16,185,129,.10);color:#065f46}
+.dic-cutoff-debit{border:1px dashed rgba(239,68,68,.35);background:rgba(239,68,68,.10);color:#991b1b}
+.dic-actions{margin-right:auto}
+.dic-btn{height:40px;border:none;border-radius:12px;padding:0 16px;background:#0ea5e9;color:#fff;font-weight:900;cursor:pointer}
+.dic-btn:disabled{opacity:.65;cursor:not-allowed}
+.dic-filter-hint{margin-top:8px;font-size:12px;color:#475569}
+
+.dic-btn-secondary{background:#0f4c96}
+.dic-btn-finalize{background:#10b981;color:white}
+.dic-btn-finalize:disabled{opacity:.65;background:#a7f3d0}
+.dic-btn-mini{height:32px;padding:0 10px;border-radius:10px;font-weight:900;font-size:12px}
+.dic-btn-danger{background:#dc2626}
+
+.dic-select-all{display:flex;align-items:center;justify-content:center;min-width:44px}
+
+.dic-table-wrap{margin-top:14px}
+.dic-history-wrap{margin-top:14px;margin-bottom:90px;padding-bottom:env(safe-area-inset-bottom)}
+.dic-run-details{margin-top:12px}
+.dic-loading,.dic-empty{background:#fff;border:1px solid rgba(148,163,184,.35);border-radius:14px;padding:14px;text-align:center;color:#334155}
+.dic-table-scroll{overflow:auto;border-radius:14px;border:1px solid rgba(148,163,184,.35);background:#fff}
+.dic-table{width:100%;border-collapse:collapse;font-size:12px;min-width:980px}
+.dic-table thead th{position:sticky;top:0;background:#0f4c96;color:#fff;padding:6px 8px;border:1px solid rgba(15,23,42,.55);font-weight:900;text-align:center;white-space:nowrap}
+.dic-table tbody td,.dic-table tfoot td{padding:6px 8px;border:1px solid #111827;white-space:nowrap;text-align:center;background:#ffffff}
+.dic-table tbody tr:nth-child(even) td{background:#f8fafc}
+.dic-table tbody tr.row-neutral td{background:rgba(148,163,184,.10)}
+.dic-table tbody tr.row-active td{background:rgba(16,185,129,.06)}
+.dic-table tbody tr:hover td{background:rgba(59,130,246,.06)}
+
+.dic-table .sortable-header{cursor:pointer;user-select:none;transition:background-color .18s ease}
+.dic-table .sortable-header:hover{background:#1361bd}
+
+.cell-center{text-align:center !important}
+.amount-td{text-align:right !important;direction:ltr !important;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;font-weight:900}
+.td-interest{color:#b45309;font-weight:900}
+.td-net{color:#1d4ed8;font-weight:900}
+.td-profit{color:#047857;font-weight:900}
+
+.member-cell{text-align:center !important}
+.member-cell .member-name{font-weight:900;color:#0f172a}
+.member-cell .member-meta{font-size:12px;color:#64748b;margin-top:2px}
+
+.status-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:900}
+.status-active{background:rgba(16,185,129,.16);color:#065f46;border:1px solid rgba(16,185,129,.25)}
+.status-neutral{background:rgba(148,163,184,.22);color:#334155;border:1px solid rgba(148,163,184,.35)}
+
+.dic-table tfoot td{background:rgba(2,6,23,.06);font-weight:900}
+.tfoot-title{text-align:right}
+
+.dic-history-actions{white-space:normal !important}
+.dic-history-actions{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+
+.dic-toggle{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;border-radius:12px;border:1px solid rgba(148,163,184,.55);background:rgba(255,255,255,.75);font-weight:900;color:#0f172a;cursor:pointer;white-space:nowrap}
+.dic-toggle input{width:16px;height:16px}
+
+@media (max-width: 768px){
+  .dic-field{min-width:100%}
+  .dic-field-compact{min-width:48%}
+  .dic-actions{width:100%}
+  .dic-actions{display:flex;gap:10px}
+  .dic-btn{width:100%}
+  .dic-field.dic-field-half{min-width:0;flex:1 1 calc(50% - 10px)}
+  .dic-table{min-width:860px}
+}

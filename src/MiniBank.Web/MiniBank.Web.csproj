@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="ClosedXML" Version="0.102.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.1" />
+    <PackageReference Include="MudBlazor" Version="6.11.2" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.0" />
+    <PackageReference Include="MediatR" Version="12.2.0" />
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
+    <PackageReference Include="QuestPDF" Version="2024.6.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
+  </ItemGroup>
+  
+  <!-- Include database files in publish output -->
+  <ItemGroup>
+    <Content Include="..\..\database\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Pages\Admin\Receipts\HouseholdReceiptWizardV2.razor" />
+    <Content Remove="Pages\Admin\Receipts\HouseholdReceiptWizardV2.razor.css" />
+    <Content Remove="Pages\Admin\PaymentTransactions\PaymentTransactions.razor" />
+    <Content Remove="Pages\Admin\PaymentTransactions\PaymentTransactions.razor.css" />
+    <Compile Remove="Services\ReceiptWizardService.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <RazorScopedCss Remove="Pages\Admin\Receipts\HouseholdReceiptWizardV2.razor.css" />
+    <RazorScopedCss Remove="Pages\Admin\PaymentTransactions\PaymentTransactions.razor.css" />
+    <None Remove="Pages\Admin\Receipts\HouseholdReceiptWizardV2.razor.css" />
+    <None Remove="Pages\Admin\PaymentTransactions\PaymentTransactions.razor.css" />
+  </ItemGroup>
+</Project>

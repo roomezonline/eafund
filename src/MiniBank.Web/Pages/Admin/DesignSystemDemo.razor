@@ -1,0 +1,250 @@
+@page "/admin/design-system-demo"
+@using MiniBank.Web.Components.DesignSystem
+@inject ISnackbar Snackbar
+@inject DsToastService Toasts
+
+@code {
+  protected override void OnInitialized()
+  {
+    Console.WriteLine("DesignSystemDemo: OnInitialized called");
+    Console.WriteLine($"DesignSystemDemo: Toasts service is {(Toasts == null ? "NULL" : "NOT NULL")}");
+    Console.WriteLine($"DesignSystemDemo: Snackbar service is {(Snackbar == null ? "NULL" : "NOT NULL")}");
+  }
+}
+
+<section class="ds-demo latin-digits" dir="rtl">
+  <h2 style="margin:8px 0 16px 0">پیش‌نمایش Design System</h2>
+
+  <div class="duo-card" style="margin-bottom:16px">
+    <div class="duo-content">
+      <div class="duo-field">
+        <div class="duo-label">DsButton</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <DsButton Variant="primary" OnClick="ShowPrimary">Success Toast</DsButton>
+          <DsButton Variant="secondary" OnClick="ShowSecondary">Info Toast</DsButton>
+          <DsButton Variant="danger" OnClick="ShowDanger">Error Toast</DsButton>
+          <DsButton Variant="ghost" OnClick="ShowGhost">Warning Toast</DsButton>
+        </div>  
+        <DsButton Variant="primary" Loading="true">Loading</DsButton>
+        <DsButton Variant="outline" OnClick="ShowSecondary">Outline</DsButton>
+      </div>
+    </div>
+  </div>
+
+  <div class="duo-card" style="margin-bottom:16px">
+    <div class="duo-content">
+      <div class="duo-field">
+        <div class="duo-label">DsInput</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:12px">
+          <DsInput Label="نام" Placeholder="مثال: علی" @bind-Value="_name" />
+          <DsInput Label="نام خانوادگی" Placeholder="مثال: محمدی" @bind-Value="_lastName" />
+          <DsInput Label="توضیحات" Type="textarea" Rows="3" @bind-Value="_desc" />
+          <DsInput Label="اجباری" Required="true" ErrorMessage="این فیلد اجباری است" @bind-Value="_requiredText" />
+          <DsInput Label="غیرفعال" Disabled="true" Value="نمونه" />
+          <DsInput Label="عددی" Type="number" Step="0.01" @bind-Value="_numberText" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="duo-card" style="margin-bottom:16px">
+    <div class="duo-content">
+      <div class="duo-field">
+        <div class="duo-label">DsMoneyInput</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:12px">
+          <DsMoneyInput Label="مبلغ" Value="@_amountStr" ValueChanged="@(v => _amountStr = v)" HelperText="جداکننده هزارگان خودکار" />
+          <DsInput Label="(خوانش عددی)" Disabled="true" Value="@_amountNumeric" />
+          <DsMoneyInput Label="مبلغ منفی" Value="@_amountNegStr" ValueChanged="@(v => _amountNegStr = v)" HelperText="مجاز به منفی" AllowNegative="true" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="duo-card" style="margin-bottom:16px">
+    <div class="duo-content">
+      <div class="duo-field">
+        <div class="duo-label">DsDropdown</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:12px">
+          <DsDropdown Label="انتخاب گزینه" Placeholder="انتخاب کنید" Items="@_ddItems" Value="@_dd1" ValueChanged="@(v => _dd1 = v)" />
+          <DsDropdown Label="با مقدار اولیه" Items="@_ddItems" Value="@_dd2" ValueChanged="@(v => _dd2 = v)" />
+          <DsDropdown Label="با پیام خطا" Placeholder="انتخاب کنید" Items="@_ddItems" Value="@_dd3" ValueChanged="@(v => _dd3 = v)" ErrorMessage="@_dd3Error" HelperText="یکی از گزینه‌ها را برگزینید" />
+          <DsDropdown Label="غیرفعال" Items="@_ddItems" Value="middle" Disabled="true" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="duo-card" style="margin-bottom:16px">
+    <div class="duo-content">
+      <div class="duo-field">
+        <div class="duo-label">DsToggle</div>
+        <div style="display:flex; gap:24px; align-items:center; flex-wrap:wrap">
+          <DsToggle @bind-Value="_active" Label="فعال" Description="نمونه سوییچ" Icon="fa-solid fa-toggle-on" />
+          <DsToggle Value="false" Label="غیرفعال" Description="نمونه خاموش" Icon="fa-solid fa-toggle-off" />
+          <DsToggle Value="true" Label="Disabled" Description="غیرقابل تغییر" Icon="fa-solid fa-ban" Disabled="true" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="duo-card" style="margin-bottom:16px">
+    <div class="duo-content">
+      <div class="duo-field">
+        <div class="duo-label">DsCard</div>
+        <div class="ds-card">
+          <div class="ds-card-header">عنوان کارت</div>
+          <div class="ds-card-body">
+            این یک کارت نمونه است که محتوای دلخواه در آن قرار می‌گیرد.
+          </div>
+          <div class="ds-card-footer" style="display:flex; gap:8px">
+            <button class="btn btn-primary" @onclick="OpenSheet">باز کردن Sheet</button>
+            <button class="btn btn-secondary" @onclick="ShowSampleToast">نمایش Toast</button>
+            <button class="btn btn-info" @onclick="TestDirectSnackbar">تست مستقیم Snackbar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (_showSheet)
+  {
+    <DsSheet Show="_showSheet"
+             Title="نمونه DsSheet"
+             ConfirmText="تایید"
+             CancelText="لغو"
+             OnConfirm="ConfirmSheet"
+             OnCancel="CancelSheet"
+             Open="true"
+             ShowSpinner="@_sheetSaving">
+      <div class="ios-form-section">
+        <div class="ios-form-header">
+          <i class="fa-solid fa-sliders"></i>
+          <span>محتوای Sheet</span>
+        </div>
+        <div class="ios-form-group">
+          <DsInput Label="فیلد ۱" @bind-Value="_sheetField1" />
+          <DsInput Label="فیلد ۲" @bind-Value="_sheetField2" />
+          <DsToggle @bind-Value="_sheetSaving" Label="نمایش اسپینر ذخیره" />
+        </div>
+      </div>
+    </DsSheet>
+  }
+
+  <div class="duo-card" style="margin-bottom:16px">
+    <div class="duo-content">
+      <div class="duo-field">
+        <div class="duo-label">DsConfirm</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <DsButton Variant="danger" OnClick="OpenConfirmDanger">Danger</DsButton>
+          <DsButton Variant="warn" OnClick="OpenConfirmWarning">Warning</DsButton>
+          <DsButton Variant="secondary" OnClick="OpenConfirmInfo">Info</DsButton>
+          <DsButton Variant="success" OnClick="OpenConfirmSuccess">Success</DsButton>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <DsConfirm Show="_showConfirm"
+             Title="تأیید عملیات"
+             Message="آیا از انجام این عملیات مطمئن هستید؟"
+             Variant="@_confirmVariant"
+             ConfirmText="تأیید"
+             CancelText="انصراف"
+             OnConfirm="OnConfirmOk"
+             OnCancel="OnConfirmCancel" />
+</section>
+
+@code {
+  private string? _name;
+  private string? _lastName;
+  private string? _desc;
+  private string? _requiredText;
+  private string? _numberText;
+  private bool _active = true;
+
+  private string? _amountStr;
+  private string _amountNumeric => ParseAmount(_amountStr)?.ToString() ?? string.Empty;
+  private string? _amountNegStr;
+
+  private bool _showSheet;
+  private bool _sheetSaving;
+  private string? _sheetField1;
+  private string? _sheetField2;
+  private bool _showConfirm;
+  private string _confirmVariant = "danger";
+
+  // DsDropdown demo state
+  private IEnumerable<DsDropdown.DsDropdownItem> _ddItems = new []
+  {
+    new DsDropdown.DsDropdownItem { Value = "first", Text = "اول" },
+    new DsDropdown.DsDropdownItem { Value = "middle", Text = "میانی" },
+    new DsDropdown.DsDropdownItem { Value = "last", Text = "آخر" },
+  };
+  private string? _dd1;
+  private string? _dd2 = "middle";
+  private string? _dd3;
+  private string? _dd3Error => _dd3 is null ? "انتخاب این فیلد الزامی است" : null;
+
+  private void OpenSheet() => _showSheet = true;
+  private async Task ConfirmSheet() { _showSheet = false; Toasts.Success("تایید شد"); await Task.CompletedTask; }
+  private async Task CancelSheet() { _showSheet = false; await Task.CompletedTask; }
+
+  // Toast helpers to avoid Razor string escaping issues
+  private void ShowPrimary() => Toasts.Success("عملیات با موفقیت انجام شد");
+  private void ShowSecondary() => Toasts.Info("اطلاعات مفیدی برای شما");
+  private void ShowDanger() => Toasts.Error("خطایی رخ داده است");
+  private void ShowGhost() => Toasts.Warning("هشدار مهم برای شما");
+  
+  // Advanced toast examples
+  private async Task ShowAdvancedToast()
+  {
+    await Toasts.SuccessAsync("Toast با Progress Bar", 8000, showProgressBar: true, showCloseButton: true);
+  }
+  
+  private async Task ShowClickableToast()
+  {
+    await Toasts.InfoAsync("کلیک کنید برای جزئیات", 10000, onClick: async () => 
+    {
+      await Toasts.SuccessAsync("روی Toast کلیک کردید!");
+    });
+  }
+  private void ShowSampleToast() 
+  {
+    Console.WriteLine("ShowSampleToast button clicked!");
+    Toasts.Success("نمونه اعلان");
+  }
+
+  private void TestDirectSnackbar()
+  {
+    Console.WriteLine("TestDirectSnackbar button clicked!");
+    try
+    {
+      Snackbar.Add("تست مستقیم Snackbar", MudBlazor.Severity.Success);
+      Console.WriteLine("Direct Snackbar.Add called successfully");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error in direct Snackbar.Add: {ex.Message}");
+    }
+  }
+
+  // Confirm demo
+  private void OpenConfirm(string v) { _confirmVariant = v; _showConfirm = true; }
+  private async Task OnConfirmOk() { _showConfirm = false; Toasts.Success("تأیید شد"); await Task.CompletedTask; }
+  private async Task OnConfirmCancel() { _showConfirm = false; Toasts.Info("لغو شد"); await Task.CompletedTask; }
+
+  // Button-friendly wrappers to avoid Razor quoting issues
+  private void OpenConfirmDanger() => OpenConfirm("danger");
+  private void OpenConfirmWarning() => OpenConfirm("warning");
+  private void OpenConfirmInfo() => OpenConfirm("info");
+  private void OpenConfirmSuccess() => OpenConfirm("success");
+
+  private long? ParseAmount(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return null;
+    var neg = s.Trim().StartsWith("-");
+    var digits = new string(s.Where(char.IsDigit).ToArray());
+    if (long.TryParse(digits, out var num)) return neg ? -num : num;
+    return null;
+  }
+}

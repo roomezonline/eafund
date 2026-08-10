@@ -1,0 +1,531 @@
+@using MiniBank.Web.Models
+@using MiniBank.Web.Infrastructure.Repositories
+@inject AccountsRepository AccountsRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+
+<div class="modal-overlay" @onclick="HandleOverlayClick">
+  <div class="modal-content" @onclick:stopPropagation="true">
+    <div class="modal-header">
+      <h3>@(IsNew ? "حساب جدید" : "ویرایش حساب")</h3>
+      <button class="btn-close" @onclick="Cancel">
+        <i class="fa-solid fa-times"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-grid">
+        
+        @* Level Selection *@
+        <div class="form-group">
+          <label class="form-label">سطح حساب</label>
+          <select class="form-control @(_levelError ? "error" : "")" @bind="Account.Level" @bind:after="OnLevelChanged">
+            <option value="">انتخاب سطح</option>
+            <option value="1">گروه (سطح 1)</option>
+            <option value="2">کل (سطح 2)</option>
+            <option value="3">معین (سطح 3)</option>
+          </select>
+          @if (_levelError)
+          {
+            <div class="form-error">انتخاب سطح الزامی است</div>
+          }
+          <div class="form-hint">گروه: کد یک رقمی (1-5) | کل: کد 4 رقمی (1.00-5.99) | معین: کد 9 رقمی (1.00.0000-5.99.9999)</div>
+        </div>
+
+        @* Parent Account (for Level 2 and 3) *@
+        @if (Account.Level > 1)
+        {
+          <div class="form-group">
+            <label class="form-label">حساب والد</label>
+            <select class="form-control @(_parentError ? "error" : "")" @bind="Account.ParentAccountId">
+              <option value="">انتخاب حساب والد</option>
+              @foreach (var parent in GetAvailableParents())
+              {
+                <option value="@parent.AccountId">@parent.DisplayTitle</option>
+              }
+            </select>
+            @if (_parentError)
+            {
+              <div class="form-error">انتخاب حساب والد الزامی است</div>
+            }
+          </div>
+        }
+
+        @* Account Code *@
+        <div class="form-group">
+          <label class="form-label">کد حساب</label>
+          <input type="text" class="form-control @(_codeError ? "error" : "")" @bind="Account.Code" @oninput="OnCodeInput" placeholder="@GetCodePlaceholder()" />
+          @if (_codeError)
+          {
+            <div class="form-error">@_codeErrorMessage</div>
+          }
+          @if (!string.IsNullOrEmpty(_codeHint))
+          {
+            <div class="form-hint">@_codeHint</div>
+          }
+        </div>
+
+        @* Account Name *@
+        <div class="form-group">
+          <label class="form-label">نام حساب</label>
+          <input type="text" class="form-control @(_nameError ? "error" : "")" @bind="Account.Name" placeholder="نام حساب را وارد کنید" />
+          @if (_nameError)
+          {
+            <div class="form-error">نام حساب الزامی است</div>
+          }
+        </div>
+
+        @* Account Type (for Level 1 only) *@
+        @if (Account.Level == 1)
+        {
+          <div class="form-group">
+            <label class="form-label">نوع حساب</label>
+            <select class="form-control @(_typeError ? "error" : "")" @bind="Account.AccountType">
+              <option value="0">انتخاب نوع</option>
+              <option value="1">دارایی</option>
+              <option value="2">بدهی</option>
+              <option value="3">حقوق صاحبان</option>
+              <option value="4">درآمد</option>
+              <option value="5">هزینه</option>
+            </select>
+            @if (_typeError)
+            {
+              <div class="form-error">انتخاب نوع حساب الزامی است</div>
+            }
+          </div>
+        }
+
+        @* Active Status *@
+        <div class="form-group">
+          <label class="form-checkbox">
+            <input type="checkbox" @bind="Account.IsActive" />
+            <span class="checkmark"></span>
+            حساب فعال باشد
+          </label>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" @onclick="Cancel" disabled="@_isSaving">لغو</button>
+      <button class="btn-primary" @onclick="Save" disabled="@_isSaving">
+        @if (_isSaving)
+        {
+          <i class="fa-solid fa-spinner fa-spin"></i>
+        }
+        @(IsNew ? "ایجاد" : "ذخیره")
+      </button>
+    </div>
+  </div>
+</div>
+
+@code {
+  [Parameter] public Account Account { get; set; } = new();
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public List<Account> ParentAccounts { get; set; } = new();
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _isSaving = false;
+  private bool _levelError = false;
+  private bool _parentError = false;
+  private bool _codeError = false;
+  private bool _nameError = false;
+  private bool _typeError = false;
+  private string _codeErrorMessage = string.Empty;
+  private string _codeHint = string.Empty;
+
+  protected override void OnParametersSet()
+  {
+    if (Account.Level == null && Account.ParentAccountId.HasValue)
+    {
+      var parent = ParentAccounts.FirstOrDefault(p => p.AccountId == Account.ParentAccountId);
+      if (parent != null)
+      {
+        Account.Level = (byte?)Math.Min((parent.Level ?? 0) + 1, 3);
+        Account.AccountType = parent.AccountType;
+      }
+    }
+  }
+
+  private void OnLevelChanged()
+  {
+    // Reset parent if level changed to 1
+    if (Account.Level == 1)
+    {
+      Account.ParentAccountId = null;
+    }
+    
+    // Clear code to force regeneration
+    Account.Code = string.Empty;
+    UpdateCodeHint();
+    StateHasChanged();
+  }
+
+  private void OnCodeInput(ChangeEventArgs e)
+  {
+    Account.Code = e.Value?.ToString() ?? string.Empty;
+    ValidateCode();
+    StateHasChanged();
+  }
+
+  private List<Account> GetAvailableParents()
+  {
+    if (Account.Level == null) return new();
+    
+    var targetParentLevel = Account.Level - 1;
+    return ParentAccounts
+      .Where(p => p.Level == targetParentLevel && p.AccountId != Account.AccountId)
+      .OrderBy(p => p.Code)
+      .ToList();
+  }
+
+  private string GetCodePlaceholder()
+  {
+    return Account.Level switch
+    {
+      1 => "1-5",
+      2 => "1.00-5.99",
+      3 => "1.00.0000-5.99.9999",
+      _ => "کد حساب"
+    };
+  }
+
+  private void UpdateCodeHint()
+  {
+    _codeHint = Account.Level switch
+    {
+      1 => "کد یک رقمی: 1=دارایی، 2=بدهی، 3=حقوق صاحبان، 4=درآمد، 5=هزینه",
+      2 => "کد 4 رقمی: مثال 1.10 برای نقد و بانک",
+      3 => "کد 9 رقمی: مثال 1.10.0001 برای صندوق",
+      _ => ""
+    };
+  }
+
+  private void ValidateCode()
+  {
+    _codeError = false;
+    _codeErrorMessage = string.Empty;
+
+    if (string.IsNullOrWhiteSpace(Account.Code))
+    {
+      _codeError = true;
+      _codeErrorMessage = "کد حساب الزامی است";
+      return;
+    }
+
+    var code = Account.Code.Trim();
+    var isValid = Account.Level switch
+    {
+      1 => System.Text.RegularExpressions.Regex.IsMatch(code, @"^[1-5]$"),
+      2 => System.Text.RegularExpressions.Regex.IsMatch(code, @"^[1-5]\.[0-9]{2}$"),
+      3 => System.Text.RegularExpressions.Regex.IsMatch(code, @"^[1-5]\.[0-9]{2}\.[0-9]{4}$"),
+      _ => false
+    };
+
+    if (!isValid)
+    {
+      _codeError = true;
+      _codeErrorMessage = Account.Level switch
+      {
+        1 => "کد باید یک رقم بین 1 تا 5 باشد",
+        2 => "کد باید به فرم G.KK باشد (مثال: 1.10)",
+        3 => "کد باید به فرم G.KK.MMSS باشد (مثال: 1.10.0001)",
+        _ => "فرم کد نامعتبر است"
+      };
+    }
+  }
+
+  private bool ValidateForm()
+  {
+    _levelError = Account.Level == null;
+    _parentError = Account.Level > 1 && Account.ParentAccountId == null;
+    _nameError = string.IsNullOrWhiteSpace(Account.Name);
+    _typeError = Account.Level == 1 && Account.AccountType == 0;
+    
+    ValidateCode();
+    
+    return !(_levelError || _parentError || _codeError || _nameError || _typeError);
+  }
+
+  private async Task Save()
+  {
+    if (!ValidateForm())
+    {
+      StateHasChanged();
+      return;
+    }
+
+    _isSaving = true;
+    try
+    {
+      // Set account type from parent if not level 1
+      if (Account.Level > 1 && Account.ParentAccountId.HasValue)
+      {
+        var parent = ParentAccounts.FirstOrDefault(p => p.AccountId == Account.ParentAccountId);
+        if (parent != null)
+        {
+          Account.AccountType = parent.AccountType;
+        }
+      }
+
+      if (IsNew)
+      {
+        // Global uniqueness by code. If an inactive record exists, reactivate/update it instead of creating a new row.
+        var codeToSave = (Account.Code ?? string.Empty).Trim();
+        var isUnique = await AccountsRepo.IsCodeUniqueAsync(codeToSave);
+        if (!isUnique)
+        {
+          var inactive = await AccountsRepo.FindInactiveByCodeAsync(codeToSave);
+          if (inactive != null)
+          {
+            // Reactivate existing inactive record and update its properties.
+            Account.AccountId = inactive.AccountId;
+            Account.Code = codeToSave;
+            Account.IsActive = true;
+            await AccountsRepo.UpdateAsync(inactive.AccountId, Account);
+            Toast.Success("حساب غیرفعال با این کد مجدداً فعال شد");
+          }
+          else
+          {
+            _codeError = true;
+            _codeErrorMessage = "این کد قبلاً استفاده شده است";
+            return;
+          }
+        }
+        else
+        {
+          var id = await AccountsRepo.CreateAsync(codeToSave, Account.Name, Account.AccountType);
+          Account.AccountId = id;
+        }
+      }
+      else
+      {
+        // Check code uniqueness excluding current account
+        var isUnique = await AccountsRepo.IsCodeUniqueAsync(Account.Code, Account.AccountId);
+        if (!isUnique)
+        {
+          _codeError = true;
+          _codeErrorMessage = "این کد قبلاً استفاده شده است";
+          return;
+        }
+
+        await AccountsRepo.UpdateAsync(Account.AccountId, Account.Code, Account.Name, Account.AccountType, Account.IsActive);
+      }
+
+      await OnClose.InvokeAsync(true);
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در ذخیره حساب: {ex.Message}");
+    }
+    finally
+    {
+      _isSaving = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task Cancel()
+  {
+    await OnClose.InvokeAsync(false);
+  }
+
+  private async Task HandleOverlayClick()
+  {
+    await Cancel();
+  }
+}
+
+<style>
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+}
+
+.btn-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-close:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-label {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.form-control {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.form-control.error {
+  border-color: #f44336;
+}
+
+.form-error {
+  color: #f44336;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.form-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.form-checkbox input[type="checkbox"] {
+  display: none;
+}
+
+.checkmark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.form-checkbox input[type="checkbox"]:checked + .checkmark {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.form-checkbox input[type="checkbox"]:checked + .checkmark::after {
+  content: '✓';
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.btn-secondary, .btn-primary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+  background: var(--border-color);
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+}
+
+.btn-secondary:disabled, .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+</style>

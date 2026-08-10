@@ -1,0 +1,318 @@
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject MiniBank.Web.Infrastructure.Repositories.AccountTypeRepository AccountTypeRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+
+<DsSheet Show="IsOpen"
+         Open="IsOpen"
+         Title="@SheetTitle"
+         OnCancel="HandleCancel"
+         OnConfirm="HandleSave"
+         ShowDelete="@(!IsNew)"
+         DeleteText="حذف"
+         OnDelete="HandleDelete"
+         ShowSpinner="@_saving">
+  <div class="kol-form">
+    <div class="form-section">
+      <DsInput Label="گروه والد *"
+               Type="select"
+               @bind-Value="_model.ParentGroupCode"
+               ErrorMessage="@GetFieldError(nameof(_model.ParentGroupCode))"
+               HelperText="انتخاب از گروه‌های اصلی (۱=دارایی، ۲=بدهی، ۳=حقوق، ۴=درآمد، ۵=هزینه)">
+        <option value="">انتخاب گروه...</option>
+        @foreach (var at in _parentGroupTypes)
+        {
+          <option value="@at.Code">@at.Code - @at.Name</option>
+        }
+      </DsInput>
+    </div>
+
+    <div class="form-section">
+      <DsInput Label="کد کل *"
+               @bind-Value="_model.Code"
+               Placeholder="مثال: هر فرمتی مجاز است"
+               ErrorMessage="@GetFieldError(nameof(_model.Code))"
+               HelperText="کد دقیقاً همان‌طور که وارد می‌کنید بدون تغییر ذخیره می‌شود" />
+    </div>
+
+    <div class="form-section">
+      <DsInput Label="نام کل *"
+               @bind-Value="_model.Name"
+               Placeholder="مثال: نقد و بانک"
+               ErrorMessage="@GetFieldError(nameof(_model.Name))"
+               HelperText="نام توصیفی کل" />
+    </div>
+
+    @if (!IsNew)
+    {
+      <div class="form-section">
+        <DsToggle Label="وضعیت فعال"
+                  @bind-Value="_model.IsActive"
+                  HelperText="کل‌های غیرفعال در فرم‌ها نمایش داده نمی‌شوند" />
+      </div>
+    }
+  </div>
+</DsSheet>
+
+@code {
+  [Parameter] public (long AccountId, string Code, string Name, long? ParentAccountId, byte AccountType, bool IsActive) Model { get; set; }
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public bool IsOpen { get; set; }
+  [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+  [Parameter] public EventCallback<(long AccountId, string Code, string Name, string Message)> OnDeleteRequest { get; set; }
+
+  private bool _saving = false;
+  private List<AccountType> _parentGroupTypes = new();
+  private Dictionary<string, string> _errors = new();
+
+  private KolFormModel _model = new();
+
+  private string SheetTitle => IsNew ? "کل جدید" : "ویرایش کل";
+
+  public class KolFormModel
+  {
+    public long AccountId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    // گروه والد به‌صورت کد 1..5
+    public string ParentGroupCode { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+  }
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (IsOpen)
+    {
+      await LoadParentGroupTypes();
+      _model = new KolFormModel
+      {
+        AccountId = Model.AccountId,
+        Code = Model.Code,
+        Name = Model.Name,
+        ParentGroupCode = InferGroupCodeFromCode(Model.Code),
+        IsActive = Model.IsActive
+      };
+      _errors.Clear();
+    }
+  }
+
+  private async Task LoadParentGroupTypes()
+  {
+    try
+    {
+      // Load AccountTypes (1..5) for a clean, always-available selector
+      _parentGroupTypes = (await AccountTypeRepo.GetAllAsync(true)).OrderBy(a => a.Code).ToList();
+      if (_parentGroupTypes.Count == 0)
+      {
+        // Fallback in case the table is empty
+        _parentGroupTypes = new List<AccountType>
+        {
+          new() { Code = "1", Name = "دارایی", IsActive = true },
+          new() { Code = "2", Name = "بدهی", IsActive = true },
+          new() { Code = "3", Name = "حقوق صاحبان", IsActive = true },
+          new() { Code = "4", Name = "درآمد", IsActive = true },
+          new() { Code = "5", Name = "هزینه", IsActive = true },
+        };
+        Toast.Info("لیست گروه‌ها از AccountTypes خالی بود؛ فهرست پیش‌فرض نمایش داده شد");
+      }
+    }
+    catch (Exception ex)
+    {
+      // Fallback on error to keep UX smooth
+      _parentGroupTypes = new List<AccountType>
+      {
+        new() { Code = "1", Name = "دارایی", IsActive = true },
+        new() { Code = "2", Name = "بدهی", IsActive = true },
+        new() { Code = "3", Name = "حقوق صاحبان", IsActive = true },
+        new() { Code = "4", Name = "درآمد", IsActive = true },
+        new() { Code = "5", Name = "هزینه", IsActive = true },
+      };
+      Toast.Error($"خطا در دریافت گروه‌ها: {ex.Message}");
+    }
+  }
+
+  private bool ValidateForm()
+  {
+    _errors.Clear();
+
+    if (string.IsNullOrWhiteSpace(_model.Code))
+      _errors[nameof(_model.Code)] = "کد کل الزامی است";
+
+    if (string.IsNullOrWhiteSpace(_model.Name))
+      _errors[nameof(_model.Name)] = "نام کل الزامی است";
+
+    if (string.IsNullOrWhiteSpace(_model.ParentGroupCode))
+      _errors[nameof(_model.ParentGroupCode)] = "انتخاب گروه والد الزامی است";
+
+    return !_errors.Any();
+  }
+
+  
+
+  private string GetFieldError(string fieldName)
+  {
+    return _errors.ContainsKey(fieldName) ? _errors[fieldName] : string.Empty;
+  }
+
+  private async Task HandleSave()
+  {
+    if (!ValidateForm()) return;
+
+    _saving = true;
+    try
+    {
+      // Ensure parent Level-1 account exists for selected group, get its AccountId
+      long parentId = await EnsureParentGroupAccountAsync(_model.ParentGroupCode);
+      // Save code exactly as entered
+      var codeToSave = _model.Code.Trim();
+
+      // Check if inactive record exists with same code
+      var inactiveRecord = await AccountsRepo.FindInactiveByCodeAsync(codeToSave);
+      if (inactiveRecord != null && IsNew)
+      {
+        // Reactivate existing inactive record instead of creating new one
+        await AccountsRepo.UpdateAsync(inactiveRecord.AccountId, new Account
+        {
+          AccountId = inactiveRecord.AccountId,
+          Code = codeToSave,
+          Name = _model.Name,
+          AccountType = byte.Parse(_model.ParentGroupCode),
+          ParentAccountId = parentId,
+          Level = 2, // Kol level
+          IsActive = true
+        });
+        Toast.Success("کل غیرفعال مجدداً فعال شد");
+        await OnClose.InvokeAsync(true);
+        return;
+      }
+
+      // Pre-check: unique code among active records (skip if unchanged)
+      if (IsNew || !string.Equals(codeToSave, Model.Code, StringComparison.Ordinal))
+      {
+        var isUnique = await AccountsRepo.IsCodeUniqueAsync(codeToSave, IsNew ? null : _model.AccountId);
+        if (!isUnique)
+        {
+          _errors[nameof(_model.Code)] = "این کد قبلاً ثبت شده است";
+          Toast.Error("کد کل تکراری است. لطفاً کد دیگری وارد کنید");
+          return;
+        }
+      }
+
+      if (IsNew)
+      {
+        await AccountsRepo.CreateAsync(new Account
+        {
+          Code = codeToSave,
+          Name = _model.Name,
+          AccountType = byte.Parse(_model.ParentGroupCode),
+          ParentAccountId = parentId,
+          Level = 2, // Kol level
+          IsActive = _model.IsActive
+        });
+        Toast.Success("کل جدید با موفقیت ایجاد شد");
+      }
+      else
+      {
+        await AccountsRepo.UpdateAsync(_model.AccountId, new Account
+        {
+          AccountId = _model.AccountId,
+          Code = codeToSave,
+          Name = _model.Name,
+          AccountType = byte.Parse(_model.ParentGroupCode),
+          ParentAccountId = parentId,
+          Level = 2, // Kol level
+          IsActive = _model.IsActive
+        });
+        Toast.Success("کل با موفقیت به‌روزرسانی شد");
+      }
+
+      await OnClose.InvokeAsync(true);
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در ذخیره کل: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+
+  
+
+  
+
+  private string InferGroupCodeFromCode(string code)
+  {
+    if (string.IsNullOrWhiteSpace(code)) return string.Empty;
+    return code[0] switch
+    {
+      '1' or '2' or '3' or '4' or '5' => code[0].ToString(),
+      _ => string.Empty
+    };
+  }
+
+  private async Task<long> EnsureParentGroupAccountAsync(string groupCode)
+  {
+    // Try find existing Level-1 account with Code = groupCode (exact match)
+    var groups = (await AccountsRepo.SearchAsync("", 1, true)).ToList();
+    var found = groups.FirstOrDefault(g => string.Equals(g.Code, groupCode, StringComparison.OrdinalIgnoreCase));
+    if (found != null)
+      return found.AccountId;
+
+    // Create Level-1 account from AccountTypes
+    var at = _parentGroupTypes.FirstOrDefault(x => string.Equals(x.Code, groupCode, StringComparison.OrdinalIgnoreCase));
+    var name = at?.Name ?? $"گروه {groupCode}";
+    var accountType = byte.Parse(groupCode);
+    try
+    {
+      var createdId = await AccountsRepo.CreateAsync(new Account
+      {
+        Code = groupCode,
+        Name = name,
+        AccountType = accountType,
+        ParentAccountId = null,
+        Level = 1,
+        IsActive = true
+      });
+      return createdId;
+    }
+    catch (Exception)
+    {
+      // In case of race or existing unique key, requery and return existing
+      groups = (await AccountsRepo.SearchAsync("", 1, true)).ToList();
+      found = groups.FirstOrDefault(g => string.Equals(g.Code, groupCode, StringComparison.OrdinalIgnoreCase));
+      if (found != null) return found.AccountId;
+      throw;
+    }
+  }
+
+  private async Task HandleDelete()
+  {
+    // Check dependencies before deletion
+    var dependencyInfo = await AccountsRepo.GetDependencyInfoAsync(_model.AccountId);
+    
+    if (!dependencyInfo.CanDelete)
+    {
+      var message = dependencyInfo.GetDependencyMessage();
+      Toast.Error($"امکان حذف وجود ندارد: {message}");
+      return;
+    }
+
+    // Close the sheet first, then request delete confirmation from parent
+    await OnClose.InvokeAsync(false);
+    await Task.Delay(300); // Wait for sheet close animation
+    
+    // Request delete confirmation from parent page
+    var deleteMessage = $"آیا از حذف کل <strong>'{_model.Name}'</strong> اطمینان دارید؟<br><br>کد: <code>{_model.Code}</code>";
+    await OnDeleteRequest.InvokeAsync((_model.AccountId, _model.Code, _model.Name, deleteMessage));
+  }
+
+
+  private async Task HandleCancel()
+  {
+    await OnClose.InvokeAsync(false);
+  }
+}

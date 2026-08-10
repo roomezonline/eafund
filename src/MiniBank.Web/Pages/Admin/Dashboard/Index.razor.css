@@ -1,0 +1,161 @@
+/* Dashboard service cards icon color customization */
+
+.service-card {
+    transition: all 0.2s ease;
+}
+
+.service-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.service-card .icon {
+    background: var(--card-color, #6c757d);
+    border-radius: 14px;
+    padding: 18px;
+    margin: 0 auto 12px auto;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.service-card .icon i {
+    color: white !important;
+    font-size: 28px;
+}
+
+.service-card:hover .icon {
+    transform: scale(1.1);
+}
+
+/* Specific card styling overrides */
+.service-households {
+    --card-color: #3b82f6;
+}
+
+.service-members {
+    --card-color: #6366f1;
+}
+
+.service-household-receipt {
+    --card-color: #10b981;
+}
+
+.service-deposit-types {
+    --card-color: #f59e0b;
+}
+
+.service-account-types {
+    --card-color: #8b5cf6;
+}
+
+.service-kol {
+    --card-color: #a855f7;
+}
+
+.service-moeen {
+    --card-color: #c084fc;
+}
+
+.service-posting-templates {
+    --card-color: #06b6d4;
+}
+
+.service-bank-accounts {
+    --card-color: #0891b2;
+}
+
+.service-ds-demo {
+    --card-color: #64748b;
+}
+
+.service-db {
+    --card-color: #dc2626;
+}
+
+/* Button specific styling */
+button.service-card {
+    border: none;
+    cursor: pointer;
+}
+
+button.service-card:hover {
+    transform: translateY(-2px);
+}
+
+.fy-status-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin: 8px 0 0;
+}
+
+.fy-status-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.fy-status-icon.open {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.fy-status-icon.closed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.fy-status-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.fy-status-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fy-status-range {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.fy-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.fy-badge.badge-open {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.fy-badge.badge-closed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.service-fiscal-years {
+    --card-color: #22c55e;
+}

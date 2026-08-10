@@ -1,0 +1,70 @@
+@using MiniBank.Web.Utilities
+@inherits Microsoft.AspNetCore.Components.ComponentBase
+
+@{
+    string text = string.Empty;
+    if (!string.IsNullOrWhiteSpace(FormatName))
+    {
+        var name = FormatName!.Trim();
+        if (ValueOffset.HasValue)
+        {
+            text = name.Equals("Long", StringComparison.OrdinalIgnoreCase)
+                ? ValueOffset.Value.ToShamsiLongDateString()
+                : name.Equals("DateTime", StringComparison.OrdinalIgnoreCase)
+                    ? ValueOffset.Value.ToShamsiDateTimeString()
+                    : ValueOffset.Value.ToShamsiDateString();
+        }
+        else if (Value.HasValue)
+        {
+            text = name.Equals("Long", StringComparison.OrdinalIgnoreCase)
+                ? Value.Value.ToShamsiLongDateString()
+                : name.Equals("DateTime", StringComparison.OrdinalIgnoreCase)
+                    ? Value.Value.ToShamsiDateTimeString()
+                    : Value.Value.ToShamsiDateString();
+        }
+    }
+    else if (ValueOffset.HasValue)
+    {
+        text = Format switch
+        {
+            PersianDateFormat.Long => ValueOffset.Value.ToShamsiLongDateString(),
+            PersianDateFormat.DateTime => ValueOffset.Value.ToShamsiDateTimeString(),
+            PersianDateFormat.Short => ValueOffset.Value.ToShamsiShortDateString(),
+            _ => ValueOffset.Value.ToShamsiDateString()
+        };
+    }
+    else if (Value.HasValue)
+    {
+        text = IncludeTime || Format == PersianDateFormat.DateTime
+            ? Value.Value.ToShamsiDateTimeString()
+            : (Format == PersianDateFormat.Long ? Value.Value.ToShamsiLongDateString() : (Format == PersianDateFormat.Short ? Value.Value.ToShamsiShortDateString() : Value.Value.ToShamsiDateString()));
+    }
+}
+
+<span>@text</span>
+
+@code {
+    [Parameter]
+    public DateTime? Value { get; set; }
+
+    [Parameter]
+    public bool IncludeTime { get; set; }
+
+    [Parameter]
+    public DateTimeOffset? ValueOffset { get; set; }
+
+    [Parameter]
+    public PersianDateFormat Format { get; set; } = PersianDateFormat.Short;
+
+    [Parameter]
+    public string? FormatName { get; set; }
+}
+
+@code {
+    public enum PersianDateFormat
+    {
+        Short, // 20/06/1404
+        Long,  // دوشنبه 20 شهریور 1404
+        DateTime // yyyy/MM/dd HH:mm
+    }
+}

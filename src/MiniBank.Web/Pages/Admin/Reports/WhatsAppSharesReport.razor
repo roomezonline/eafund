@@ -1,0 +1,436 @@
+@page "/admin/reports/whatsapp-shares"
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using System.Linq
+@using System.Security.Claims
+@inject TransactionReportRepository TxReports
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
+@inject AuthRepository AuthRepo
+
+<PageTitle>گزارش واتساپ</PageTitle>
+
+<DsPageHeader Title="گزارش واتساپ"
+             Icon="fa-brands fa-whatsapp"
+             Subtitle="واتساپ کلی / واتساپ سپرده"
+             ShowBackButton="true" />
+
+<script>
+    window.whatsappShares = {
+        copy: async function (text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        },
+        share: function (text) {
+            var url = "https://wa.me/?text=" + encodeURIComponent(text || "");
+            window.open(url, "_blank");
+        }
+    };
+</script>
+
+<style>
+  .ws-wrap{direction:rtl}
+  .ws-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(15,23,42,.08)}
+  .ws-grid{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .ws-field{display:flex;flex-direction:column;gap:6px;min-width:220px}
+  .ws-field label{font-weight:900;font-size:12px;color:#0f172a}
+  .ws-input{height:40px;border-radius:10px;border:1px solid #cbd5e1;padding:0 10px;font-weight:900;outline:none}
+  .ws-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.14)}
+  .ws-actions{display:flex;gap:8px;align-items:center}
+  .ws-btn{height:40px;border-radius:10px;border:1px solid #e5e7eb;background:#0ea5e9;color:#fff;font-weight:900;padding:0 12px;cursor:pointer}
+  .ws-btn:disabled{opacity:.6;cursor:not-allowed}
+  .ws-btn.whatsapp{background:#10b981;border-color:#10b981;color:#fff !important;font-size:14px;padding:0 12px;min-width:110px;white-space:nowrap;min-width:120px;text-align:center}
+  .ws-btn.whatsapp:hover{background:#0d9f71;border-color:#0d9f71;transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+  .ws-btn.secondary{background:#fff;color:#0f172a}
+  .ws-btn.primary{background:#2563eb;border-color:#2563eb}
+  .ws-btn.primary:hover{background:#1d4ed8;border-color:#1d4ed8}
+  .ws-btn.active{box-shadow:0 0 0 3px rgba(15,23,42,.14) inset}
+  .ws-btn.primary.active{background:#1d4ed8;border-color:#1d4ed8}
+  .ws-btn:not(.primary).active{background:#0284c7;border-color:#0284c7}
+  .ws-mode-label{margin-top:8px;text-align:center;font-weight:900;color:#0f172a;font-size:13px}
+
+  .ws-row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .ws-row.two .ws-field{flex:1 1 260px;min-width:0}
+  .ws-actions-top{display:flex;gap:8px;flex:1 1 280px}
+  .ws-actions-top .ws-btn{flex:1 1 0}
+  .ws-actions-bottom{display:flex;gap:8px;margin-top:10px}
+  .ws-actions-bottom .ws-btn{flex:1 1 0}
+
+  .ws-info{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .ws-pill{flex:1 1 260px;display:flex;justify-content:space-between;align-items:center;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;background:#f8fafc;font-weight:900}
+  .ws-pill .k{color:#334155;font-size:12px}
+  .ws-pill .v{color:#0f172a;font-size:14px;white-space:nowrap}
+
+  .ws-text{margin-top:12px}
+  .ws-text textarea{width:100%;min-height:380px;border:1px solid #111827;border-radius:10px;padding:10px;font-weight:800;line-height:1.7;white-space:pre-wrap}
+
+  @@media (max-width: 520px){
+    .ws-field{flex:1 1 100%;min-width:0}
+    .ws-input{width:100%}
+    .ws-actions-top{flex:1 1 100%}
+    .ws-actions-bottom{flex-wrap:nowrap}
+    .ws-info{flex-wrap:nowrap}
+    .ws-pill{flex:1 1 0;min-width:0}
+    .ws-share-nominal-label{display:none}
+    .ws-share-label-mobile{display:inline}
+  }
+
+  .ws-share-label-mobile{display:none}
+</style>
+
+<div class="ws-wrap">
+  <div class="ws-card">
+    <div class="ws-row two">
+        <div class="ws-field">
+            <label>تا تاریخ</label>
+            <input class="ws-input" value="@_asOfText" @onchange="OnAsOfChanged" data-jdp="true" data-jdp-only-date="true" placeholder="1404/11/11" />
+        </div>
+        <div class="ws-field">
+            <label>ارزش اسمی هر سهم (ریال)</label>
+            <input class="ws-input" value="@_shareNominalText" @onchange="OnShareNominalChanged" placeholder="1000000" />
+        </div>
+        <div class="ws-actions-top">
+            <button class="ws-btn primary @(_mode == ReportMode.General ? "active" : string.Empty)" @onclick="GenerateGeneral">واتساپ کلی</button>
+            <button class="ws-btn @(_mode == ReportMode.Deposit ? "active" : string.Empty)" @onclick="GenerateDeposit">واتساپ سپرده</button>
+        </div>
+    </div>
+
+    @if (_mode != ReportMode.None)
+    {
+      <div style="margin-top:10px">
+        <DsPillGroup Mode="filter" Items="@_sortPills" ActiveKey="@_sortKey" ActiveKeyChanged="OnSortChanged" />
+      </div>
+    }
+
+    @if (_mode != ReportMode.None)
+    {
+        <div class="ws-mode-label">@GetModeLabel()</div>
+    }
+
+    <div class="ws-info">
+        <div class="ws-pill">
+            <span class="k">تاریخ</span>
+            <span class="v">@_asOfText</span>
+        </div>
+        <div class="ws-pill">
+            <span class="k"><span class="ws-share-nominal-label">ارزش اسمی هر سهم</span><span class="ws-share-label-mobile">ارزش سهم</span></span>
+            <span class="v">@_shareNominal.ToString("N0") ریال</span>
+        </div>
+    </div>
+
+    <div class="ws-actions-bottom">
+        <button class="ws-btn secondary" @onclick="Copy" disabled="@(string.IsNullOrWhiteSpace(_whatsAppText))">کپی</button>
+        <button class="ws-btn whatsapp" @onclick="Share" disabled="@(string.IsNullOrWhiteSpace(_whatsAppText))"><i class="fa-brands fa-whatsapp" style="margin-left:6px"></i>اشتراک‌گذاری</button>
+    </div>
+
+    <div class="ws-text">
+      <textarea readonly>@_whatsAppText</textarea>
+    </div>
+  </div>
+</div>
+
+@code {
+  private enum ReportMode
+  {
+      None = 0,
+      General = 1,
+      Deposit = 2
+  }
+
+  private ReportMode _mode = ReportMode.None;
+
+  private string _asOfText = string.Empty;
+  private string _shareNominalText = "1000000";
+  private decimal _shareNominal = 1000000m;
+  private string _issuerName = string.Empty;
+
+  private string _whatsAppText = string.Empty;
+
+  private string _sortKey = "memberId";
+
+  private readonly List<DsPillGroup.DsPillItem> _sortPills = new()
+  {
+      new DsPillGroup.DsPillItem { Key = "memberId", Text = "بر اساس کد عضویت" },
+      new DsPillGroup.DsPillItem { Key = "shares", Text = "بر اساس سهام" },
+      new DsPillGroup.DsPillItem { Key = "household", Text = "بر اساس کد خانوار" },
+  };
+
+  private async Task OnSortChanged(string key)
+  {
+      _sortKey = key;
+      if (_mode == ReportMode.General)
+          await Generate(includeInterest: true);
+      else if (_mode == ReportMode.Deposit)
+          await Generate(includeInterest: false);
+  }
+
+  private static long? TryParseHouseholdCode(string? code)
+  {
+      if (string.IsNullOrWhiteSpace(code)) return null;
+      var t = code.Trim();
+      if (long.TryParse(t, out var v)) return v;
+      return null;
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    _asOfText = DateTime.Now.ToPersianDate();
+    _issuerName = await GetIssuerNameAsync();
+  }
+
+  private async Task<string> GetIssuerNameAsync()
+  {
+    try
+    {
+      var st = await AuthStateProvider.GetAuthenticationStateAsync();
+      var u = st.User;
+      var userIdClaim = u?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+      if (long.TryParse(userIdClaim, out var userId) && userId > 0)
+      {
+          var dbUser = await AuthRepo.GetUserByIdAsync(userId);
+          if (dbUser != null)
+          {
+              var fullName = $"{(dbUser.MemberFirstName ?? string.Empty).Trim()} {(dbUser.MemberLastName ?? string.Empty).Trim()}".Trim();
+              if (!string.IsNullOrWhiteSpace(fullName))
+                  return TrimIssuerSuffix(fullName);
+          }
+      }
+
+      var name = u?.Identity?.Name;
+      return string.IsNullOrWhiteSpace(name) ? string.Empty : TrimIssuerSuffix(name.Trim());
+    }
+    catch
+    {
+      return string.Empty;
+    }
+  }
+
+  private static string TrimIssuerSuffix(string s)
+  {
+      if (string.IsNullOrWhiteSpace(s))
+          return string.Empty;
+
+      var t = s.Trim();
+      var idx = t.IndexOf('☆');
+      if (idx < 0) idx = t.IndexOf('★');
+      if (idx < 0) idx = t.IndexOf('*');
+      if (idx < 0) return t;
+
+      t = t.Substring(0, idx).Trim();
+      return t;
+  }
+
+  private async Task OnAsOfChanged(ChangeEventArgs e)
+  {
+    _asOfText = e?.Value?.ToString() ?? string.Empty;
+    await Task.CompletedTask;
+  }
+
+  private async Task OnShareNominalChanged(ChangeEventArgs e)
+  {
+    _shareNominalText = e?.Value?.ToString() ?? string.Empty;
+    _shareNominal = ParseMoney(_shareNominalText);
+    if (_shareNominal <= 0m)
+      _shareNominal = 1000000m;
+
+    await Task.CompletedTask;
+  }
+
+  private async Task GenerateGeneral()
+  {
+      _mode = ReportMode.General;
+      await Generate(includeInterest: true);
+  }
+
+  private async Task GenerateDeposit()
+  {
+      _mode = ReportMode.Deposit;
+      await Generate(includeInterest: false);
+  }
+
+  private string GetModeLabel()
+  {
+      return _mode switch
+      {
+          ReportMode.General => "گزارش تولید شده: واتساپ کلی",
+          ReportMode.Deposit => "گزارش تولید شده: واتساپ سپرده",
+          _ => string.Empty
+      };
+  }
+
+  private async Task Generate(bool includeInterest)
+  {
+      var asOfDate = DateTimeExtensions.FromPersianDate(_asOfText).Date;
+      var toExclusive = asOfDate.AddDays(1);
+
+      var rows = await TxReports.GetMemberEffectiveDepositAggForPeriodAsync(toExclusive, toExclusive, activeMembersOnly: true);
+
+      var computed = rows
+          .Select(r =>
+          {
+              var netPrincipal = r.PrincipalCredit - r.PrincipalDebit;
+              var netInterest = includeInterest ? (r.InterestCredit - r.InterestDebit) : 0m;
+
+              if (netPrincipal < 0m) netPrincipal = 0m;
+              if (netInterest < 0m) netInterest = 0m;
+
+              var principalShares = ToShares(netPrincipal, _shareNominal);
+              var interestShares = includeInterest ? ToShares(netInterest, _shareNominal) : 0;
+              var totalShares = includeInterest ? (principalShares + interestShares) : principalShares;
+
+              return new
+              {
+                  Row = r,
+                  NetPrincipal = netPrincipal,
+                  NetInterest = netInterest,
+                  PrincipalShares = principalShares,
+                  InterestShares = interestShares,
+                  TotalShares = totalShares,
+                  HouseholdCode = (r.HouseholdCode ?? string.Empty).Trim()
+              };
+          })
+          .ToList();
+
+      IEnumerable<dynamic> ordered = computed;
+      if (string.Equals(_sortKey, "shares", StringComparison.Ordinal))
+      {
+          ordered = ordered
+              .OrderByDescending(x => (long)x.TotalShares)
+              .ThenBy(x => (x.Row.MemberId));
+      }
+      else if (string.Equals(_sortKey, "household", StringComparison.Ordinal))
+      {
+          ordered = ordered
+              .OrderBy(x => TryParseHouseholdCode((string)x.HouseholdCode) ?? long.MaxValue)
+              .ThenBy(x => string.IsNullOrWhiteSpace((string)x.HouseholdCode) ? "ZZZZZZ" : (string)x.HouseholdCode)
+              .ThenByDescending(x => ((x.Row.HouseholdOwnerMemberId ?? 0) > 0 && x.Row.MemberId == x.Row.HouseholdOwnerMemberId) ? 1 : 0)
+              .ThenBy(x => (x.Row.MemberId));
+      }
+      else
+      {
+          ordered = ordered.OrderBy(x => (x.Row.MemberId));
+      }
+
+      var blocks = new List<string>();
+      var idx = 0;
+
+      decimal totalPrincipal = 0m;
+      decimal totalInterest = 0m;
+
+      foreach (var x in ordered)
+      {
+          var r = x.Row;
+
+          totalPrincipal += (decimal)x.NetPrincipal;
+          totalInterest += (decimal)x.NetInterest;
+
+          var principalShares = (long)x.PrincipalShares;
+          var interestShares = (long)x.InterestShares;
+          var totalShares = (long)x.TotalShares;
+
+          idx++;
+          if (includeInterest)
+          {
+              blocks.Add($"{idx}-{(r.MemberName ?? string.Empty).Trim()}\n{principalShares}₊{interestShares}={totalShares}سهم");
+          }
+          else
+          {
+              blocks.Add($"{idx}-{(r.MemberName ?? string.Empty).Trim()}\n{principalShares} سهم");
+          }
+      }
+
+      var introLine = includeInterest
+          ? $"گزارش کلی سهام اعضای صندوق به تفکیک سپرده و سود سپرده منتهی به تاریخ {_asOfText} به شرح ذیل اعلام میگردد:"
+          : $"گزارش سهام اعضای صندوق بر مبنای اصل سپرده (بدون محاسبه سود) منتهی به تاریخ {_asOfText} به شرح ذیل اعلام میگردد:";
+
+      var header = string.Join("\n", new[]
+      {
+          "بسم الله الرحمن الرحیم",
+          "اللهم صلّ علی محمدوآل محمد(ص)",
+          "",
+          "اعضاء محترم صندوق همیاری امام علی ع",
+          "",
+          "باسلام",
+          introLine,
+          ""
+      });
+
+      var body = string.Join("\n------------\n", blocks);
+
+      var footerLines = new List<string>
+      {
+          $"ارزش اسمی هرسهم {_shareNominal.ToString("N0")} ریال است",
+          "",
+          "جمع مبلغ سپرده تاکنون:",
+          $"{totalPrincipal.ToString("N0")} ریال"
+      };
+
+      if (includeInterest)
+      {
+          footerLines.AddRange(new[]
+          {
+              "جمع مبلغ سود سپرده  تاکنون:",
+              $"{totalInterest.ToString("N0")} ریال",
+              "جمع مبلغ کل سپرده تاکنون:",
+              $"{(totalPrincipal + totalInterest).ToString("N0")} ریال"
+          });
+      }
+      else
+      {
+          footerLines.AddRange(new[]
+          {
+              "جمع مبلغ کل سپرده تاکنون:",
+              $"{totalPrincipal.ToString("N0")} ریال"
+          });
+      }
+
+      footerLines.AddRange(new[]
+      {
+          "",
+          "تاریخ تهیه گزارش:",
+          _asOfText,
+          "",
+          string.IsNullOrWhiteSpace(_issuerName) ? string.Empty : $"👤 صادر کننده: {_issuerName}",
+          "",
+          "سامانه مالی صندوق امام علی(ع)",
+          "🌎 new.eafund.ir"
+      });
+
+      var footer = string.Join("\n", footerLines.Where(x => x != null));
+      _whatsAppText = header + body + "\n" + footer;
+  }
+
+  private async Task Copy()
+  {
+    await JS.InvokeAsync<bool>("whatsappShares.copy", _whatsAppText);
+  }
+
+  private async Task Share()
+  {
+    await JS.InvokeVoidAsync("whatsappShares.share", _whatsAppText);
+  }
+
+  private static long ToShares(decimal amount, decimal shareNominal)
+  {
+    if (amount <= 0m) return 0;
+    if (shareNominal <= 0m) return 0;
+    var v = amount / shareNominal;
+    return (long)decimal.Truncate(v);
+  }
+
+  private static decimal ParseMoney(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return 0m;
+    var cleaned = (s ?? string.Empty).Replace(",", "").Replace(" ", "").Trim();
+    if (decimal.TryParse(cleaned, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var v))
+      return v;
+    if (decimal.TryParse(cleaned, out v))
+      return v;
+    return 0m;
+  }
+}

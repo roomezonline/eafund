@@ -1,0 +1,32 @@
+.account-type-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 0;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Form spacing and layout */
+.account-type-form .form-section + .form-section {
+  margin-top: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .account-type-form {
+    gap: 16px;
+  }
+  
+  .form-section {
+    gap: 6px;
+  }
+}

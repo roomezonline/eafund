@@ -1,0 +1,445 @@
+/* Head confirm modal overrides */
+.head-confirm-modal { border-radius: 16px; }
+@media (max-width: 480px) {
+  .head-confirm-modal { border-bottom-left-radius: 0; border-bottom-right-radius: 0; width: 100%; margin: 20vh 0 0 0 !important; }
+}
+/* Force JalaliDatePicker above the dialog */
+jdp-container { z-index: 10050 !important; position: fixed !important; }
+jdp-overlay { z-index: 10040 !important; }
+/* iOS-style Bottom Sheet for Member Form */
+.ios-sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  opacity: 1;
+  visibility: visible;
+}
+
+.ios-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--card, var(--mud-palette-surface));
+  border-radius: 20px 20px 0 0;
+  max-height: 90vh;
+  transform: translateY(0);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: visible; /* allow popups like datepicker to overflow */
+}
+
+/* Desktop responsive - center and limit width */
+@media (min-width: 768px) {
+  .ios-sheet {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: 640px; /* a bit wider to keep fields away from rounded edges */
+    max-width: 90vw;
+    border-radius: 20px;
+    max-height: 85vh;
+  }
+}
+
+/* Handle Bar */
+.ios-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--muted, #c7c7cc);
+  border-radius: 2px;
+  margin: 8px auto 12px;
+}
+
+/* Header */
+.ios-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--border, rgba(0,0,0,.08));
+}
+
+.ios-cancel, .ios-done, .ios-delete {
+  background: none;
+  border: none;
+  font-size: 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ios-cancel {
+  background: #f59e0b; /* orange */
+  color: #fff;
+  font-weight: 700;
+}
+
+.ios-cancel:hover {
+  background: color-mix(in srgb, #f59e0b 88%, black);
+}
+
+.ios-done {
+  color: #fff;
+  background: var(--primary, #007aff);
+  font-weight: 700;
+  position: relative;
+  border: none;
+  padding: 8px 16px;
+  min-width: 90px; /* wider confirm button */
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(0,122,255,.25);
+}
+
+.ios-done:hover {
+  background: color-mix(in srgb, var(--primary, #007aff) 92%, #000);
+}
+
+.ios-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text, var(--mud-palette-text-primary));
+  margin: 0;
+}
+
+/* Content */
+.ios-content {
+  padding: 12px 20px 28px; /* extra bottom padding to avoid clipping */
+  /* Use flex so content area is constrained by sheet height */
+  flex: 1 1 auto;
+  min-height: 0; /* allow child overflow scrolling */
+  overflow-y: auto;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+}
+
+/* Form Sections */
+.ios-form-section {
+  margin-bottom: 24px;
+}
+
+.ios-form-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--section-bg, rgba(0,0,0,.03));
+  border-radius: 12px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  color: var(--text, var(--mud-palette-text-primary));
+}
+
+.ios-form-header i {
+  color: var(--primary, #007aff);
+}
+
+.ios-form-group {
+  background: var(--card, var(--mud-palette-surface));
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(0,0,0,.08));
+  overflow: hidden;
+  margin: 12px 0; /* spacing from sheet top/bottom */
+  box-sizing: border-box;
+}
+
+/* Fields */
+.ios-field {
+  padding: 16px;
+  border-bottom: 1px solid var(--border, #e5e5ea);
+}
+
+.ios-field:first-child { padding-top: 20px; }
+.ios-field:last-child { padding-bottom: 20px; }
+
+.ios-field:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted, #8e8e93);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.ios-input {
+  width: 100%;
+  border: 1px solid var(--border, #e5e5ea);
+  background: var(--input-bg, #f8f9fa);
+  font-size: 16px;
+  color: var(--text, var(--mud-palette-text-primary));
+  padding: 12px 16px;
+  outline: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.ios-input.center-text {
+  text-align: center;
+}
+
+.ios-input::placeholder {
+  color: var(--muted, #c7c7cc);
+  text-align: center;
+}
+
+.ios-input:focus {
+  border-color: var(--primary, #007aff);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.ios-input.error {
+  color: var(--danger, #ff3b30);
+  border-color: var(--danger, #ff3b30);
+  background: rgba(255, 59, 48, 0.05);
+}
+
+.field-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--danger, #ff3b30);
+}
+
+/* Select styling */
+select.ios-input {
+  text-align: right;
+  padding-right: 16px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: left 12px center;
+  background-size: 16px;
+}
+
+/* Searchable combo */
+.ios-combo { position: relative; }
+.ios-combo .combo-clear {
+  position: absolute;
+  left: 10px; /* keep away from right-aligned text */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted, #6b7280);
+  display: grid; place-items: center;
+  cursor: pointer;
+}
+.ios-combo .combo-clear:hover { background: rgba(0,0,0,.05); }
+.ios-combo-list {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 6px);
+  background: var(--card, var(--mud-palette-surface));
+  border: 1px solid var(--border, rgba(0,0,0,.12));
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(15,23,42,.18);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 10000;
+}
+.ios-combo-empty { padding: 12px; font-size: 13px; color: var(--muted, #8e8e93); text-align: center; }
+.ios-combo-item { width: 100%; text-align: right; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 8px; border: none; background: transparent; cursor: pointer; }
+.ios-combo-item:hover { background: rgba(0,0,0,.04); }
+.ios-combo-item .name { font-weight: 700; color: var(--text, var(--mud-palette-text-primary)); }
+.ios-combo-item .code { font-size: 12px; color: var(--muted, #8e8e93); }
+
+.ios-combo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text, #111827);
+  cursor: pointer;
+}
+
+/* Emphasize the "New Household" action item */
+.ios-combo-item.new-household {
+  background: rgba(239, 68, 68, 0.06);
+  border-top: 1px dashed rgba(239, 68, 68, 0.35);
+  border-bottom: 1px dashed rgba(239, 68, 68, 0.35);
+  color: #b91c1c; /* dark red text */
+  font-weight: 800;
+}
+.ios-combo-item.new-household .name {
+  color: #dc2626;
+}
+.ios-combo-item.new-household .code {
+  color: #ef4444;
+  font-weight: 900;
+}
+.ios-combo-item.new-household:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+/* Toggle Row */
+.ios-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--card, var(--mud-palette-surface));
+  border: 1px solid var(--border, rgba(0,0,0,.08));
+  border-radius: 12px;
+  margin-top: 16px;
+}
+
+.ios-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.ios-toggle-label i {
+  color: var(--primary, #007aff);
+  font-size: 18px;
+}
+
+.ios-toggle-title {
+  font-weight: 600;
+  color: var(--text, var(--mud-palette-text-primary));
+  display: block;
+  text-align: right;
+}
+
+.ios-toggle-subtitle {
+  font-size: 13px;
+  color: var(--muted, #8e8e93);
+  display: block;
+  margin-top: 2px;
+  text-align: right;
+}
+
+/* iOS Toggle Switch */
+.ios-toggle {
+  position: relative;
+  display: inline-block;
+  width: 51px;
+  height: 31px;
+}
+
+.ios-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.ios-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e9e9ea;
+  transition: .2s;
+  border-radius: 31px;
+}
+
+.ios-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 27px;
+  width: 27px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .2s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.ios-toggle input:checked + .ios-toggle-slider {
+  background-color: var(--success, #34c759);
+}
+
+.ios-toggle input:checked + .ios-toggle-slider:before {
+  transform: translateX(20px);
+}
+
+/* Spinner */
+.ios-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Dark theme support */
+:root[data-theme="dark"] .ios-form-header {
+  background: color-mix(in srgb, var(--card, var(--mud-palette-surface)) 90%, white);
+}
+
+:root[data-theme="dark"] .ios-form-group {
+  background: var(--card, var(--mud-palette-surface));
+  border-color: var(--border, rgba(255,255,255,.12));
+}
+
+:root[data-theme="dark"] .ios-toggle-row {
+  background: var(--card, var(--mud-palette-surface));
+  border-color: var(--border, rgba(255,255,255,.12));
+}
+
+:root[data-theme="dark"] .ios-toggle-slider {
+  background-color: #39393d;
+}
+
+:root[data-theme="dark"] .ios-input {
+  background: color-mix(in srgb, var(--card, var(--mud-palette-surface)) 90%, white);
+  border-color: var(--border, rgba(255,255,255,.12));
+}
+
+:root[data-theme="dark"] .ios-input:focus {
+  border-color: var(--primary, #007aff);
+}
+
+/* Delete button (red) */
+.ios-delete {
+  background: var(--danger, #ff3b30);
+  color: #fff;
+  font-weight: 700;
+}
+
+.ios-delete:hover { background: color-mix(in srgb, var(--danger, #ff3b30) 88%, black); }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .ios-sheet {
+    max-height: 95vh;
+  }
+  
+  .ios-content {
+    padding: 12px 16px 16px; /* top spacing on mobile */
+    max-height: calc(95vh - 100px);
+  }
+
+  /* remove personal info header on mobile for compact UI */
+  .ios-form-header { display: none; }
+}

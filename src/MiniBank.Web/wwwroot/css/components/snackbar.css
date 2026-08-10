@@ -1,0 +1,33 @@
+/* Snackbar customizations: place progress bar at bottom and ensure clean look */
+
+/* Ensure snackbar has room for the progress bar at the bottom */
+.mud-snackbar .mud-alert {
+  position: relative;
+  padding-bottom: 12px; /* space for the timer bar */
+}
+
+/* Place progress bar at the bottom inside the snackbar */
+.mud-snackbar .mud-progress-linear {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 0;
+}
+
+/* Fallback: hide action/close area if any (we already disabled via config) */
+.mud-snackbar .mud-snackbar-action {
+  display: none !important;
+}
+
+/* Tweak message spacing a bit */
+.mud-snackbar .mud-alert-message {
+  margin-right: 0.25rem;
+}
+
+/* Optional: style variants consistently */
+.mud-snackbar .mud-alert-filled-success { background: #16a34a; color: #fff; }
+.mud-snackbar .mud-alert-filled-error   { background: #dc2626; color: #fff; }
+.mud-snackbar .mud-alert-filled-warning { background: #d97706; color: #fff; }
+.mud-snackbar .mud-alert-filled-info    { background: #2563eb; color: #fff; }

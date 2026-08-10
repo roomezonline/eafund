@@ -1,0 +1,718 @@
+@page "/dashboard"
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using MiniBank.Web.Models
+@using MiniBank.Web.Models.Reports
+@using MiniBank.Web.Components.DesignSystem
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject MiniBank.Web.Services.MemberService MemberService
+@inject MiniBank.Web.Infrastructure.Repositories.TransactionReportRepository TxReports
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository AuthRepo
+@inject MiniBank.Web.Services.MemberFinancialSnapshotService Snapshots
+@inject DsToastService Toasts
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using MiniBank.Web.Components.Member
+
+<MemberSelector OnMemberChanged="OnMemberSelectorChanged" />
+
+<style>
+  :root{--c-bg:#f7f9fc;--c-card:#ffffff;--c-border:#e5e7eb;--c-text:#0f172a;--c-muted:#64748b;--c-brand:#0ea5e9;--c-brand2:#38bdf8;--c-ok:#16a34a;--c-warn:#f59e0b;--c-bad:#dc2626;--c-violet:#7c3aed}
+  .dash-shell{max-width:1100px;margin:0 auto;padding:10px 14px 80px;direction:rtl;position:relative;isolation:isolate}
+  .dash-shell::before{content:"";position:fixed;inset:-40px;z-index:-2;background:
+    radial-gradient(1200px 760px at 12% 8%, rgba(14,165,233,.26), transparent 58%),
+    radial-gradient(980px 640px at 88% 10%, rgba(124,58,237,.20), transparent 58%),
+    radial-gradient(980px 640px at 82% 88%, rgba(34,197,94,.12), transparent 60%),
+    radial-gradient(980px 640px at 18% 88%, rgba(56,189,248,.12), transparent 60%),
+    linear-gradient(180deg,#f8fbff,#f6f7ff 55%, #f8fafc);filter:saturate(1.06)}
+  .dash-shell::after{content:"";position:fixed;inset:-30px;z-index:-1;pointer-events:none;opacity:.9;
+    background:
+      radial-gradient(500px 360px at 18% 18%, rgba(56,189,248,.38), transparent 60%),
+      radial-gradient(520px 360px at 85% 22%, rgba(167,139,250,.32), transparent 62%),
+      radial-gradient(520px 360px at 72% 82%, rgba(34,197,94,.22), transparent 62%),
+      radial-gradient(540px 360px at 26% 84%, rgba(251,191,36,.22), transparent 62%);
+    mix-blend-mode:normal;animation:dashFloat 16s ease-in-out infinite alternate;transform:translate3d(0,0,0)}
+
+  @@keyframes dashFloat{0%{transform:translate3d(0,0,0) scale(1)}100%{transform:translate3d(0,-14px,0) scale(1.02)}}
+  .dash-head{margin-bottom:12px}
+  .dash-hero{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 12px;border-radius:18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.78), rgba(248,250,252,.78));
+    border: 1px solid rgba(226,232,240,.92);
+    box-shadow: 0 16px 44px rgba(15,23,42,.10);
+    backdrop-filter: blur(10px);
+    transform: translateY(4px);
+    animation: heroIn .45s ease-out both;
+  }
+  @@keyframes heroIn{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
+
+  .dash-title{font-weight:950;font-size:18px;color:#0f172a;letter-spacing:-.2px}
+  .dash-sub{font-weight:800;font-size:12px;color:#64748b;margin-top:2px}
+  .dash-welcome{font-weight:900;font-size:12px;color:#0f172a;opacity:.9;margin-top:6px}
+  .dash-welcome .name{color:#0369a1;background:rgba(14,165,233,.10);border:1px solid rgba(14,165,233,.18);padding:2px 10px;border-radius:999px;margin-right:6px;display:inline-flex;align-items:center;gap:6px}
+
+  .hero-actions{display:flex;gap:8px;align-items:center}
+  .hero-btn{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+    border:1px solid rgba(226,232,240,.92);
+    background: rgba(255,255,255,.92);
+    box-shadow: 0 6px 18px rgba(15,23,42,.08);
+    color:#0f172a;cursor:pointer;transition:transform .15s ease, box-shadow .15s ease, background .15s ease}
+  .hero-btn:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(15,23,42,.12);background:#fff}
+  .hero-btn.danger{border-color: rgba(239,68,68,.20); background: rgba(254,242,242,.92); color:#b91c1c}
+
+  .dash-card{background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(248,250,252,.92));border:1px solid rgba(226,232,240,.92);border-radius:18px;padding:14px;box-shadow:0 14px 34px rgba(15,23,42,.10);backdrop-filter:blur(8px);transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease}
+  .dash-card:hover{transform:translateY(-1px);box-shadow:0 18px 44px rgba(15,23,42,.14);border-color:rgba(148,163,184,.7)}
+  .dash-card.accent{border-color:rgba(56,189,248,.55);background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(240,249,255,.92))}
+
+  .section-title{font-weight:950;color:#0f172a;margin-bottom:10px}
+
+  .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;font-weight:950;font-size:11px;border:1px solid transparent;white-space:nowrap}
+  .b-brand{background:#e0f2fe;border-color:#bae6fd;color:#0369a1}
+  .b-ok{background:#dcfce7;border-color:#86efac;color:#166534}
+  .b-warn{background:#ffedd5;border-color:#fdba74;color:#9a3412}
+  .b-bad{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+
+  .sum-viewport{overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;scroll-padding-inline:12px;padding:2px 12px 10px;cursor:grab}
+  .sum-viewport.dragging{cursor:grabbing}
+  .sum-viewport::-webkit-scrollbar{height:8px}
+  .sum-viewport::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:999px}
+  .sum-strip{display:flex;gap:10px;align-items:stretch;justify-content:flex-start;width:100%}
+  .sum-card{scroll-snap-align:start;min-width:100%;max-width:520px}
+  @@media (min-width: 700px){.sum-card{min-width:360px}}
+  @@media (min-width: 980px){.sum-card{min-width:320px}}
+
+  .sum-card{border:1px solid rgba(226,232,240,.92);border-radius:18px;padding:12px;background:
+    linear-gradient(180deg,rgba(255,255,255,.92),rgba(248,250,252,.92));cursor:pointer;
+    box-shadow:0 10px 26px rgba(15,23,42,.08);
+    transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease, background .14s ease}
+  .sum-card:hover{transform:translateY(-2px);box-shadow:0 18px 46px rgba(15,23,42,.14)}
+  .sum-card:active{transform:translateY(0px) scale(.995)}
+  .sum-card.active{border-color:rgba(14,165,233,.75);box-shadow:0 18px 50px rgba(14,165,233,.22);background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(224,242,254,.40))}
+
+  .sum-card.sum-household{background:
+    linear-gradient(135deg, rgba(99,102,241,.18), rgba(14,165,233,.16), rgba(255,255,255,.94));
+  }
+  .sum-card.sum-member{background:
+    linear-gradient(135deg, rgba(16,185,129,.16), rgba(56,189,248,.12), rgba(255,255,255,.94));
+  }
+
+  .sum-card.sum-household{position:relative; overflow:hidden;}
+  .sum-card.sum-member{position:relative; overflow:hidden;}
+  .sum-card.sum-household > *, .sum-card.sum-member > *{position:relative; z-index:1}
+  .sum-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .sum-name{font-weight:950;color:#0f172a;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sum-pill{font-weight:900;font-size:11px;color:#0f172a;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:6px 8px;white-space:nowrap}
+  .sum-pill.active{background:#e0f2fe;border-color:#bae6fd;color:#0369a1}
+  .sum-pill.head{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+  .sum-pill.head.active{background:#fde68a;border-color:#f59e0b;color:#78350f}
+  .sum-kpis{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}
+  .kpi{display:flex;align-items:baseline;justify-content:space-between;gap:10px;border-radius:14px;background:#fff;border:1px solid #eef2f7;padding:8px 10px}
+  .kpi .k{font-weight:850;color:#64748b;font-size:12px}
+  .kpi .v{font-weight:950;color:#0f172a;font-size:13px;white-space:nowrap}
+  .amt{font-variant-numeric:tabular-nums}
+  .amt.principal{color:#0f172a}
+  .amt.interest{color:#334155}
+  .amt.net{color:#0ea5e9}
+
+  .sum-dots{display:flex;justify-content:center;gap:8px;margin-top:10px}
+  .sum-dot{width:7px;height:7px;border-radius:999px;background:rgba(15,23,42,.22);border:1px solid rgba(226,232,240,.92);transition:transform .14s ease, background-color .14s ease, opacity .14s ease}
+  .sum-dot.active{background:#0ea5e9;transform:scale(1.35)}
+
+  .services-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @@media (min-width: 700px){.services-grid{grid-template-columns:1fr 1fr 1fr 1fr}}
+  .service-item{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;padding:12px;border-radius:18px;border:1px solid rgba(226,232,240,.92);background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(248,250,252,.92));text-decoration:none;color:inherit;transition:transform .12s ease, box-shadow .12s ease;text-align:center}
+  .service-item:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(15,23,42,.08)}
+  .service-icon{width:44px;height:44px;border-radius:16px;display:grid;place-items:center;border:1px solid #bae6fd;background:#f0f9ff;color:#0369a1}
+  .service-title{font-weight:950;color:#0f172a;font-size:13px}
+  .service-desc{font-weight:800;color:#64748b;font-size:11px;line-height:1.3}
+
+  .muted{color:#64748b;font-weight:800;font-size:12px}
+  .skeleton{height:14px;border-radius:10px;background:linear-gradient(90deg,#f1f5f9,#e2e8f0,#f1f5f9);background-size:200% 100%;animation:sk 1.2s ease-in-out infinite}
+  @@keyframes sk{0%{background-position:0% 0}100%{background-position:200% 0}}
+
+  @@media (prefers-reduced-motion: reduce){
+    .dash-shell::after{animation:none}
+    .skeleton{animation:none}
+    .dash-card,.sum-card,.service-item{transition:none}
+    .dash-card:hover,.sum-card:hover,.service-item:hover{transform:none;box-shadow:none}
+    .sum-card.sum-household,.sum-card.sum-member{background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(248,250,252,.92))}
+  }
+
+  @@media (max-width: 520px){
+    .dash-shell{padding:6px 10px 80px; margin-top:0;}
+    .dash-head{margin-top:0;}
+    .dash-head{margin-bottom:10px}
+    .dash-hero{padding:10px 10px;border-radius:16px;transform:none}
+    .dash-title{font-size:16px}
+    .hero-btn{width:36px;height:36px;border-radius:12px}
+    .sum-viewport{padding-inline:10px}
+    .sum-card{min-width:100%}
+  }
+</style>
+
+<div class="dash-shell">
+  <div class="dash-head">
+    <div class="dash-hero">
+      <div>
+        <div class="dash-title">داشبورد</div>
+        <div class="dash-sub">خلاصه وضعیت مالی و هویتی</div>
+        <div class="dash-welcome">
+          <span>خوش آمدید</span>
+          <span class="name"><i class="fa-solid fa-user" style="font-size:12px"></i>@(_me?.FullName ?? _me?.FirstName ?? "")</span>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <button class="hero-btn" title="پروفایل" @onclick='() => Nav.NavigateTo(HrefFor("/me/profile"))'>
+          <i class="fa-solid fa-user"></i>
+        </button>
+        <button class="hero-btn danger" title="خروج" @onclick="Logout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (_loading)
+  {
+    <div class="dash-card">
+      <div class="skeleton" style="width:180px"></div>
+      <div style="height:10px"></div>
+      <div class="skeleton" style="width:240px"></div>
+    </div>
+  }
+  else if (_adminNeedsMemberSelection)
+  {
+    <div class="dash-card">
+      <div style="font-weight:950;color:#0f172a">
+        <i class="fa-solid fa-users" style="margin-inline-end:8px;color:#0ea5e9"></i>
+        برای مشاهده داشبورد اعضا، ابتدا یک عضو را از لیست بالا انتخاب کنید.
+      </div>
+      <div class="muted" style="margin-top:8px">این انتخاب تا زمانی که خودتان تغییر دهید در تمام صفحات داشبورد اعضا ثابت می‌ماند.</div>
+    </div>
+  }
+  else if (!string.IsNullOrWhiteSpace(_fatalError))
+  {
+    <div class="dash-card">
+      <div style="font-weight:950;color:#b91c1c">@_fatalError</div>
+      <div class="muted" style="margin-top:8px">اگر مشکل ادامه داشت با مدیر سیستم تماس بگیرید.</div>
+    </div>
+  }
+  else
+  {
+    <div class="dash-card accent" style="margin-bottom:12px">
+      <div class="section-title">خلاصه موجودی سپرده خانوار</div>
+      <div class="muted" style="margin-bottom:10px">برای دیدن گزارش هر عضو روی کارت همان عضو بزنید.</div>
+
+      <div class="sum-viewport drag-scroll" @ref="_sumViewportRef">
+        <div class="sum-strip">
+          <div class="sum-card sum-household @(_mode == DashMode.Household ? "active" : null)" @onclick="(()=>SetMode(DashMode.Household))">
+            <div class="sum-top">
+              <div class="sum-name">خانوار @(_householdName ?? "-")</div>
+              <div class="sum-pill @(_mode == DashMode.Household ? "active" : null)">تجمیعی</div>
+            </div>
+            <div class="sum-kpis">
+              <div class="kpi"><span class="k">اصل سپرده</span><span class="v amt principal">@FmtMoney(_householdPrincipal)</span></div>
+              <div class="kpi"><span class="k">سود سپرده</span><span class="v amt interest">@FmtMoney(_householdInterest)</span></div>
+              <div class="kpi"><span class="k">خالص سپرده</span><span class="v amt net">@FmtMoney(_householdNet)</span></div>
+            </div>
+          </div>
+
+          @foreach (var m in _householdMembers)
+          {
+            _memberSnaps.TryGetValue(m.MemberId, out var snap);
+            var active = _mode == DashMode.Member && _selectedMemberId == m.MemberId;
+            var isHead = _householdOwnerMemberId.HasValue && _householdOwnerMemberId.Value == m.MemberId;
+            <div class="sum-card sum-member @(active ? "active" : null)" @onclick="(()=>SelectMember(m.MemberId))">
+              <div class="sum-top">
+                <div class="sum-name">@m.MemberName</div>
+                <div class="sum-pill @((active ? "active" : null)) @((isHead ? "head" : null))">@(isHead ? "سرخانوار" : "عضو")</div>
+              </div>
+              <div class="sum-kpis">
+                <div class="kpi"><span class="k">اصل سپرده</span><span class="v amt principal">@FmtMoney(snap?.NetPrincipal ?? 0m)</span></div>
+                <div class="kpi"><span class="k">سود سپرده</span><span class="v amt interest">@FmtMoney(snap?.NetInterest ?? 0m)</span></div>
+                <div class="kpi"><span class="k">خالص سپرده</span><span class="v amt net">@FmtMoney(snap?.TotalNet ?? 0m)</span></div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      @{
+        var totalDots = 1 + (_householdMembers?.Count ?? 0);
+        var activeIndex = _activeSumIndex;
+      }
+      @if (totalDots > 1)
+      {
+        <div class="sum-dots" aria-hidden="true">
+          @for (var i = 0; i < totalDots; i++)
+          {
+            <span class="sum-dot @(i == activeIndex ? "active" : null)"></span>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="dash-card" style="margin-bottom:12px">
+      <div class="section-title">خدمات</div>
+      <div class="services-grid">
+        <a class="service-item" href="@HrefFor("/me/profile")">
+          <div class="service-icon"><i class="fa-solid fa-user"></i></div>
+          <div>
+            <div class="service-title">پروفایل</div>
+            <div class="service-desc">اطلاعات هویتی و خانوار</div>
+          </div>
+        </a>
+        <a class="service-item" href="@HrefFor("/me/transactions")">
+          <div class="service-icon"><i class="fa-solid fa-receipt"></i></div>
+          <div>
+            <div class="service-title">تراکنش‌ها</div>
+            <div class="service-desc">ریز تراکنش‌ها و فیلترها</div>
+          </div>
+        </a>
+        <a class="service-item" href="@HrefFor("/me/loans")">
+          <div class="service-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+          <div>
+            <div class="service-title">وضعیت وام‌ها</div>
+            <div class="service-desc">وام فعال و جزئیات</div>
+          </div>
+        </a>
+        <a class="service-item" href="@HrefFor("/me/household")">
+          <div class="service-icon"><i class="fa-solid fa-people-group"></i></div>
+          <div>
+            <div class="service-title">گزارش خانوار</div>
+            <div class="service-desc">تجمیعی خانوار و اعضا</div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div class="dash-card">
+      <div class="section-title">جزئیات انتخاب‌شده</div>
+      <div class="muted" style="margin-bottom:10px">
+        @if (_mode == DashMode.Member)
+        {
+          <span class="badge b-brand">گزارش فردی</span>
+          <span style="margin-right:6px">عضو انتخاب‌شده</span>
+        }
+        else
+        {
+          <span class="badge b-brand">گزارش تجمیعی</span>
+          <span style="margin-right:6px">خانوار</span>
+        }
+      </div>
+
+      @if (_reportLoading)
+      {
+        <div class="skeleton" style="width:220px"></div>
+        <div style="height:10px"></div>
+        <div class="skeleton" style="width:320px"></div>
+      }
+      else
+      {
+        <div class="sum-kpis">
+          <div class="kpi"><span class="k">اصل سپرده</span><span class="v amt principal">@FmtMoney(_summaryNetPrincipal)</span></div>
+          <div class="kpi"><span class="k">سود سپرده</span><span class="v amt interest">@FmtMoney(_summaryNetInterest)</span></div>
+          <div class="kpi"><span class="k">خالص سپرده</span><span class="v amt net">@FmtMoney(_summaryTotalNet)</span></div>
+          @if (_mode == DashMode.Household)
+          {
+            <div class="kpi"><span class="k">مانده وام تاکنون</span><span class="v amt">@FmtMoney(_summaryLoanRemainingTotal)</span></div>
+            <div class="kpi"><span class="k">خالص <span style="color:#16a34a">طلب</span> / <span style="color:#dc2626">بدهی</span></span><span class="v amt" style="color:@(_summaryNetClaimDebt >= 0m ? "#16a34a" : "#dc2626")">@FmtMoney(_summaryNetClaimDebt)</span></div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
+
+@code {
+  private enum DashMode { Household = 0, Member = 1 }
+
+  private bool _loading = true;
+  private bool _reportLoading;
+  private string? _fatalError;
+
+  private Member? _me;
+  private string? _householdName;
+  private long? _householdOwnerMemberId;
+
+  private DashMode _mode = DashMode.Household;
+  private long? _selectedMemberId;
+  
+  // Member selector for admin/staff
+  private long? _adminSelectedMemberId;
+  private bool _isMemberViewingOwnDashboard = true;
+  private bool _adminNeedsMemberSelection;
+
+  private ElementReference _sumViewportRef;
+  private DotNetObjectReference<Dashboard>? _sumDotsDotNetRef;
+  private int _activeSumIndex;
+
+  private List<MemberBankingBalanceRow> _householdMembers = new();
+  private Dictionary<long, MemberFinancialSnapshot> _memberSnaps = new();
+
+  private decimal _householdPrincipal;
+  private decimal _householdInterest;
+  private decimal _householdNet;
+  private decimal _householdLoanRemainingTotal;
+  private decimal _householdNetClaimDebt;
+
+  private decimal _summaryNetPrincipal;
+  private decimal _summaryNetInterest;
+  private decimal _summaryPrincipalWithdrawals;
+  private decimal _summaryTotalNet;
+  private decimal _summaryLoanRemainingTotal;
+  private decimal _summaryNetClaimDebt;
+  private MemberFinancialSnapshot.ActiveLoanSnapshot? _activeLoan;
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      _loading = true;
+      _fatalError = null;
+      _adminNeedsMemberSelection = false;
+
+      // Use variables defined at top of OnInitializedAsync
+      var state = await AuthStateProvider.GetAuthenticationStateAsync();
+      var user = state.User;
+
+      var role = user?.FindFirst("role")?.Value ?? user?.FindFirst(ClaimTypes.Role)?.Value;
+      var isMemberRole = string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase);
+
+      long memberId = 0;
+      var memberIdClaim = user?.FindFirst("MemberId")?.Value;
+      if (!long.TryParse(memberIdClaim, out memberId) || memberId <= 0)
+      {
+        var userIdClaim = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (long.TryParse(userIdClaim, out var userId) && userId > 0)
+        {
+          var dbUser = await AuthRepo.GetUserByIdAsync(userId);
+          if (dbUser?.MemberId.HasValue == true)
+            memberId = dbUser.MemberId.Value;
+        }
+      }
+
+      if (memberId <= 0)
+      {
+        if (!isMemberRole)
+        {
+          // Try to load from session storage for admin/staff
+          try {
+              var saved = await JS.InvokeAsync<string>("sessionStorage.getItem", "memberSelector_selectedMemberId");
+              if (!string.IsNullOrWhiteSpace(saved) && long.TryParse(saved, out var sid)) {
+                  await LoadSelectedMemberDataAsync(sid);
+                  return;
+              }
+          } catch {}
+
+          _adminNeedsMemberSelection = true;
+          return;
+        }
+
+        _fatalError = "اطلاعات عضویت برای این کاربر ثبت نشده است.";
+        return;
+      }
+
+      _me = await MemberService.GetByIdAsync(memberId);
+      if (_me == null)
+      {
+        _fatalError = "عضو یافت نشد.";
+        return;
+      }
+
+      _householdOwnerMemberId = _me.Household?.OwnerMemberId;
+
+      _householdName = _me.Household?.Name;
+
+      if (!string.IsNullOrWhiteSpace(_me.HouseholdCode))
+      {
+        var rows = await TxReports.GetHouseholdMemberBankingBalancesAsync(_me.HouseholdCode);
+        _householdMembers = rows.ToList();
+
+        var codes = _householdMembers.Select(x => x.BankAccountNumber).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+        var snaps = await Snapshots.GetSnapshotsByMemberCodesAsync(codes!);
+        _memberSnaps = new Dictionary<long, MemberFinancialSnapshot>();
+        foreach (var mem in _householdMembers)
+        {
+          if (string.IsNullOrWhiteSpace(mem.BankAccountNumber))
+            continue;
+          if (snaps.TryGetValue(mem.BankAccountNumber, out var s))
+            _memberSnaps[mem.MemberId] = s;
+        }
+
+        _householdPrincipal = _memberSnaps.Values.Sum(x => x.NetPrincipal);
+        _householdInterest = _memberSnaps.Values.Sum(x => x.NetInterest);
+        _householdNet = _memberSnaps.Values.Sum(x => x.TotalNet);
+        _householdLoanRemainingTotal = _memberSnaps.Values.Sum(x => x.ActiveLoan?.RemainingTotal ?? 0m);
+        _householdNetClaimDebt = _householdNet - _householdLoanRemainingTotal;
+      }
+
+      await LoadReportAsync();
+    }
+    catch (Exception ex)
+    {
+      _fatalError = $"خطا در بارگذاری داشبورد: {ex.Message}";
+      try { Toasts.Error(_fatalError); } catch { }
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      _sumDotsDotNetRef = DotNetObjectReference.Create(this);
+      try
+      {
+        await JS.InvokeVoidAsync("dashboardSumDots.bind", _sumViewportRef, _sumDotsDotNetRef);
+      }
+      catch { }
+    }
+  }
+
+  [JSInvokable]
+  public Task SetActiveSumIndex(int index)
+  {
+    if (index < 0) index = 0;
+    var total = 1 + (_householdMembers?.Count ?? 0);
+    if (total > 0 && index >= total) index = total - 1;
+    if (_activeSumIndex != index)
+    {
+      _activeSumIndex = index;
+      InvokeAsync(StateHasChanged);
+    }
+    return Task.CompletedTask;
+  }
+
+  private async Task SetMode(DashMode mode)
+  {
+    if (_mode == mode) return;
+    _mode = mode;
+    if (_mode == DashMode.Household)
+      _selectedMemberId = null;
+    _activeSumIndex = 0;
+    await LoadReportAsync();
+  }
+
+  private async Task SelectMember(long memberId)
+  {
+    _mode = DashMode.Member;
+    _selectedMemberId = memberId;
+    var i = _householdMembers.FindIndex(x => x.MemberId == memberId);
+    _activeSumIndex = i >= 0 ? i + 1 : 0;
+    await LoadReportAsync();
+  }
+
+  private async Task LoadReportAsync()
+  {
+    if (_me == null)
+      return;
+
+    try
+    {
+      _reportLoading = true;
+
+      _summaryNetPrincipal = 0m;
+      _summaryNetInterest = 0m;
+      _summaryPrincipalWithdrawals = 0m;
+      _summaryTotalNet = 0m;
+      _summaryLoanRemainingTotal = 0m;
+      _summaryNetClaimDebt = 0m;
+      _activeLoan = null;
+
+      if (_mode == DashMode.Member)
+      {
+        var targetId = _selectedMemberId ?? _me.MemberId;
+        var target = targetId == _me.MemberId ? _me : await MemberService.GetByIdAsync(targetId);
+        if (target == null)
+          return;
+
+        var memberCode = await ResolveMemberCodeAsync(target.MemberId);
+        if (string.IsNullOrWhiteSpace(memberCode))
+          return;
+
+        var snap = await Snapshots.GetSnapshotByMemberCodeAsync(memberCode);
+        _summaryNetPrincipal = snap.NetPrincipal;
+        _summaryNetInterest = snap.NetInterest;
+        _summaryPrincipalWithdrawals = snap.PrincipalWithdrawals;
+        _summaryTotalNet = snap.TotalNet;
+        _activeLoan = snap.ActiveLoan;
+
+        _summaryLoanRemainingTotal = snap.ActiveLoan?.RemainingTotal ?? 0m;
+        _summaryNetClaimDebt = _summaryTotalNet - _summaryLoanRemainingTotal;
+      }
+      else
+      {
+        // Household aggregation: sum snapshots for each memberCode
+        var codes = _householdMembers
+          .Select(x => x.BankAccountNumber)
+          .Where(x => !string.IsNullOrWhiteSpace(x))
+          .ToList();
+
+        var map = await Snapshots.GetSnapshotsByMemberCodesAsync(codes!);
+        foreach (var kv in map)
+        {
+          var snap = kv.Value;
+          _summaryNetPrincipal += snap.NetPrincipal;
+          _summaryNetInterest += snap.NetInterest;
+          _summaryPrincipalWithdrawals += snap.PrincipalWithdrawals;
+          _summaryTotalNet += snap.TotalNet;
+
+          if (snap.ActiveLoan != null)
+            _summaryLoanRemainingTotal += snap.ActiveLoan.RemainingTotal;
+        }
+
+        // Active loan: for household mode show active loan of the selected member only (none).
+        _activeLoan = null;
+        _summaryNetClaimDebt = _summaryTotalNet - _summaryLoanRemainingTotal;
+      }
+    }
+    catch (Exception ex)
+    {
+      try { Toasts.Error($"خطا در گزارش مالی: {ex.Message}"); } catch { }
+    }
+    finally
+    {
+      _reportLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private void Logout()
+  {
+    Nav.NavigateTo("/logout", forceLoad: true);
+  }
+
+  private async Task<string?> ResolveMemberCodeAsync(long memberId)
+  {
+    // We derive member subsidiary code (M-xxxx) by using household banking rows when available.
+    var fromHousehold = _householdMembers.FirstOrDefault(x => x.MemberId == memberId)?.BankAccountNumber;
+    if (!string.IsNullOrWhiteSpace(fromHousehold))
+      return fromHousehold;
+
+    // Fallback: query household members again only if we have household code.
+    if (_me?.HouseholdCode == null)
+      return null;
+
+    var rows = await TxReports.GetHouseholdMemberBankingBalancesAsync(_me.HouseholdCode);
+    var row = rows.FirstOrDefault(x => x.MemberId == memberId);
+    return row?.BankAccountNumber;
+  }
+
+  private static string FmtMoney(decimal v)
+    => string.Format(System.Globalization.CultureInfo.GetCultureInfo("fa-IR"), "{0:n0}", v) + " ریال";
+
+  private string HrefFor(string basePath)
+  {
+    var effectiveMemberId = _mode == DashMode.Member ? _selectedMemberId : null;
+    if (effectiveMemberId.HasValue && effectiveMemberId.Value > 0)
+      return $"{basePath}?memberId={effectiveMemberId.Value}";
+    return basePath;
+  }
+
+  private async Task OnMemberSelectorChanged(long? memberId)
+  {
+    _adminSelectedMemberId = memberId;
+    _isMemberViewingOwnDashboard = !memberId.HasValue;
+    _fatalError = null;
+    _adminNeedsMemberSelection = !memberId.HasValue;
+    
+    if (memberId.HasValue)
+    {
+      // Admin selected a member, load that member's data
+      await LoadSelectedMemberDataAsync(memberId.Value);
+    }
+    else
+    {
+      // Admin cleared selection, reload original user's data if they are a member
+      await ReloadOriginalUserDataAsync();
+    }
+  }
+
+  private async Task LoadSelectedMemberDataAsync(long memberId)
+  {
+    try
+    {
+      _loading = true;
+      StateHasChanged();
+
+      var selectedMember = await MemberService.GetByIdAsync(memberId);
+      if (selectedMember == null)
+      {
+        Toasts.Error("عضو انتخابی یافت نشد.");
+        return;
+      }
+
+      // Set current context member so all downstream blocks (including household report section)
+      // behave like member login but for the selected household.
+      _me = selectedMember;
+
+      // Load selected member's household data
+      if (!string.IsNullOrWhiteSpace(selectedMember.HouseholdCode))
+      {
+        var householdMembers = await TxReports.GetHouseholdMemberBankingBalancesAsync(selectedMember.HouseholdCode);
+        _householdMembers = householdMembers.Where(m => !string.IsNullOrWhiteSpace(m.BankAccountNumber)).ToList();
+        _householdName = selectedMember.Household?.Name;
+        _householdOwnerMemberId = selectedMember.Household?.OwnerMemberId;
+
+        // Load financial snapshots for the household
+        var memberCodes = _householdMembers.Select(m => m.BankAccountNumber).Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+        var snaps = await Snapshots.GetSnapshotsByMemberCodesAsync(memberCodes);
+        _memberSnaps.Clear();
+        foreach (var hm in _householdMembers)
+        {
+          if (snaps.TryGetValue(hm.BankAccountNumber!, out var snap))
+            _memberSnaps[hm.MemberId] = snap;
+        }
+
+        _householdPrincipal = _memberSnaps.Values.Sum(x => x.NetPrincipal);
+        _householdInterest = _memberSnaps.Values.Sum(x => x.NetInterest);
+        _householdNet = _householdPrincipal + _householdInterest;
+        _householdLoanRemainingTotal = _memberSnaps.Values.Sum(x => x.ActiveLoan?.RemainingTotal ?? 0m);
+        _householdNetClaimDebt = _householdNet - _householdLoanRemainingTotal;
+
+        // Behave like member login: default to household view (not a single member)
+        _mode = DashMode.Household;
+        _selectedMemberId = null;
+        _activeSumIndex = 0;
+
+        await LoadReportAsync();
+      }
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری اطلاعات عضو: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task ReloadOriginalUserDataAsync()
+  {
+    try
+    {
+      _loading = true;
+      StateHasChanged();
+
+      // Reload original logged-in user's data
+      await OnInitializedAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری اطلاعات کاربر: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+      StateHasChanged();
+    }
+  }
+}

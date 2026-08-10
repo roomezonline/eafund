@@ -1,0 +1,100 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
+@inject MiniBank.Web.Services.Auth.AuthPermissionService Perms
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository Repo
+
+@if (_canShow)
+{
+    @ChildContent
+}
+else if (NotAllowed != null)
+{
+    @NotAllowed
+}
+
+@code {
+    [Parameter] public IReadOnlyList<string> Paths { get; set; } = Array.Empty<string>();
+    [Parameter] public RenderFragment ChildContent { get; set; } = default!;
+    [Parameter] public RenderFragment? NotAllowed { get; set; }
+
+    private bool _canShow;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _canShow = false;
+
+        if (Paths == null || Paths.Count == 0)
+            return;
+
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = state.User;
+
+        if (user?.Identity?.IsAuthenticated != true)
+            return;
+
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!long.TryParse(userIdClaim, out var userId) || userId <= 0)
+            return;
+
+        long roleId;
+        try
+        {
+            var dbUser = await Repo.GetUserByIdAsync(userId);
+            if (dbUser == null || !dbUser.IsActive)
+                return;
+
+            if (string.Equals(dbUser.Role?.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                _canShow = true;
+                return;
+            }
+
+            roleId = dbUser.RoleId;
+            if (roleId <= 0)
+                return;
+        }
+        catch
+        {
+            return;
+        }
+
+        foreach (var p in Paths)
+        {
+            var path = NormalizePath(p);
+            if (Perms.IsPublicPath(path))
+            {
+                _canShow = true;
+                return;
+            }
+
+            bool allowed;
+            try
+            {
+                allowed = await Perms.IsAllowedAsync(roleId, path);
+            }
+            catch
+            {
+                allowed = false;
+            }
+
+            if (allowed)
+            {
+                _canShow = true;
+                return;
+            }
+        }
+    }
+
+    private static string NormalizePath(string absoluteOrRelative)
+    {
+        var p = (absoluteOrRelative ?? string.Empty).Trim();
+        if (p.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            try { p = new Uri(p).AbsolutePath; } catch { }
+        }
+        if (!p.StartsWith('/')) p = "/" + p;
+        if (p.Length > 1 && p.EndsWith('/')) p = p.TrimEnd('/');
+        return p;
+    }
+}

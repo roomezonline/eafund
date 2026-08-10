@@ -1,0 +1,883 @@
+@page "/admin/deposit-interest-calc"
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Models
+@using System.Globalization
+@inject MiniBank.Web.Infrastructure.Repositories.TransactionReportRepository TxReports
+@inject MiniBank.Web.Services.DepositRateService DepositRateService
+@inject MiniBank.Web.Services.DepositInterestPostingService DepositInterestPostingService
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@using MiniBank.Web.Components.DesignSystem
+
+<div class="deposit-interest-page">
+  <DsPageHeader Icon="fa-solid fa-coins"
+                Title="محاسبه سود سپرده"
+                Subtitle="محاسبه ماهانه بر اساس خالص سپرده"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                OnRefreshClick="LoadPreviewAsync" />
+
+  <div class="dic-toolbar">
+    <div class="dic-filter-card">
+      <div class="dic-filter-title">انتخاب ماه <span class="dic-period-chip">ماه دوره: @ToPersianMonthTitle(GetPersianMonthStart(_targetDate))</span></div>
+      <div class="dic-filter-row">
+        <div class="dic-field dic-field-half">
+          <label>تاریخ مبنا</label>
+          <input class="dic-input" value="@_targetDateText" @onchange="OnTargetDateChanged" data-jdp="true" data-jdp-only-date="true" placeholder="مثال: 1404/10/01" />
+        </div>
+        <div class="dic-field dic-field-half">
+          <label>تاریخ ثبت</label>
+          <input class="dic-input" value="@_postingDateText" @onchange="OnPostingDateChanged" data-jdp="true" data-jdp-only-date="true" placeholder="مثال: 1404/10/29" />
+        </div>
+        <div class="dic-field">
+          <label>افزایش تا</label>
+          <div class="dic-cutoff-chip dic-cutoff-credit">@_creditsCutoffText</div>
+        </div>
+        <div class="dic-field">
+          <label>برداشت تا</label>
+          <div class="dic-cutoff-chip dic-cutoff-debit">@_debitsCutoffText</div>
+        </div>
+        <div class="dic-field dic-field-compact">
+          <label>نرخ</label>
+          <div class="dic-rate-chip">@_rateText</div>
+        </div>
+        <div class="dic-field dic-field-compact">
+          <label>روزهای ماه</label>
+          <div class="dic-days-chip">@_daysText</div>
+        </div>
+        <div class="dic-field dic-field-compact">
+          <label>نمایش</label>
+          <label class="dic-toggle">
+            <input type="checkbox" checked="@_hideNeutral" @onchange="OnHideNeutralChanged" />
+            <span>عدم نمایش خنثی‌ها</span>
+          </label>
+        </div>
+        <div class="dic-actions">
+          <button type="button" class="dic-btn dic-btn-finalize" disabled="@(_loading || _postingBusy || _selectedCount == 0)" @onclick="RequestPostFinal">
+            @(_postingBusy ? "در حال ثبت..." : "ثبت نهایی")
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dic-table-wrap">
+    @if (_loading)
+    {
+      <div class="dic-loading">در حال بارگذاری...</div>
+    }
+    else if (_rows.Count == 0)
+    {
+      <div class="dic-empty">اطلاعاتی برای نمایش وجود ندارد</div>
+    }
+    else
+    {
+      <div class="dic-table-scroll">
+        <table class="dic-table">
+          <thead>
+            <tr>
+              <th class="cell-center">
+                <div class="dic-select-all">
+                  <input type="checkbox" checked="@IsAllActiveSelected" @onchange="OnSelectAllChanged" />
+                </div>
+              </th>
+              <th>ردیف</th>
+              <th class="sortable-header" @onclick="() => SortByColumn(nameof(RowVm.MemberName))">
+                عضو
+                @if (!string.IsNullOrWhiteSpace(GetSortIconClass(nameof(RowVm.MemberName))))
+                {
+                  <i class="@GetSortIconClass(nameof(RowVm.MemberName))" style="margin-right: 5px;"></i>
+                }
+              </th>
+              <th class="sortable-header" @onclick="() => SortByColumn(nameof(RowVm.MemberCode))">
+                کد
+                @if (!string.IsNullOrWhiteSpace(GetSortIconClass(nameof(RowVm.MemberCode))))
+                {
+                  <i class="@GetSortIconClass(nameof(RowVm.MemberCode))" style="margin-right: 5px;"></i>
+                }
+              </th>
+              <th class="sortable-header" @onclick="() => SortByColumn(nameof(RowVm.TotalNet))">
+                خالص
+                @if (!string.IsNullOrWhiteSpace(GetSortIconClass(nameof(RowVm.TotalNet))))
+                {
+                  <i class="@GetSortIconClass(nameof(RowVm.TotalNet))" style="margin-right: 5px;"></i>
+                }
+              </th>
+              <th class="sortable-header" @onclick="() => SortByColumn(nameof(RowVm.StatusText))">
+                وضعیت
+                @if (!string.IsNullOrWhiteSpace(GetSortIconClass(nameof(RowVm.StatusText))))
+                {
+                  <i class="@GetSortIconClass(nameof(RowVm.StatusText))" style="margin-right: 5px;"></i>
+                }
+              </th>
+              <th class="sortable-header" @onclick="() => SortByColumn(nameof(RowVm.MonthProfit))">
+                سود ماه
+                @if (!string.IsNullOrWhiteSpace(GetSortIconClass(nameof(RowVm.MonthProfit))))
+                {
+                  <i class="@GetSortIconClass(nameof(RowVm.MonthProfit))" style="margin-right: 5px;"></i>
+                }
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @{
+              var idx = 0;
+            }
+            @foreach (var r in _rows)
+            {
+              idx++;
+              <tr class="@(r.IsActiveForCalc ? "" : "row-neutral")">
+                <td class="cell-center">
+                  <input type="checkbox" checked="@r.IsSelected" @onchange="(e) => OnRowSelectedChanged(r, e)" />
+                </td>
+                <td class="cell-center">@idx</td>
+                <td class="member-cell">
+                  <div class="member-name">@r.MemberName</div>
+                </td>
+                <td class="cell-center">@(string.IsNullOrWhiteSpace(r.MemberCode) ? "-" : r.MemberCode)</td>
+                <td class="amount-td td-net">@ToMoney(r.TotalNet)</td>
+                <td class="cell-center">
+                  <span class="@(r.IsActiveForCalc ? "status-badge status-active" : "status-badge status-neutral")">@r.StatusText</span>
+                </td>
+                <td class="amount-td td-profit">@ToMoney(r.IsSelected ? r.MonthProfit : 0m)</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" class="tfoot-title">جمع</td>
+              <td class="amount-td td-net">@ToMoney(_sumNet)</td>
+              <td></td>
+              <td class="amount-td td-profit">@ToMoney(_sumProfit)</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    }
+  </div>
+
+  <div class="dic-history-wrap">
+    <div class="dic-filter-card">
+      <div class="dic-filter-title">تاریخچه ثبت سود</div>
+      @if (_historyLoading)
+      {
+        <div class="dic-loading">در حال بارگذاری...</div>
+      }
+      else if (_historyRuns.Count == 0)
+      {
+        <div class="dic-empty">هیچ ماهی ثبت نشده است</div>
+      }
+      else
+      {
+        <div class="dic-table-scroll">
+          <table class="dic-table dic-table-history">
+            <thead>
+              <tr>
+                <th>ماه</th>
+                <th>تاریخ ثبت</th>
+                <th>نرخ</th>
+                <th>جمع سود</th>
+                <th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var r in _historyRuns)
+              {
+                <tr class="@(_selectedRunId == r.RunId ? "row-active" : "")" @onclick="() => ToggleRunDetailsAsync(r.RunId)">
+                  <td class="cell-center">@ToPersianMonthTitle(r.PeriodStartDate)</td>
+                  <td class="cell-center">@r.PostingOccurredAt.ToPersianDate()</td>
+                  <td class="cell-center">@(r.AnnualRatePercent.ToString("0.##", CultureInfo.InvariantCulture) + "%")</td>
+                  <td class="amount-td td-profit">@ToMoney(r.SumProfit)</td>
+                  <td class="cell-center dic-history-actions">
+                    <button type="button" class="dic-btn dic-btn-mini dic-btn-danger" disabled="@_historyLoading" @onclick="() => RequestDeleteRun(r)" @onclick:stopPropagation="true">حذف</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      @if (_selectedRunId.HasValue)
+      {
+        <div class="dic-run-details">
+          <div class="dic-filter-title">جزئیات ماه: @ToPersianMonthTitle(_selectedRunPeriodStart)</div>
+          @if (_runItemsLoading)
+          {
+            <div class="dic-loading">در حال بارگذاری...</div>
+          }
+          else if (_runItems.Count == 0)
+          {
+            <div class="dic-empty">جزئیاتی برای نمایش وجود ندارد</div>
+          }
+          else
+          {
+            <div class="dic-table-scroll">
+              <table class="dic-table dic-table-history">
+                <thead>
+                  <tr>
+                    <th>کد</th>
+                    <th>عضو</th>
+                    <th>اصل</th>
+                    <th>سود</th>
+                    <th>خالص</th>
+                    <th>سود ماه</th>
+                    <th>شماره سند</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach (var it in _runItems)
+                  {
+                    <tr>
+                      <td class="cell-center">@(string.IsNullOrWhiteSpace(it.MemberCode) ? "-" : it.MemberCode)</td>
+                      <td class="cell-center">@it.MemberName</td>
+                      <td class="amount-td">@ToMoney(it.NetPrincipal)</td>
+                      <td class="amount-td td-interest">@ToMoney(it.NetInterest)</td>
+                      <td class="amount-td td-net">@ToMoney(it.TotalNet)</td>
+                      <td class="amount-td td-profit">@ToMoney(it.MonthProfit)</td>
+                      <td class="cell-center">@(it.DocumentNumber?.ToString(CultureInfo.InvariantCulture) ?? (it.JournalId.HasValue ? it.JournalId.Value.ToString(CultureInfo.InvariantCulture) : "-"))</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <DsConfirm Show="@_showDeleteConfirm"
+             Title="تأیید حذف ثبت سود"
+             Message="@_deleteConfirmMessage"
+             Variant="danger"
+             ConfirmText="حذف"
+             CancelText="انصراف"
+             Loading="@_deleteBusy"
+             OnConfirm="ConfirmDeleteRun"
+             OnCancel="CancelDeleteRun" />
+
+  <DsConfirm Show="@_showPostConfirm"
+             Title="تأیید ثبت نهایی سود"
+             Message="@_postConfirmMessage"
+             Variant="warning"
+             ConfirmText="ثبت کن"
+             CancelText="انصراف"
+             Loading="@_postingBusy"
+             OnConfirm="ConfirmPostFinal"
+             OnCancel="CancelPostFinal" />
+
+</div>
+
+@code {
+  private bool _loading;
+  private string _targetDateText = string.Empty;
+  private DateTime _targetDate;
+
+  private string _postingDateText = string.Empty;
+  private DateTime _postingDate;
+  private bool _postingBusy;
+
+  private bool _hideNeutral = true;
+
+  private string _sortColumn = nameof(RowVm.MemberCode);
+  private bool _sortAscending = true;
+
+  private decimal _annualRatePercent;
+  private string _rateText = "-";
+  private int _daysInMonth;
+  private string _daysText = "-";
+
+  private string _creditsCutoffText = "-";
+  private string _debitsCutoffText = "-";
+
+  private readonly List<RowVm> _allRows = new();
+  private readonly List<RowVm> _rows = new();
+
+  private decimal _sumPrincipal;
+  private decimal _sumInterest;
+  private decimal _sumNet;
+  private decimal _sumProfit;
+  private int _selectedCount;
+
+  private bool _historyLoading;
+  private readonly List<DepositInterestRun> _historyRuns = new();
+
+  private long? _selectedRunId;
+  private DateTime _selectedRunPeriodStart;
+  private bool _runItemsLoading;
+  private readonly List<DepositInterestRunItem> _runItems = new();
+
+  private bool _showDeleteConfirm;
+  private bool _deleteBusy;
+  private string _deleteConfirmMessage = string.Empty;
+  private long _pendingDeleteRunId;
+
+  private bool _showPostConfirm;
+  private string _postConfirmMessage = string.Empty;
+
+  private sealed class RowVm
+  {
+    public long MemberId { get; set; }
+    public string MemberName { get; set; } = string.Empty;
+    public string? MemberCode { get; set; }
+
+    public decimal NetPrincipal { get; set; }
+    public decimal NetInterest { get; set; }
+    public decimal TotalNet { get; set; }
+
+    public bool IsActiveForCalc { get; set; }
+    public string StatusText { get; set; } = string.Empty;
+
+    public bool IsSelected { get; set; }
+
+    public decimal MonthProfit { get; set; }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    _targetDate = DateTime.Today;
+    _targetDateText = _targetDate.ToPersianDate();
+
+    _postingDate = DateTime.Today;
+    _postingDateText = _postingDate.ToPersianDate();
+
+    await LoadHistoryAsync();
+    await LoadPreviewAsync();
+  }
+
+  private Task OnHideNeutralChanged(ChangeEventArgs e)
+  {
+    if (e.Value is bool b)
+      _hideNeutral = b;
+    else
+      _hideNeutral = string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase) || string.Equals(e.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
+
+    ApplyView();
+    return InvokeAsync(StateHasChanged);
+  }
+
+  private bool IsAllActiveSelected => _allRows.Any(x => x.IsActiveForCalc) && _allRows.Where(x => x.IsActiveForCalc).All(x => x.IsSelected);
+
+  private Task OnSelectAllChanged(ChangeEventArgs e)
+  {
+    var v = e.Value?.ToString() ?? string.Empty;
+    var selected = string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(v, "on", StringComparison.OrdinalIgnoreCase);
+
+    foreach (var r in _allRows.Where(x => x.IsActiveForCalc))
+      r.IsSelected = selected;
+
+    RecomputeSums();
+    return InvokeAsync(StateHasChanged);
+  }
+
+  private Task OnRowSelectedChanged(RowVm row, ChangeEventArgs e)
+  {
+    var v = e.Value?.ToString() ?? string.Empty;
+    var selected = string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(v, "on", StringComparison.OrdinalIgnoreCase);
+    row.IsSelected = selected;
+    RecomputeSums();
+    return InvokeAsync(StateHasChanged);
+  }
+
+  private async Task OnTargetDateChanged(ChangeEventArgs e)
+  {
+    var v = e.Value?.ToString() ?? string.Empty;
+    _targetDateText = v;
+    if (!string.IsNullOrWhiteSpace(v))
+      _targetDate = DateTimeExtensions.FromPersianDate(v).Date;
+
+    if (_loading)
+      return;
+
+    await LoadPreviewAsync();
+  }
+
+  private Task OnPostingDateChanged(ChangeEventArgs e)
+  {
+    var v = e.Value?.ToString() ?? string.Empty;
+    _postingDateText = v;
+    if (!string.IsNullOrWhiteSpace(v))
+      _postingDate = DateTimeExtensions.FromPersianDate(v).Date;
+    return Task.CompletedTask;
+  }
+
+  private async Task LoadHistoryAsync()
+  {
+    try
+    {
+      _historyLoading = true;
+      await InvokeAsync(StateHasChanged);
+
+      _historyRuns.Clear();
+      var rows = await DepositInterestPostingService.GetRunsAsync(36);
+      _historyRuns.AddRange(rows);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری تاریخچه: {ex.Message}");
+    }
+    finally
+    {
+      _historyLoading = false;
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private async Task LoadRunDetailsAsync(long runId)
+  {
+    try
+    {
+      _selectedRunId = runId;
+      _runItemsLoading = true;
+      _runItems.Clear();
+      await InvokeAsync(StateHasChanged);
+
+      var run = _historyRuns.FirstOrDefault(x => x.RunId == runId);
+      _selectedRunPeriodStart = run?.PeriodStartDate ?? DateTime.Today;
+
+      var items = await DepositInterestPostingService.GetItemsAsync(runId);
+      _runItems.AddRange(items);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری جزئیات: {ex.Message}");
+    }
+    finally
+    {
+      _runItemsLoading = false;
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private async Task ToggleRunDetailsAsync(long runId)
+  {
+    if (_selectedRunId.HasValue && _selectedRunId.Value == runId)
+    {
+      _selectedRunId = null;
+      _runItems.Clear();
+      await InvokeAsync(StateHasChanged);
+      return;
+    }
+
+    await LoadRunDetailsAsync(runId);
+  }
+
+  private Task RequestPostFinal()
+  {
+    var startOfMonth = GetPersianMonthStart(_targetDate);
+    var totalMembers = _allRows.Count;
+    var activeCount = _allRows.Count(x => x.IsActiveForCalc);
+    var neutralCount = _allRows.Count - activeCount;
+    var selectedActiveCount = _allRows.Count(x => x.IsActiveForCalc && x.IsSelected);
+    var notAllocatedCount = _allRows.Count(x => x.IsActiveForCalc && !x.IsSelected);
+
+    var totalNetSelected = _sumNet;
+    var totalProfitSelected = _sumProfit;
+
+    var totalNetNotAllocated = _allRows.Where(x => x.IsActiveForCalc && !x.IsSelected).Sum(x => x.TotalNet);
+    var totalProfitNotAllocated = _allRows.Where(x => x.IsActiveForCalc && !x.IsSelected).Sum(x => x.MonthProfit);
+
+    _postConfirmMessage = $@"<div style='line-height:1.9'>
+  <div style='margin-bottom:8px'>آیا از <strong>ثبت نهایی</strong> سود سپرده مطمئن هستید؟</div>
+  <div style='background: rgba(15,76,150,.06); border: 1px solid rgba(15,76,150,.25); border-radius: 12px; padding: 12px 12px'>
+    <div style='display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap'>
+      <div><strong>ماه دوره:</strong> {ToPersianMonthTitle(startOfMonth)}</div>
+      <div><strong>تاریخ ثبت:</strong> {_postingDate.ToPersianDate()}</div>
+    </div>
+
+    <div style='margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px'>
+      <div style='border:1px solid rgba(148,163,184,.45); border-radius:12px; padding:10px; background:#fff'>
+        <div style='font-weight:900; color:#0f172a; margin-bottom:6px'>آمار اعضا</div>
+        <div style='display:flex; justify-content:space-between; gap:10px'><span>کل اعضا</span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900'>{totalMembers}</span></div>
+        <div style='display:flex; justify-content:space-between; gap:10px'><span>تعداد فعال‌ها</span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900; color:#065f46'>{activeCount}</span></div>
+        <div style='display:flex; justify-content:space-between; gap:10px'><span>تعداد خنثی‌ها</span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900; color:#334155'>{neutralCount}</span></div>
+        <div style='display:flex; justify-content:space-between; gap:10px'><span>تخصیص سود </span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900; color:#0f4c96'>{selectedActiveCount}</span></div>
+        <div style='display:flex; justify-content:space-between; gap:10px'><span>عدم تخصیص سود</span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900; color:#dc2626'>{notAllocatedCount}</span></div>
+      </div>
+
+      <div style='border:1px solid rgba(148,163,184,.45); border-radius:12px; padding:10px; background:#fff'>
+        <div style='font-weight:900; color:#0f172a; margin-bottom:6px'>جمع مبالغ</div>
+        <div style='display:flex; justify-content:space-between; gap:10px'><span> خالص </span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900; color:#1d4ed8'>{ToMoney(totalNetSelected)}</span></div>
+        <div style='display:flex; justify-content:space-between; gap:10px'><span> سود </span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900; color:#047857'>{ToMoney(totalProfitSelected)} </span></div>
+
+        <div style='height:1px; background: rgba(148,163,184,.35); margin:8px 0'></div>
+        <div style='display:flex; justify-content:space-between; gap:10px'><span>عدم تخصیص خالص </span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900; color:#dc2626'>{ToMoney(totalNetNotAllocated)}</span></div>
+        <div style='display:flex; justify-content:space-between; gap:10px'><span>عدم سود </span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900; color:#dc2626'>{ToMoney(totalProfitNotAllocated)} </span></div>
+      </div>
+    </div>
+  </div>
+</div>";
+
+    _showPostConfirm = true;
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private Task CancelPostFinal()
+  {
+    _showPostConfirm = false;
+    _postConfirmMessage = string.Empty;
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private async Task ConfirmPostFinal()
+  {
+    _showPostConfirm = false;
+    await InvokeAsync(StateHasChanged);
+    await PostFinalAsync();
+  }
+
+  private async Task PostFinalAsync()
+  {
+    if (_postingBusy) return;
+
+    try
+    {
+      _postingBusy = true;
+      await InvokeAsync(StateHasChanged);
+
+      var startOfMonth = GetPersianMonthStart(_targetDate);
+      var endPrevMonth = GetPersianMonthEnd(startOfMonth.AddPersianMonths(-1));
+      var endThisMonth = GetPersianMonthEnd(startOfMonth);
+      var creditsToExclusive = endPrevMonth.AddDays(1);
+      var debitsToExclusive = endThisMonth.AddDays(1);
+
+      var notes = $"واریز سود سپرده {ToPersianMonthTitle(startOfMonth)}";
+
+      var items = _allRows.Where(x => x.IsSelected).Select(r => new DepositInterestRunItem
+      {
+        RunItemId = 0,
+        RunId = 0,
+        MemberId = r.MemberId,
+        MemberCode = r.MemberCode,
+        MemberName = r.MemberName,
+        NetPrincipal = r.NetPrincipal,
+        NetInterest = r.NetInterest,
+        TotalNet = r.TotalNet,
+        MonthProfit = r.MonthProfit,
+        IsNeutral = !r.IsActiveForCalc,
+        JournalId = null
+      }).ToList();
+
+      var req = new DepositInterestPostingService.PostRequest(
+        PeriodStartDate: startOfMonth,
+        PostingOccurredAt: _postingDate,
+        AnnualRatePercent: _annualRatePercent,
+        DaysInMonth: _daysInMonth,
+        CreditsCutoffToExclusive: creditsToExclusive,
+        DebitsCutoffToExclusive: debitsToExclusive,
+        Items: items,
+        Notes: notes,
+        CreatedBy: "admin");
+
+      await DepositInterestPostingService.PostAsync(req);
+      Toasts.Success("ثبت نهایی سود با موفقیت انجام شد");
+
+      await LoadHistoryAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ثبت: {ex.Message}");
+    }
+    finally
+    {
+      _postingBusy = false;
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private void RequestDeleteRun(DepositInterestRun r)
+  {
+    _pendingDeleteRunId = r.RunId;
+    _deleteConfirmMessage = $"آیا از حذف کامل ثبت سود برای '<strong>{ToPersianMonthTitle(r.PeriodStartDate)}</strong>' مطمئن هستید؟<br/><small>تمام اسناد صادر شده و ریزها حذف خواهند شد.</small>";
+    _showDeleteConfirm = true;
+    StateHasChanged();
+  }
+
+  private async Task ConfirmDeleteRun()
+  {
+    if (_deleteBusy) return;
+
+    try
+    {
+      _deleteBusy = true;
+      await InvokeAsync(StateHasChanged);
+
+      var runId = _pendingDeleteRunId;
+      _showDeleteConfirm = false;
+      await InvokeAsync(StateHasChanged);
+
+      await DepositInterestPostingService.DeleteRunAsync(runId);
+      Toasts.Success("ثبت سود با موفقیت حذف شد");
+
+      _selectedRunId = null;
+      _runItems.Clear();
+      await LoadHistoryAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در حذف: {ex.Message}");
+    }
+    finally
+    {
+      _deleteBusy = false;
+      _pendingDeleteRunId = 0;
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private Task CancelDeleteRun()
+  {
+    _showDeleteConfirm = false;
+    _pendingDeleteRunId = 0;
+    _deleteConfirmMessage = string.Empty;
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private async Task LoadPreviewAsync()
+  {
+    try
+    {
+      _loading = true;
+      await InvokeAsync(StateHasChanged);
+
+      _allRows.Clear();
+      _rows.Clear();
+      _sumPrincipal = 0;
+      _sumInterest = 0;
+      _sumNet = 0;
+      _sumProfit = 0;
+      _selectedCount = 0;
+
+      var startOfMonth = GetPersianMonthStart(_targetDate);
+      var endPrevMonth = GetPersianMonthEnd(startOfMonth.AddPersianMonths(-1));
+      var endThisMonth = GetPersianMonthEnd(startOfMonth);
+
+      _creditsCutoffText = endPrevMonth.ToPersianDate();
+      _debitsCutoffText = endThisMonth.ToPersianDate();
+
+      var creditsToExclusive = endPrevMonth.AddDays(1);
+      var debitsToExclusive = endThisMonth.AddDays(1);
+
+      _daysInMonth = GetPersianDaysInMonth(startOfMonth);
+      _daysText = _daysInMonth > 0 ? _daysInMonth.ToString(CultureInfo.InvariantCulture) : "-";
+
+      var activePlan = await DepositRateService.GetActivePlanAsync(startOfMonth);
+      if (activePlan == null)
+      {
+        _annualRatePercent = 0m;
+        _rateText = "-";
+      }
+      else
+      {
+        _annualRatePercent = DepositRateService.ComputeRatePercentForAmount(activePlan.Value.Plan, activePlan.Value.Tiers, 0m);
+        _rateText = _annualRatePercent > 0 ? _annualRatePercent.ToString("0.##", CultureInfo.InvariantCulture) + "%" : "-";
+      }
+
+      var rows = await TxReports.GetMemberEffectiveDepositAggForPeriodAsync(creditsToExclusive, debitsToExclusive, activeMembersOnly: true);
+
+      foreach (var r in rows)
+      {
+        var netP = r.PrincipalCredit - r.PrincipalDebit;
+        var netI = r.InterestCredit - r.InterestDebit;
+        var total = netP + netI;
+
+        var isActiveForCalc = total > 0.01m;
+        var monthProfit = 0m;
+        if (isActiveForCalc && _annualRatePercent > 0m && _daysInMonth > 0)
+        {
+          monthProfit = total * (_annualRatePercent / 100m) * (_daysInMonth / 365m);
+        }
+
+        var vm = new RowVm
+        {
+          MemberId = r.MemberId,
+          MemberName = r.MemberName,
+          MemberCode = r.MemberCode,
+          NetPrincipal = netP,
+          NetInterest = netI,
+          TotalNet = total,
+          IsActiveForCalc = isActiveForCalc,
+          StatusText = isActiveForCalc ? "فعال" : "خنثی",
+          MonthProfit = monthProfit,
+          IsSelected = isActiveForCalc
+        };
+
+        _allRows.Add(vm);
+      }
+
+      ApplyView();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در محاسبه سود: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private void SortByColumn(string columnName)
+  {
+    if (_sortColumn == columnName)
+      _sortAscending = !_sortAscending;
+    else
+    {
+      _sortColumn = columnName;
+      _sortAscending = true;
+    }
+
+    ApplyView();
+  }
+
+  private string GetSortIconClass(string columnName)
+  {
+    if (_sortColumn != columnName)
+      return string.Empty;
+    return _sortAscending ? "fas fa-sort-up" : "fas fa-sort-down";
+  }
+
+  private void ApplyView()
+  {
+    _rows.Clear();
+
+    IEnumerable<RowVm> q = _allRows;
+    if (_hideNeutral)
+      q = q.Where(x => x.IsActiveForCalc);
+
+    var list = q.ToList();
+
+    list.Sort(CompareRows);
+
+    _rows.AddRange(list);
+
+    RecomputeSums();
+  }
+
+  private void RecomputeSums()
+  {
+    var sel = _allRows.Where(x => x.IsSelected).ToList();
+    _selectedCount = sel.Count;
+    _sumNet = sel.Sum(x => x.TotalNet);
+    _sumProfit = sel.Sum(x => x.MonthProfit);
+  }
+
+  private int CompareRows(RowVm a, RowVm b)
+  {
+    var dir = _sortAscending ? 1 : -1;
+    int cmp;
+
+    if (_sortColumn == nameof(RowVm.MemberCode))
+      cmp = CompareMemberCodes(a.MemberCode, b.MemberCode);
+    else if (_sortColumn == nameof(RowVm.MemberName))
+      cmp = string.Compare(a.MemberName, b.MemberName, StringComparison.OrdinalIgnoreCase);
+    else if (_sortColumn == nameof(RowVm.TotalNet))
+      cmp = a.TotalNet.CompareTo(b.TotalNet);
+    else if (_sortColumn == nameof(RowVm.MonthProfit))
+      cmp = a.MonthProfit.CompareTo(b.MonthProfit);
+    else if (_sortColumn == nameof(RowVm.StatusText))
+      cmp = string.Compare(a.StatusText, b.StatusText, StringComparison.OrdinalIgnoreCase);
+    else
+      cmp = CompareMemberCodes(a.MemberCode, b.MemberCode);
+
+    if (cmp != 0)
+      return cmp * dir;
+
+    return string.Compare(a.MemberName, b.MemberName, StringComparison.OrdinalIgnoreCase);
+  }
+
+  private static int CompareMemberCodes(string? a, string? b)
+  {
+    var (hasA, numA, rawA) = ParseMemberCode(a);
+    var (hasB, numB, rawB) = ParseMemberCode(b);
+
+    if (hasA && hasB)
+      return numA.CompareTo(numB);
+    if (hasA && !hasB)
+      return -1;
+    if (!hasA && hasB)
+      return 1;
+
+    return string.Compare(rawA, rawB, StringComparison.OrdinalIgnoreCase);
+  }
+
+  private static (bool HasNumber, int Number, string Raw) ParseMemberCode(string? code)
+  {
+    var raw = (code ?? string.Empty).Trim();
+    if (raw.Length == 0)
+      return (false, int.MaxValue, "~");
+
+    if (raw.StartsWith("M-", StringComparison.OrdinalIgnoreCase))
+    {
+      var s = raw.Substring(2);
+      if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n))
+        return (true, n, raw);
+    }
+
+    return (false, int.MaxValue, raw);
+  }
+
+  private static DateTime GetPersianMonthStart(DateTime anyDate)
+  {
+    var pc = new PersianCalendar();
+    var y = pc.GetYear(anyDate);
+    var m = pc.GetMonth(anyDate);
+    return pc.ToDateTime(y, m, 1, 0, 0, 0, 0).Date;
+  }
+
+  private static DateTime GetPersianMonthEnd(DateTime anyDateInThatMonth)
+  {
+    var pc = new PersianCalendar();
+    var y = pc.GetYear(anyDateInThatMonth);
+    var m = pc.GetMonth(anyDateInThatMonth);
+    var days = pc.GetDaysInMonth(y, m);
+    return pc.ToDateTime(y, m, days, 0, 0, 0, 0).Date;
+  }
+
+  private static int GetPersianDaysInMonth(DateTime anyDateInThatMonth)
+  {
+    var pc = new PersianCalendar();
+    var y = pc.GetYear(anyDateInThatMonth);
+    var m = pc.GetMonth(anyDateInThatMonth);
+    return pc.GetDaysInMonth(y, m);
+  }
+
+  private static string ToMoney(decimal v)
+    => v.ToString("N0", CultureInfo.InvariantCulture);
+
+  private static string ToPersianMonthTitle(DateTime anyDateInMonth)
+  {
+    var pc = new PersianCalendar();
+    var y = pc.GetYear(anyDateInMonth);
+    var m = pc.GetMonth(anyDateInMonth);
+    var name = m switch
+    {
+      1 => "فروردین",
+      2 => "اردیبهشت",
+      3 => "خرداد",
+      4 => "تیر",
+      5 => "مرداد",
+      6 => "شهریور",
+      7 => "مهر",
+      8 => "آبان",
+      9 => "آذر",
+      10 => "دی",
+      11 => "بهمن",
+      12 => "اسفند",
+      _ => m.ToString(CultureInfo.InvariantCulture)
+    };
+    return $"{name} {y}";
+  }
+
+  private static string StatusClass(RowVm r)
+    => r.IsActiveForCalc ? "status-active" : "status-neutral";
+
+  private static string RowClass(RowVm r)
+    => r.IsActiveForCalc ? "row-active" : "row-neutral";
+}

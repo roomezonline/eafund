@@ -1,0 +1,131 @@
+@page "/admin/settings"
+
+@using MiniBank.Web.Components.DesignSystem
+
+@inject IJSRuntime JS
+@inject DsToastService Toasts
+
+<style>
+  .st-shell{max-width:980px;margin:0 auto;padding:16px 14px 90px;direction:rtl}
+  .card{background:var(--ds-card-bg, #fff);border:1px solid var(--ds-outline, #e5e7eb);border-radius:16px;padding:14px;box-shadow:var(--shadow, 0 10px 25px rgba(15,23,42,.08))}
+  .title{font-weight:950;color:var(--ds-text-primary, #0f172a);margin-bottom:10px}
+  .muted{color:var(--ds-text-secondary, #64748b);font-weight:800;font-size:12px}
+  .grid{display:grid;gap:10px}
+  .row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+  .lbl{font-weight:900;color:var(--ds-text-primary, #0f172a);font-size:12px}
+  .picker{width:56px;height:36px;border:1px solid var(--ds-outline, #e5e7eb);border-radius:12px;background:#fff;padding:0;overflow:hidden}
+  .picker input{width:100%;height:100%;border:0;background:transparent;padding:0}
+  .btns{display:flex;gap:10px;justify-content:flex-start;flex-wrap:wrap;margin-top:10px}
+  .btn{appearance:none;border:0;border-radius:14px;padding:10px 12px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .btn.primary{background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff}
+  .btn.secondary{background:var(--ds-surface-container, #f1f5f9);color:var(--ds-text-primary, #0f172a);border:1px solid var(--ds-outline, #e5e7eb)}
+  .preview{border-radius:18px;padding:14px;color:var(--admin-card-text, #fff);background:linear-gradient(135deg,var(--admin-card-grad-1, #667eea) 0%, var(--admin-card-grad-2, #6f5bd3) 55%, var(--admin-card-grad-3, #764ba2) 100%);border:1px solid rgba(255,255,255,.18)}
+  .preview-title{font-weight:950;font-size:14px}
+  .preview-sub{font-weight:850;font-size:12px;opacity:.9;margin-top:6px}
+</style>
+
+<div class="st-shell">
+  <div class="card">
+    <div class="title">تنظیمات ظاهری داشبورد مدیریت</div>
+    <div class="muted" style="margin-bottom:12px">رنگ طیف کارت‌ها (۳ رنگ) و رنگ نوشته‌ها را تنظیم کنید. این تنظیمات برای همین کاربر در مرورگر ذخیره می‌شود.</div>
+
+    <div class="grid">
+      <div class="row">
+        <div class="lbl">رنگ ۱ (شروع گرادیان)</div>
+        <div class="picker"><input type="color" @bind-value="_grad1" @bind-value:event="oninput" @bind-value:after="ApplyPreview" /></div>
+      </div>
+      <div class="row">
+        <div class="lbl">رنگ ۲ (میانی)</div>
+        <div class="picker"><input type="color" @bind-value="_grad2" @bind-value:event="oninput" @bind-value:after="ApplyPreview" /></div>
+      </div>
+      <div class="row">
+        <div class="lbl">رنگ ۳ (پایان گرادیان)</div>
+        <div class="picker"><input type="color" @bind-value="_grad3" @bind-value:event="oninput" @bind-value:after="ApplyPreview" /></div>
+      </div>
+      <div class="row">
+        <div class="lbl">رنگ نوشته‌ها</div>
+        <div class="picker"><input type="color" @bind-value="_text" @bind-value:event="oninput" @bind-value:after="ApplyPreview" /></div>
+      </div>
+
+      <div class="preview">
+        <div class="preview-title">پیش‌نمایش کارت</div>
+        <div class="preview-sub">این دقیقاً روی کارت‌های داشبورد مدیریت اعمال می‌شود.</div>
+      </div>
+
+      <div class="btns">
+        <button class="btn primary" @onclick="Save">ذخیره</button>
+        <button class="btn secondary" @onclick="Reset">بازگشت به پیش‌فرض</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@code {
+  private string _grad1 = "#667eea";
+  private string _grad2 = "#6f5bd3";
+  private string _grad3 = "#764ba2";
+  private string _text = "#ffffff";
+
+  private sealed class ThemeModel
+  {
+    public string? grad1 { get; set; }
+    public string? grad2 { get; set; }
+    public string? grad3 { get; set; }
+    public string? text { get; set; }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      var t = await JS.InvokeAsync<ThemeModel>("MBAdminCardTheme.load");
+      _grad1 = string.IsNullOrWhiteSpace(t?.grad1) ? _grad1 : t!.grad1!;
+      _grad2 = string.IsNullOrWhiteSpace(t?.grad2) ? _grad2 : t!.grad2!;
+      _grad3 = string.IsNullOrWhiteSpace(t?.grad3) ? _grad3 : t!.grad3!;
+      _text = string.IsNullOrWhiteSpace(t?.text) ? _text : t!.text!;
+
+      await ApplyPreview();
+    }
+    catch { }
+  }
+
+  private async Task ApplyPreview()
+  {
+    try
+    {
+      await JS.InvokeVoidAsync("MBAdminCardTheme.apply", new { grad1 = _grad1, grad2 = _grad2, grad3 = _grad3, text = _text });
+    }
+    catch { }
+  }
+
+  private async Task Save()
+  {
+    try
+    {
+      await JS.InvokeVoidAsync("MBAdminCardTheme.save", new { grad1 = _grad1, grad2 = _grad2, grad3 = _grad3, text = _text });
+      Toasts.Success("ذخیره شد");
+    }
+    catch
+    {
+      Toasts.Error("خطا در ذخیره");
+    }
+  }
+
+  private async Task Reset()
+  {
+    try
+    {
+      await JS.InvokeAsync<ThemeModel>("MBAdminCardTheme.reset");
+      _grad1 = "#667eea";
+      _grad2 = "#6f5bd3";
+      _grad3 = "#764ba2";
+      _text = "#ffffff";
+      await ApplyPreview();
+      Toasts.Success("به حالت پیش‌فرض برگشت");
+    }
+    catch
+    {
+      Toasts.Error("خطا");
+    }
+  }
+}

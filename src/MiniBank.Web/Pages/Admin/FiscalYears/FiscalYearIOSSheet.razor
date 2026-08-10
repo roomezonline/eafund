@@ -1,0 +1,277 @@
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@inject MiniBank.Web.Services.FiscalYearService FiscalYearService
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+@inject IJSRuntime JS
+
+@if (_isVisible)
+{
+  <div class="ios-sheet-overlay visible" @onclick="HandleOverlayClick">
+    <div class="ios-sheet open" @onclick:stopPropagation="true">
+      <div class="ios-handle"></div>
+
+      <div class="ios-header">
+        <button class="ios-cancel" @onclick="HandleCancel">لغو</button>
+        <h2 class="ios-title">@SheetTitle</h2>
+        <button class="ios-done" @onclick="HandleSave" disabled="@(!IsFormValid || _saving)">
+          @if (_saving)
+          {
+            <div class="ios-spinner"></div>
+          }
+          else
+          {
+            <span>تایید</span>
+          }
+        </button>
+      </div>
+
+      <div class="ios-content">
+        <div class="ios-form-section">
+          <div class="ios-form-header">
+            <i class="fa-solid fa-calendar"></i>
+            <span>اطلاعات سال مالی</span>
+          </div>
+
+          <div class="ios-form-group">
+            <div class="ios-field">
+              <label class="field-label">کد سال *</label>
+              <input type="number"
+                     @bind="_model.YearCode"
+                     placeholder="مثال: 1405"
+                     class="ios-input center-text @(GetFieldError("YearCode") != null ? "error" : "")" />
+              @if (GetFieldError("YearCode") != null)
+              {
+                <div class="field-error">@GetFieldError("YearCode")</div>
+              }
+              <div class="field-helper">کد سال شمسی (مثال: 1405)</div>
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">عنوان *</label>
+              <input type="text"
+                     @bind="_model.Title"
+                     placeholder="مثال: سال مالی 1405"
+                     class="ios-input center-text @(GetFieldError("Title") != null ? "error" : "")"
+                     maxlength="100" />
+              @if (GetFieldError("Title") != null)
+              {
+                <div class="field-error">@GetFieldError("Title")</div>
+              }
+              <div class="field-helper">عنوان توصیفی سال مالی</div>
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">تاریخ شروع *</label>
+              <input type="text"
+                     value="@_startDateStr"
+                     @oninput="OnStartDateInput"
+                     class="ios-input"
+                     style="text-align: center;"
+                     data-jdp
+                     data-jdp-only-date="true"
+                     placeholder="مثال: 1404/01/01" />
+              @if (GetFieldError("StartDate") != null)
+              {
+                <div class="field-error">@GetFieldError("StartDate")</div>
+              }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">تاریخ پایان *</label>
+              <input type="text"
+                     value="@_endDateStr"
+                     @oninput="OnEndDateInput"
+                     class="ios-input"
+                     style="text-align: center;"
+                     data-jdp
+                     data-jdp-only-date="true"
+                     placeholder="مثال: 1404/12/29" />
+              @if (GetFieldError("EndDate") != null)
+              {
+                <div class="field-error">@GetFieldError("EndDate")</div>
+              }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">توضیحات</label>
+              <textarea @bind="_model.Notes"
+                        placeholder="توضیحات اختیاری"
+                        class="ios-input ios-textarea"
+                        maxlength="500"></textarea>
+            </div>
+          </div>
+        </div>
+
+        @if (!IsNew)
+        {
+          <div class="ios-form-section">
+            <div class="ios-form-header danger">
+              <i class="fa-solid fa-trash"></i>
+              <span>حذف سال مالی</span>
+            </div>
+            <div class="ios-form-group">
+              <div class="ios-field">
+                <button type="button" class="ios-danger-button" @onclick="HandleDelete">
+                  <i class="fa-solid fa-trash"></i>
+                  حذف سال مالی
+                </button>
+                <div class="field-helper">این عمل قابل بازگشت نیست</div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+  [Parameter] public FiscalYear Model { get; set; } = new();
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _isVisible;
+  private bool _saving;
+  private Dictionary<string, string> _errors = new();
+  private FiscalYear _model = new();
+  private string _startDateStr = "";
+  private string _endDateStr = "";
+
+  protected override async Task OnInitializedAsync()
+  {
+    _model = new FiscalYear
+    {
+      FiscalYearId = Model.FiscalYearId,
+      YearCode = Model.YearCode,
+      Title = Model.Title,
+      StartDate = Model.StartDate,
+      EndDate = Model.EndDate,
+      IsOpen = Model.IsOpen,
+      IsClosed = Model.IsClosed,
+      Notes = Model.Notes
+    };
+    if (_model.StartDate > DateTime.MinValue)
+      _startDateStr = _model.StartDate.ToPersianDate();
+    if (_model.EndDate > DateTime.MinValue)
+      _endDateStr = _model.EndDate.ToPersianDate();
+    await Task.Delay(50);
+    _isVisible = true;
+    await InitJalaliPicker();
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (_isVisible)
+      await InitJalaliPicker();
+  }
+
+  private async Task InitJalaliPicker()
+  {
+    try { await JS.InvokeVoidAsync("initJdp"); } catch { }
+  }
+
+  private string SheetTitle => IsNew ? "سال مالی جدید" : $"ویرایش: {_model.Title}";
+
+  private bool IsFormValid =>
+    _model.YearCode > 0 &&
+    !string.IsNullOrWhiteSpace(_model.Title) &&
+    !string.IsNullOrWhiteSpace(_startDateStr) &&
+    !string.IsNullOrWhiteSpace(_endDateStr) &&
+    _errors.Count == 0;
+
+  private void OnStartDateInput(ChangeEventArgs e)
+  {
+    var value = e.Value?.ToString() ?? string.Empty;
+    if (!string.IsNullOrEmpty(value))
+    {
+      _startDateStr = value;
+      _model.StartDate = DateTimeExtensions.FromPersianDate(value);
+    }
+  }
+
+  private void OnEndDateInput(ChangeEventArgs e)
+  {
+    var value = e.Value?.ToString() ?? string.Empty;
+    if (!string.IsNullOrEmpty(value))
+    {
+      _endDateStr = value;
+      _model.EndDate = DateTimeExtensions.FromPersianDate(value);
+    }
+  }
+
+  private async Task HandleSave()
+  {
+    if (!ValidateForm()) return;
+
+    _saving = true;
+    try
+    {
+      if (IsNew)
+        await FiscalYearService.CreateAsync(_model);
+      else
+        await FiscalYearService.UpdateAsync(_model);
+
+      Toast.Success(IsNew ? "سال مالی ایجاد شد" : "تغییرات ذخیره شد");
+      await HandleClose(true);
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+
+  private bool ValidateForm()
+  {
+    _errors.Clear();
+
+    if (_model.YearCode <= 0)
+      _errors["YearCode"] = "کد سال الزامی است";
+
+    if (string.IsNullOrWhiteSpace(_model.Title))
+      _errors["Title"] = "عنوان الزامی است";
+
+    if (string.IsNullOrWhiteSpace(_startDateStr))
+      _errors["StartDate"] = "تاریخ شروع الزامی است";
+
+    if (string.IsNullOrWhiteSpace(_endDateStr))
+      _errors["EndDate"] = "تاریخ پایان الزامی است";
+
+    if (_errors.Count == 0 && _model.StartDate >= _model.EndDate)
+      _errors["EndDate"] = "تاریخ پایان باید بعد از تاریخ شروع باشد";
+
+    return _errors.Count == 0;
+  }
+
+  private string? GetFieldError(string field) =>
+    _errors.TryGetValue(field, out var e) ? e : null;
+
+  private async Task HandleCancel() => await HandleClose(false);
+
+  private async Task HandleClose(bool hasChanges = false)
+  {
+    _isVisible = false;
+    await OnClose.InvokeAsync(hasChanges);
+  }
+
+  private void HandleOverlayClick() => _ = HandleCancel();
+
+  private async Task HandleDelete()
+  {
+    if (IsNew || _model.FiscalYearId <= 0) return;
+    try
+    {
+      await FiscalYearService.DeleteAsync(_model.FiscalYearId);
+      Toast.Success("سال مالی حذف شد");
+      await HandleClose(true);
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در حذف: {ex.Message}");
+    }
+  }
+}

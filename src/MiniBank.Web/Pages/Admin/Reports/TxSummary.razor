@@ -1,0 +1,134 @@
+@page "/admin/reports/tx-summary"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@inject MiniBank.Web.Infrastructure.Repositories.TransactionReportRepository ReportRepo
+@inject MiniBank.Web.Infrastructure.Repositories.MemberRepository MemberRepo
+@inject MiniBank.Web.Core.Interfaces.IHouseholdRepository HouseholdRepo
+@inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+
+<h3>گزارش تجمیعی تراکنش‌ها (گروه/زیرگروه/نوع)</h3>
+
+<div class="app-section">
+    <div class="form-grid">
+        <label>خانوار</label>
+        <select class="form-control" @onchange="HandleHouseholdChange">
+            <option value="">همه</option>
+            @foreach (var h in households)
+            {
+                <option value="@h.HouseholdId" selected="@(householdId == h.HouseholdId)">@h.Name (@h.HouseholdCode)</option>
+            }
+        </select>
+
+        <label>عضو</label>
+        <select class="form-control" @bind="memberId">
+            <option value="">همه</option>
+            @foreach (var m in members)
+            {
+                <option value="@m.MemberId">@m.FirstName @m.LastName (@m.NationalCode)</option>
+            }
+        </select>
+
+        <label>از تاریخ</label>
+        <input class="form-control" type="date" @bind-value="fromDate" />
+
+        <label>تا تاریخ</label>
+        <input class="form-control" type="date" @bind-value="toDate" />
+    </div>
+    <div class="actions mt-2">
+        <button class="btn btn-primary" @onclick="Load">بارگذاری گزارش</button>
+    </div>
+</div>
+
+@if (rows is not null && rows.Count > 0)
+{
+    <div class="app-section">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>گروه</th>
+                    <th>زیرگروه</th>
+                    <th>نوع تراکنش</th>
+                    <th>تعداد</th>
+                    <th>جمع مبلغ</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in rows)
+                {
+                    <tr>
+                        <td>@r.GroupName</td>
+                        <td>@r.SubgroupName</td>
+                        <td>@r.TypeName</td>
+                        <td>@r.TxCount</td>
+                        <td>@r.AmountTotal.ToString("N0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private long? householdId;
+    private long? memberId;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+    private List<Household> households = new();
+    private List<Member> members = new();
+    private List<TransactionSummaryRow> rows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        households = (await HouseholdRepo.GetActiveHouseholdsAsync()).ToList();
+
+        if (!fromDate.HasValue || !toDate.HasValue)
+        {
+            try
+            {
+                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
+                if (fy != null)
+                {
+                    if (!fromDate.HasValue) fromDate = fy.StartDate;
+                    if (!toDate.HasValue) toDate = fy.EndDate;
+                }
+            }
+            catch { }
+            if (!fromDate.HasValue || !toDate.HasValue)
+            {
+                var r = DateTimeExtensions.CurrentJalaliYearRange();
+                var pc = new System.Globalization.PersianCalendar();
+                try
+                {
+                    var fp = r.From.Split('/');
+                    var tp = r.To.Split('/');
+                    if (!fromDate.HasValue) fromDate = pc.ToDateTime(int.Parse(fp[0]), int.Parse(fp[1]), int.Parse(fp[2]), 0, 0, 0, 0);
+                    if (!toDate.HasValue) toDate = pc.ToDateTime(int.Parse(tp[0]), int.Parse(tp[1]), int.Parse(tp[2]), 0, 0, 0, 0);
+                }
+                catch { }
+            }
+        }
+    }
+
+    private async Task HandleHouseholdChange(ChangeEventArgs e)
+    {
+        householdId = null;
+        if (long.TryParse(e?.Value?.ToString(), out var hid))
+            householdId = hid;
+        if (householdId.HasValue)
+        {
+            members = (await MemberRepo.GetAllAsync(activeOnly: true, householdId: householdId.Value, limit: 500)).ToList();
+        }
+        else
+        {
+            members.Clear();
+        }
+    }
+
+    private async Task Load()
+    {
+        DateTime? fromUtc = fromDate.HasValue ? DateTime.SpecifyKind(fromDate.Value, DateTimeKind.Local).ToUniversalTime() : null;
+        DateTime? toUtc = toDate.HasValue ? DateTime.SpecifyKind(toDate.Value.AddDays(1), DateTimeKind.Local).ToUniversalTime() : null; // inclusive day
+        rows = (await ReportRepo.GetSummaryAsync(fromUtc, toUtc, memberId, householdId)).ToList();
+    }
+}

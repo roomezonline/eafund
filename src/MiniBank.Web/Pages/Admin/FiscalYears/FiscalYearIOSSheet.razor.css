@@ -1,0 +1,110 @@
+.ios-sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  opacity: 1;
+  visibility: visible;
+}
+
+.ios-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--card, var(--mud-palette-surface));
+  border-radius: 20px 20px 0 0;
+  max-height: 90vh;
+  transform: translateY(0);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+@media (min-width: 768px) {
+  .ios-sheet {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: 640px;
+    max-width: 90vw;
+    border-radius: 20px;
+    max-height: 85vh;
+  }
+}
+
+.ios-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--muted, #c7c7cc);
+  border-radius: 2px;
+  margin: 8px auto 12px;
+}
+
+.ios-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--border, rgba(0,0,0,.08));
+}
+
+.ios-cancel, .ios-done, .ios-danger-button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ios-cancel { background: #f59e0b; color: #fff; font-weight: 700; }
+.ios-done { background: var(--primary, #007aff); color: #fff; font-weight: 700; padding: 8px 16px; min-width: 90px; border-radius: 10px; box-shadow: 0 6px 16px rgba(0,122,255,.25); }
+.ios-title { font-size: 18px; font-weight: 600; color: var(--text, var(--mud-palette-text-primary)); margin: 0; }
+
+.ios-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: ios-spin .6s linear infinite;
+}
+
+@keyframes ios-spin { to { transform: rotate(360deg); } }
+
+.ios-content {
+  padding: 12px 20px 28px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+}
+
+.ios-form-section { margin-bottom: 24px; }
+.ios-form-header { display:flex; align-items:center; gap:8px; padding:12px 16px; background: var(--section-bg, rgba(0,0,0,.03)); border-radius:12px; margin-bottom:16px; font-weight:600; }
+.ios-form-group { background: var(--card, var(--mud-palette-surface)); border-radius:12px; border:1px solid var(--border, rgba(0,0,0,.08)); overflow: hidden; margin:12px 0; }
+.ios-field { padding:16px; border-bottom:1px solid var(--border, #e5e5ea); }
+.ios-field:last-child { border-bottom:none; }
+.field-label { display:block; font-size:13px; color: var(--muted, #8e8e93); margin-bottom:6px; font-weight:500; }
+.ios-input { width:100%; border:1px solid var(--border, #e5e5ea); background: var(--input-bg, #f8f9fa); font-size:16px; color: var(--text, var(--mud-palette-text-primary)); padding:12px 16px; outline:none; border-radius:8px; transition: all .2s ease; text-align:center; box-sizing: border-box; }
+.ios-input:focus { border-color: var(--primary, #007aff); box-shadow: 0 0 0 3px rgba(0,122,255,.1); }
+.ios-input.error { border-color: var(--danger, #ff3b30); }
+.field-error { font-size:12px; color:var(--danger, #ff3b30); margin-top:4px; }
+.field-helper { font-size:11px; color:var(--muted, #8e8e93); margin-top:4px; }
+
+.ios-danger-button { background: var(--danger, #ff3b30); color: #fff; font-weight: 700; }
+
+@media (max-width: 600px) {
+  .ios-sheet { max-height: 95vh; }
+  .ios-content { padding: 12px 16px 16px; max-height: calc(95vh - 100px); }
+}

@@ -1,0 +1,405 @@
+@page "/admin/dashboard"
+@inject NavigationManager Nav
+@inject MiniBank.Web.Services.DatabaseMigrationService Migrator
+@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+@inject HttpClient Http
+@inject IWebHostEnvironment Env
+@inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@using MiniBank.Web.Models
+@using System.Text.Json
+
+<section class="bam-dashboard">
+    @if (updateAvailable)
+    {
+        <div class="bam-update-banner">
+            <div class="update-content">
+                <div class="update-icon">
+                    <i class="fa-solid fa-download"></i>
+                </div>
+                <div class="update-text">
+                    <div class="update-title">بروزرسانی در دسترس است</div>
+                    <div class="update-desc">نسخه جدید اپلیکیشن آماده است</div>
+                </div>
+                <button class="update-btn" @onclick="ApplyUpdate">
+                    <i class="fa-solid fa-arrow-down"></i>
+                </button>
+            </div>
+        </div>
+    }
+
+    <!-- Header with greeting and profile -->
+    <div class="bam-header">
+        <div class="header-greeting">
+            <div class="greeting-text">سلام</div>
+            <div class="greeting-name">مدیر سیستم</div>
+        </div>
+        <div class="header-profile">
+            <div class="profile-avatar">
+                <i class="fa-solid fa-user"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance Card -->
+    <div class="bam-balance-card">
+        <div class="balance-header">
+            <div class="balance-title">موجودی کل صندوق</div>
+            <div class="balance-toggle">
+                <i class="fa-solid fa-eye"></i>
+            </div>
+        </div>
+        <div class="balance-amount">
+            <span class="amount">۱۲۳,۴۵۶,۷۸۹</span>
+            <span class="currency">ریال</span>
+        </div>
+        <div class="balance-actions">
+            <button class="balance-action">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>گزارش‌ها</span>
+            </button>
+            <button class="balance-action">
+                <i class="fa-solid fa-history"></i>
+                <span>تراکنش‌ها</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bam-quick-actions">
+        <div class="quick-action" @onclick="NavigateToReceipts">
+            <div class="action-icon transfer">
+                <i class="fa-solid fa-receipt"></i>
+            </div>
+            <span>ثبت رسید</span>
+        </div>
+        <div class="quick-action" @onclick="NavigateToMembers">
+            <div class="action-icon members">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <span>اعضا</span>
+        </div>
+        <div class="quick-action" @onclick="NavigateToReports">
+            <div class="action-icon reports">
+                <i class="fa-solid fa-chart-column"></i>
+            </div>
+            <span>گزارش‌ها</span>
+        </div>
+        <div class="quick-action" @onclick="NavigateToHouseholds">
+            <div class="action-icon households">
+                <i class="fa-solid fa-people-roof"></i>
+            </div>
+            <span>خانوارها</span>
+        </div>
+    </div>
+
+    <!-- Services Menu -->
+    <div class="bam-services">
+        <!-- Members Section -->
+        <div class="service-section">
+            <div class="section-header">
+                <i class="fa-solid fa-users"></i>
+                <span>مدیریت اعضا</span>
+            </div>
+            <div class="service-grid">
+                <a href="/admin/households" class="service-item">
+                    <div class="service-icon households">
+                        <i class="fa-solid fa-people-roof"></i>
+                    </div>
+                    <span>خانوارها</span>
+                </a>
+                <a href="/admin/members" class="service-item">
+                    <div class="service-icon members">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <span>اعضای خانوار</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Transactions Section -->
+        <div class="service-section">
+            <div class="section-header">
+                <i class="fa-solid fa-arrows-rotate"></i>
+                <span>تراکنش‌ها</span>
+            </div>
+            <div class="service-grid">
+                <a href="/admin/receipts/household-wizard" class="service-item">
+                    <div class="service-icon receipts">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+                    <span>ثبت رسید</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Accounting Section -->
+        <div class="service-section">
+            <div class="section-header">
+                <i class="fa-solid fa-sitemap"></i>
+                <span>ساختار حسابداری</span>
+            </div>
+            <div class="service-grid">
+                <a href="/admin/account-types" class="service-item">
+                    <div class="service-icon account-types">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <span>گروه</span>
+                </a>
+                <a href="/admin/kol" class="service-item">
+                    <div class="service-icon kol">
+                        <i class="fa-solid fa-chart-tree-map"></i>
+                    </div>
+                    <span>کل</span>
+                </a>
+                <a href="/admin/moeen" class="service-item">
+                    <div class="service-icon moeen">
+                        <i class="fa-solid fa-sitemap"></i>
+                    </div>
+                    <span>معین</span>
+                </a>
+                <a href="/admin/subsidiary" class="service-item">
+                    <div class="service-icon subsidiary">
+                        <i class="fa-solid fa-diagram-subtree"></i>
+                    </div>
+                    <span>تفضیلی</span>
+                </a>
+                <a href="/admin/posting-templates" class="service-item">
+                    <div class="service-icon templates">
+                        <i class="fa-solid fa-diagram-project"></i>
+                    </div>
+                    <span>الگوی حساب</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Reports Section -->
+        <div class="service-section">
+            <div class="section-header">
+                <i class="fa-solid fa-chart-column"></i>
+                <span>گزارش‌های حسابداری</span>
+            </div>
+            <div class="service-grid">
+                <a href="/admin/reports/trial-balance" class="service-item">
+                    <div class="service-icon trial-balance">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                    </div>
+                    <span>تراز آزمایشی</span>
+                </a>
+                <a href="/admin/reports/balance-sheet" class="service-item">
+                    <div class="service-icon balance-sheet">
+                        <i class="fa-solid fa-table"></i>
+                    </div>
+                    <span>ترازنامه</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Fiscal Year Section -->
+        <div class="service-section">
+            <div class="section-header">
+                <i class="fa-solid fa-calendar"></i>
+                <span>سال مالی</span>
+            </div>
+            @if (_currentFy != null)
+            {
+                <div class="fy-status-card">
+                    <div class="fy-status-icon @(_currentFy.IsClosed ? "closed" : "open")">
+                        <i class="fa-solid @(_currentFy.IsClosed ? "fa-lock" : "fa-lock-open")"></i>
+                    </div>
+                    <div class="fy-status-info">
+                        <div class="fy-status-title">@_currentFy.Title</div>
+                        <div class="fy-status-range">@_currentFy.YearCode</div>
+                    </div>
+                    <span class="fy-badge @(_currentFy.IsClosed ? "badge-closed" : "badge-open")">
+                        @(_currentFy.IsClosed ? "بسته" : "باز")
+                    </span>
+                </div>
+            }
+            <div class="service-grid" style="margin-top: 8px;">
+                <a href="/admin/fiscal-years" class="service-item">
+                    <div class="service-icon fiscal-years">
+                        <i class="fa-solid fa-calendar"></i>
+                    </div>
+                    <span>سال‌های مالی</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Base Data Section -->
+        <div class="service-section">
+            <div class="section-header">
+                <i class="fa-solid fa-table-list"></i>
+                <span>اطلاعات پایه</span>
+            </div>
+            <div class="service-grid">
+                <a href="/admin/deposit-types" class="service-item">
+                    <div class="service-icon deposit-types">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <span>نرخ سود سپرده</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="service-section">
+            <div class="section-header">
+                <i class="fa-solid fa-sliders"></i>
+                <span>پیکربندی</span>
+            </div>
+            <div class="service-grid">
+                <a href="/admin/design-system-demo" class="service-item">
+                    <div class="service-icon ds-demo">
+                        <i class="fa-solid fa-shapes"></i>
+                    </div>
+                    <span>پیش‌نمایش DS</span>
+                </a>
+                <button class="service-item" @onclick="RebuildDb">
+                    <div class="service-icon rebuild-db">
+                        <i class="fa-solid fa-database"></i>
+                    </div>
+                    <span>بازسازی بانک</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private bool updateAvailable = false;
+    private string? serverVersion;
+    private string? serverVersionDate;
+    private List<string> serverNotes = new();
+    private string? currentVersion;
+    private string? currentVersionDate;
+    private List<string> currentNotes = new();
+    private FiscalYear? _currentFy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _currentFy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.UtcNow);
+        }
+        catch { }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                // Avoid PWA service worker registration and version checks in Development to prevent caching issues
+                if (!Env.IsDevelopment())
+                {
+                    await JS.InvokeVoidAsync("SWUpdate.register", DotNetObjectReference.Create(this));
+                    _ = LoadVersionAsync();
+                    _ = LoadLocalVersionAsync();
+                }
+            }
+            catch { }
+        }
+    }
+
+    [JSInvokable("OnUpdateAvailable")]
+    public void OnUpdateAvailable()
+    {
+        updateAvailable = true;
+        _ = LoadVersionAsync();
+        StateHasChanged();
+    }
+
+    private async Task ApplyUpdate()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("SWUpdate.apply");
+            Toasts.Info("در حال اعمال بروزرسانی...");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"اعمال بروزرسانی با خطا مواجه شد: {ex.Message}");
+        }
+    }
+
+    private async Task LoadVersionAsync()
+    {
+        try
+        {
+            // Cache-busting to ensure we fetch the latest version.json when SW indicates update
+            var url = $"/version.json?t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            using var resp = await Http.GetAsync(url);
+            resp.EnsureSuccessStatusCode();
+            var json = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            serverVersion = doc.RootElement.TryGetProperty("version", out var v) ? v.GetString() : null;
+            serverVersionDate = doc.RootElement.TryGetProperty("date", out var d) ? d.GetString() : null;
+            if (doc.RootElement.TryGetProperty("notes", out var notesElement) && notesElement.ValueKind == JsonValueKind.Array)
+            {
+                serverNotes = notesElement.EnumerateArray().Select(x => x.GetString() ?? string.Empty).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            }
+            StateHasChanged();
+        }
+        catch { /* ignore */ }
+    }
+    private async Task LoadLocalVersionAsync()
+    {
+        try
+        {
+            var local = await JS.InvokeAsync<LocalVersion>("SWUpdate.getLocalVersion");
+            currentVersion = local?.version;
+            currentVersionDate = local?.date;
+            currentNotes = local?.notes ?? new List<string>();
+            StateHasChanged();
+        }
+        catch { /* ignore */ }
+    }
+
+    private class LocalVersion
+    {
+        public string? version { get; set; }
+        public string? date { get; set; }
+        public List<string> notes { get; set; } = new();
+    }
+    private async Task RebuildDb()
+    {
+        try
+        {
+            Loading?.Show("بانک اطلاعاتی", "در حال اجرای اسکریپت و بازسازی جداول...", "fa-solid fa-database");
+            // اجرای سیستم متمرکز مهاجرت: کلیه فایل‌های پوشه database به ترتیب نام اعمال می‌شوند
+            await Migrator.ApplyMigrationsAsync();
+            Toasts.Success("مهاجرت/بازسازی بانک با موفقیت انجام شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بازسازی بانک: {ex.Message}");
+        }
+        finally
+        {
+            Loading?.Hide();
+        }
+    }
+
+    private void NavigateToReceipts()
+    {
+        Nav.NavigateTo("/admin/receipts/household-wizard");
+    }
+
+    private void NavigateToMembers()
+    {
+        Nav.NavigateTo("/admin/members");
+    }
+
+    private void NavigateToReports()
+    {
+        Nav.NavigateTo("/admin/reports/trial-balance");
+    }
+
+    private void NavigateToHouseholds()
+    {
+        Nav.NavigateTo("/admin/households");
+    }
+}

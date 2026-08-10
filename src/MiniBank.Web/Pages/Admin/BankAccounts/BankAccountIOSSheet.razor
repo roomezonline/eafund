@@ -1,0 +1,211 @@
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+@inject MiniBank.Web.Services.BankAccountService BankAccountService
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+
+@if (_isVisible)
+{
+  <div class="ios-sheet-overlay visible" @onclick="HandleOverlayClick">
+    <div class="ios-sheet open" @onclick:stopPropagation="true">
+      <div class="ios-handle"></div>
+
+      <div class="ios-header">
+        <button class="ios-cancel" @onclick="Cancel">لغو</button>
+        <h2 class="ios-title">@(IsNew ? "حساب جدید" : "ویرایش حساب")</h2>
+        <button class="ios-done" @onclick="OnConfirm">
+          @if (_isSaving)
+          {
+            <div class="ios-spinner"></div>
+          }
+          else
+          {
+            <span>تایید</span>
+          }
+        </button>
+      </div>
+
+      <div class="ios-content">
+        <div class="ios-form-section">
+          <div class="ios-form-header">
+            <i class="fa-solid fa-building-columns"></i>
+            <span>مشخصات حساب</span>
+          </div>
+
+          <div class="ios-form-group">
+            <div class="ios-field">
+              <label class="field-label">نام بانک/موسسه</label>
+              <input type="text" @bind="Model.BankName" class="ios-input @(_bankError ? "error" : null)" placeholder="مثال: ملی، ملت، قرض‌الحسنه ..." />
+              @if (_bankError) { <div class="field-error">نام بانک/موسسه الزامی است</div> }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">شماره حساب</label>
+              <input type="text" @bind="Model.AccountNumber" class="ios-input @(_accError ? "error" : null)" placeholder="شماره حساب" />
+              @if (_accError) { <div class="field-error">شماره حساب الزامی است</div> }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">شماره کارت</label>
+              <input type="text" @bind="Model.CardNumber" class="ios-input center-text" maxlength="20" placeholder="اختیاری" />
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">شماره شبا</label>
+              <input type="text" @bind="Model.Shaba" class="ios-input center-text" maxlength="26" placeholder="IRxxxxxxxxxxxxxxxxxxxxx" />
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">نوع حساب</label>
+              <input type="text" @bind="Model.AccountType" class="ios-input" placeholder="جاری / کوتاه مدت / بلندمدت ..." />
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">سود حساب (درصد)</label>
+              <input type="number" step="0.01" @bind="_interest" class="ios-input center-text" placeholder="مثال: 18" />
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">معین مرتبط (دفتر)</label>
+              <select class="ios-input" @bind="Model.GlAccountId">
+                <option value="">— انتخاب معین —</option>
+                @if (_accounts?.Count > 0)
+                {
+                  @foreach (var acc in _accounts)
+                  {
+                    <option value="@acc.AccountId">@acc.Code - @acc.Name</option>
+                  }
+                }
+              </select>
+              <div class="field-hint">برای ثبت صحیح تراکنش‌های بانکی، یک معین از سرفصل‌های دفتر انتخاب کنید.</div>
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">تاریخ افتتاح</label>
+              <input type="text" value="@OpenedDateString" @oninput="OnOpenedDateInput" class="ios-input" style="text-align:center;" data-jdp data-jdp-only-date="true" placeholder="مثال: 1404/06/27" />
+            </div>
+
+            <div class="ios-toggle-row">
+              <div class="ios-toggle-label">
+                <i class="fa-solid fa-toggle-on"></i>
+                <div>
+                  <span class="ios-toggle-title">وضعیت فعال</span>
+                  <span class="ios-toggle-subtitle">حساب در سیستم فعال باشد</span>
+                </div>
+              </div>
+              <label class="ios-toggle">
+                <input type="checkbox" @bind="Model.IsActive" />
+                <span class="ios-toggle-slider"></span>
+              </label>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+  [Parameter] public BankAccount Model { get; set; } = new();
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _isVisible;
+  private bool _isSaving;
+  private bool _bankError, _accError;
+  private decimal? _interest;
+  private List<(long AccountId, string Code, string Name, byte AccountType)> _accounts = new();
+
+  private string OpenedDateString
+  {
+    get => Model.OpenedAt.ToPersianDate();
+    set { if (!string.IsNullOrEmpty(value)) Model.OpenedAt = DateTimeExtensions.FromPersianDate(value); }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    await Task.Delay(50);
+    _isVisible = true;
+    await LoadData();
+    await InitJalaliPicker();
+  }
+
+  protected override async Task OnParametersSetAsync()
+  {
+    await LoadData();
+  }
+
+  private async Task LoadData()
+  {
+    _interest = Model.InterestRate;
+    // Load accounts for GL link
+    try
+    {
+      _accounts = (await AccountsRepo.GetAllAsync()).ToList();
+    }
+    catch { /* ignore list failure; user can save without link */ }
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (_isVisible) await InitJalaliPicker();
+  }
+
+  private async Task InitJalaliPicker()
+  {
+    try { await JS.InvokeVoidAsync("initJdp"); } catch { }
+  }
+
+  private void OnOpenedDateInput(ChangeEventArgs e)
+  {
+    var v = e.Value?.ToString() ?? string.Empty;
+    if (!string.IsNullOrEmpty(v)) Model.OpenedAt = DateTimeExtensions.FromPersianDate(v);
+    StateHasChanged();
+  }
+
+  private async Task OnConfirm()
+  {
+    if (_isSaving) return;
+    _bankError = string.IsNullOrWhiteSpace(Model.BankName);
+    _accError = string.IsNullOrWhiteSpace(Model.AccountNumber);
+    if (_bankError || _accError)
+    {
+      StateHasChanged();
+      return;
+    }
+
+    _isSaving = true;
+    try
+    {
+      Model.InterestRate = _interest;
+      if (IsNew)
+      {
+        var id = await BankAccountService.CreateAsync(Model);
+        Model.AccountId = id;
+      }
+      else
+      {
+        await BankAccountService.UpdateAsync(Model);
+      }
+      await OnClose.InvokeAsync(true);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره: {ex.Message}");
+    }
+    finally
+    {
+      _isSaving = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task Cancel()
+  {
+    await OnClose.InvokeAsync(false);
+  }
+
+  private async Task HandleOverlayClick() { await Task.CompletedTask; }
+}

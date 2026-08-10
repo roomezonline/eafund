@@ -1,0 +1,474 @@
+@page "/admin/auth/users"
+@using System.Security.Claims
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models.Auth
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository Repo
+@inject MiniBank.Web.Services.Auth.AuthService Auth
+@inject MiniBank.Web.Services.Auth.AuthSyncService Sync
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="users-duo">
+  <DsPageHeader Icon="fa-solid fa-user-shield"
+                Title="کاربران سامانه"
+                Subtitle="مدیریت کاربران و نقش‌ها"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                OnRefreshClick="LoadAsync">
+    <button class="icon-btn" title="همگام‌سازی اعضا" disabled="@_syncing" @onclick="SyncMembersAsync">
+      <i class="fa-solid fa-user-group"></i>
+    </button>
+  </DsPageHeader>
+
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="_keyword" Placeholder="جستجو: نام/نام خانوادگی، کد ملی، شماره عضویت، نقش..." />
+    <div class="filters-row">
+      <div class="filter">
+        <label>نقش</label>
+        <select class="select" @bind="_filterRoleIdStr">
+          <option value="">همه</option>
+          @foreach (var r in _roles)
+          {
+            <option value="@r.RoleId">@ToFaRole(r.Name)</option>
+          }
+        </select>
+      </div>
+      <div class="filter">
+        <label>مرتب‌سازی</label>
+        <select class="select" @bind="_sortBy">
+          <option value="new">جدیدترین</option>
+          <option value="role">بر اساس نقش</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <main class="duo-main">
+    @if (_loading)
+    {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>در حال بارگذاری...</p>
+      </div>
+    }
+    else if (!_items.Any())
+    {
+      <div class="empty-state">
+        <div class="empty-icon"><i class="fa-solid fa-user-lock"></i></div>
+        <h3>کاربری یافت نشد</h3>
+        <p>در صورت نیاز، همگام‌سازی اعضا را اجرا کنید.</p>
+        <button class="btn-primary" @onclick="SyncMembersAsync" disabled="@_syncing">
+          <i class="fa-solid fa-rotate"></i>
+          همگام‌سازی اعضا
+        </button>
+      </div>
+    }
+    else
+    {
+      <div class="items-grid">
+        @foreach (var u in _items)
+        {
+          <div class="item-card @RoleCardClass(u.Role?.Name) @ActiveCardClass(u.IsActive)" @onclick="() => Edit(u)" style="cursor:pointer;">
+            <div class="item-header">
+              <div class="item-info compact">
+                <h3 class="item-title">@u.Username</h3>
+                <span class="id-chip" title="شناسه کاربر">#@u.UserId</span>
+              </div>
+              <div class="item-actions">
+                <span class="badge role @RoleBadgeClass(u.Role?.Name)">@ToFaRole(u.Role?.Name)</span>
+                <span class="badge status @(u.IsActive ? "on" : "off")">@(u.IsActive ? "فعال" : "غیرفعال")</span>
+                <button class="btn-icon btn-edit" title="ویرایش" @onclick="() => Edit(u)" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-edit"></i>
+                </button>
+              </div>
+            </div>
+            <div class="item-body">
+              <div class="kv"><span class="k">شماره عضویت</span><span class="v">@(u.MemberId?.ToString() ?? "-")</span></div>
+              <div class="kv"><span class="k">نام و نام خانوادگی</span><span class="v">@MemberFullName(u)</span></div>
+              <div class="kv"><span class="k">نقش</span><span class="v">@ToFaRole(u.Role?.Name)</span></div>
+              <div class="kv"><span class="k">فعال</span><span class="v">@(u.IsActive ? "بله" : "خیر")</span></div>
+              <div class="kv"><span class="k">آخرین ورود</span><span class="v" dir="ltr">@FormatLastLogin(u.LastLoginAt)</span></div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </main>
+
+  <DsFab Title="بروزرسانی" Icon="fa-rotate" OnClick="LoadAsync" />
+</div>
+
+@if (_syncing)
+{
+  <div class="edit-overlay">
+    <div class="edit-card" style="width:min(94vw, 520px); text-align:center;">
+      <div class="edit-title">در حال همگام‌سازی اعضا...</div>
+      <div class="loading-spinner" style="margin: 14px auto;"></div>
+      <div style="font-weight: 800; opacity: .85;">لطفاً چند لحظه صبر کنید.</div>
+    </div>
+  </div>
+}
+
+@if (_showSyncReport && _syncReport != null)
+{
+  <div class="edit-overlay" @onclick="CloseSyncReport">
+    <div class="edit-card" @onclick:stopPropagation="true">
+      <div class="edit-title">گزارش همگام‌سازی اعضا</div>
+
+      <div class="edit-grid" style="margin-top: 10px;">
+        <div class="kv"><span class="k">کاربران جدید</span><span class="v">@_syncReport.CreatedCount</span></div>
+        <div class="kv"><span class="k">کاربران موجود</span><span class="v">@_syncReport.ExistingCount</span></div>
+        <div class="kv"><span class="k">خطا/تداخل</span><span class="v">@_syncReport.ErrorCount</span></div>
+      </div>
+
+      @if (_syncReport.Items.Any())
+      {
+        <div style="margin-top: 12px; font-weight: 1000;">جزئیات</div>
+        <div style="margin-top: 8px; display:grid; gap:8px; max-height: 45vh; overflow:auto; padding-right: 6px;">
+          @foreach (var it in _syncReport.Items)
+          {
+            <div class="kv" style="background: rgba(148,163,184,.12); border: 1px solid rgba(15,23,42,.08); border-radius: 14px; padding: 10px;">
+              <span class="k">#@it.MemberId</span>
+              <span class="v">@((it.FirstName + " " + it.LastName).Trim())</span>
+              <span class="v" style="margin-right:auto;">@it.Action</span>
+            </div>
+          }
+        </div>
+      }
+      else
+      {
+        <div style="margin-top: 12px; opacity:.8;">موردی برای گزارش وجود ندارد.</div>
+      }
+
+      <div class="edit-actions">
+        <button class="btn-primary" @onclick="CloseSyncReport">بستن</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (_showEdit && _editUser != null)
+{
+  <div class="edit-overlay" @onclick="CloseEdit">
+    <div class="edit-card" @onclick:stopPropagation="true">
+      <div class="edit-title">ویرایش کاربر</div>
+
+      <div class="edit-grid">
+        <div class="kv"><span class="k">نام کاربری</span><span class="v">@_editUser.Username</span></div>
+        <div class="kv"><span class="k">نقش</span><span class="v">
+          <select class="select" @bind="_editRoleId">
+            @foreach (var r in _roles)
+            {
+              <option value="@r.RoleId">@ToFaRole(r.Name)</option>
+            }
+          </select>
+        </span></div>
+
+        <div class="kv"><span class="k">وضعیت</span><span class="v">
+          <select class="select" @bind="_editIsActiveStr">
+            <option value="true">فعال</option>
+            <option value="false">غیرفعال</option>
+          </select>
+        </span></div>
+
+        <div class="kv"><span class="k">رمز</span><span class="v">
+          <div class="pwd-row">
+            <input class="pwd" readonly value="@_editPassword" />
+            <button class="mini" @onclick="ShowPassword">نمایش</button>
+            <button class="mini danger" @onclick="ResetPassword">ریست</button>
+          </div>
+          <div class="pwd-hint">اگر رمز قابل بازیابی نباشد، باید ریست انجام شود.</div>
+        </span></div>
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-secondary" @onclick="CloseEdit">بستن</button>
+        <button class="btn-primary" disabled="@_saving" @onclick="SaveEdit">@(_saving?"در حال ذخیره...":"ذخیره")</button>
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+  private List<AuthUser> _items = new();
+  private List<AuthRole> _roles = new();
+  private bool _loading;
+  private bool _syncing;
+  private bool _saving;
+
+  private bool _showSyncReport;
+  private MiniBank.Web.Services.Auth.AuthSyncService.MemberUserSyncReport? _syncReport;
+
+  private static string ToFaRole(string? name)
+  {
+    var x = (name ?? string.Empty).Trim();
+    if (string.IsNullOrWhiteSpace(x)) return "-";
+
+    return x switch
+    {
+      "Developer" => "توسعه‌دهنده",
+      "Admin" => "مدیر سیستم",
+      "Accountant" => "حسابدار",
+      "Member" => "عضو",
+      "Manager" => "مدیر",
+      _ => x
+    };
+  }
+
+  private static string RoleCardClass(string? roleName)
+  {
+    var x = (roleName ?? string.Empty).Trim();
+    return x switch
+    {
+      "Developer" => "role-developer",
+      "Admin" => "role-admin",
+      "Accountant" => "role-accountant",
+      "Manager" => "role-manager",
+      "Member" => "role-member",
+      _ => "role-other"
+    };
+  }
+
+  private static string RoleBadgeClass(string? roleName)
+  {
+    var x = (roleName ?? string.Empty).Trim();
+    return x switch
+    {
+      "Developer" => "role-developer",
+      "Admin" => "role-admin",
+      "Accountant" => "role-accountant",
+      "Manager" => "role-manager",
+      "Member" => "role-member",
+      _ => "role-other"
+    };
+  }
+
+  private static string ActiveCardClass(bool isActive) => isActive ? "active" : "inactive";
+
+  private static string MemberFullName(AuthUser u)
+  {
+    var first = (u.MemberFirstName ?? string.Empty).Trim();
+    var last = (u.MemberLastName ?? string.Empty).Trim();
+    var full = (first + " " + last).Trim();
+    return string.IsNullOrWhiteSpace(full) ? "-" : full;
+  }
+
+  private static string FormatLastLogin(DateTime? utc)
+  {
+    if (utc == null) return "-";
+    var dt = utc.Value.ToLocalTime();
+    return dt.ToString("yyyy/MM/dd") + " " + dt.ToString("HH:mm");
+  }
+
+  private bool _showEdit;
+  private AuthUser? _editUser;
+  private long _editRoleId;
+  private bool _editIsActive;
+  private string _editIsActiveStr = "true";
+  private string _editPassword = "********";
+  private bool _canViewPasswords;
+
+  private long? _filterRoleId;
+
+  private string _kw = string.Empty;
+  private string _keyword
+  {
+    get => _kw;
+    set
+    {
+      _kw = value ?? string.Empty;
+      _ = LoadAsync();
+    }
+  }
+
+  private string _filterRoleIdStrRaw = string.Empty;
+  private string _filterRoleIdStr
+  {
+    get => _filterRoleIdStrRaw;
+    set
+    {
+      _filterRoleIdStrRaw = value ?? string.Empty;
+      if (string.IsNullOrWhiteSpace(_filterRoleIdStrRaw))
+        _filterRoleId = null;
+      else if (long.TryParse(_filterRoleIdStrRaw, out var x))
+        _filterRoleId = x;
+      else
+        _filterRoleId = null;
+
+      _ = LoadAsync();
+    }
+  }
+
+  private string _sortByRaw = "new";
+  private string _sortBy
+  {
+    get => _sortByRaw;
+    set
+    {
+      _sortByRaw = string.IsNullOrWhiteSpace(value) ? "new" : value;
+      _ = LoadAsync();
+    }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadRolesAsync();
+    await DetermineCanViewPasswordsAsync();
+    await LoadAsync();
+  }
+
+  private async Task DetermineCanViewPasswordsAsync()
+  {
+    try
+    {
+      var state = await AuthStateProvider.GetAuthenticationStateAsync();
+      var user = state.User;
+      var role = user?.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+      _canViewPasswords = true;
+    }
+    catch
+    {
+      _canViewPasswords = false;
+    }
+  }
+
+  private async Task LoadRolesAsync()
+  {
+    _roles = (await Repo.GetRolesAsync(includeInactive: false)).ToList();
+  }
+
+  private async Task LoadAsync()
+  {
+    if (_loading) return;
+    _loading = true;
+    try
+    {
+      var sort = _sortBy == "role" ? "role" : null;
+      _items = (await Repo.GetUsersAsync(_keyword, _filterRoleId, sort, 500)).ToList();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری کاربران: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task SyncMembersAsync()
+  {
+    if (_syncing) return;
+    _syncing = true;
+    try
+    {
+      StateHasChanged();
+      await Task.Yield();
+      _syncReport = await Sync.EnsureAllMembersHaveUsersAsync();
+      _showSyncReport = true;
+      Toasts.Success($"همگام‌سازی انجام شد. کاربران جدید: {_syncReport.CreatedCount}");
+      await LoadAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در همگام‌سازی: {ex.Message}");
+    }
+    finally
+    {
+      _syncing = false;
+    }
+  }
+
+  private void CloseSyncReport()
+  {
+    _showSyncReport = false;
+    _syncReport = null;
+  }
+
+  private void Edit(AuthUser u)
+  {
+    _editUser = u;
+    _editRoleId = u.RoleId;
+    _editIsActive = u.IsActive;
+    _editIsActiveStr = u.IsActive ? "true" : "false";
+    _editPassword = "********";
+    _showEdit = true;
+  }
+
+  private void CloseEdit()
+  {
+    _showEdit = false;
+    _editUser = null;
+    _editPassword = "********";
+    _editIsActiveStr = "true";
+  }
+
+  private async Task ShowPassword()
+  {
+    if (_editUser == null) return;
+
+    try
+    {
+      if (Auth.TryDecryptViewPassword(_editUser.PasswordViewEnc, out var plain))
+      {
+        _editPassword = plain;
+      }
+      else
+      {
+        _editPassword = "(قابل نمایش نیست؛ ریست کنید)";
+      }
+    }
+    catch
+    {
+      _editPassword = "(خطا)";
+    }
+  }
+
+  private async Task ResetPassword()
+  {
+    if (_editUser == null) return;
+
+    try
+    {
+      var u = _editUser.Username ?? string.Empty;
+      var pwd = u.Length <= 4 ? u : u.Substring(u.Length - 4);
+      var enc = Auth.EncryptPassword(pwd);
+      var viewEnc = Auth.EncryptViewPassword(pwd);
+      await Repo.UpdateUserPasswordAsync(_editUser.UserId, enc, viewEnc);
+
+      _editUser.PasswordEnc = enc;
+      _editUser.PasswordViewEnc = viewEnc;
+      _editPassword = pwd;
+      Toasts.Success("رمز با موفقیت ریست شد");
+    }
+    catch
+    {
+      Toasts.Error("خطا در ریست رمز");
+    }
+  }
+
+  private async Task SaveEdit()
+  {
+    if (_editUser == null) return;
+    if (_saving) return;
+
+    _saving = true;
+    try
+    {
+      _editIsActive = string.Equals((_editIsActiveStr ?? string.Empty).Trim(), "true", StringComparison.OrdinalIgnoreCase);
+      await Repo.UpdateUserAsync(_editUser.UserId, _editRoleId, _editIsActive);
+      Toasts.Success("ذخیره شد");
+      CloseEdit();
+      await LoadAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+}

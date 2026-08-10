@@ -1,0 +1,118 @@
+@namespace MiniBank.Web.Components.DesignSystem
+@inherits ComponentBase
+@implements IAsyncDisposable
+
+@if (Show)
+{
+  <div class="ds-sheet-overlay @(Open ? "open" : "")" 
+       @onclick="HandleOverlayClick" 
+       @onkeydown="HandleKeyDown" 
+       tabindex="-1"
+       role="dialog" 
+       aria-modal="true"
+       aria-labelledby="sheet-title">
+    <div class="ds-sheet @(Open ? "open" : "")" @onclick:stopPropagation="true">
+      <div class="ds-handle" aria-hidden="true"></div>
+      
+      <div class="ds-header">
+        <div class="ds-title-row">
+          <h2 id="sheet-title" class="ds-title">@Title</h2>
+        </div>
+        <div class="ds-actions-row">
+          <div class="ds-left-actions">
+            @if (ShowCancelButton)
+            {
+              <button class="ds-btn ds-cancel" 
+                      @onclick="OnCancel"
+                      aria-label="لغو و بستن">@CancelText</button>
+            }
+            @if (ShowDelete)
+            {
+              <button class="ds-btn ds-delete" 
+                      @onclick="OnDelete"
+                      aria-label="حذف">@DeleteText</button>
+            }
+          </div>
+          <div class="ds-actions-spacer"></div>
+          @if (ShowConfirmButton)
+          {
+            <button class="ds-btn ds-done" 
+                    @onclick="OnConfirm" 
+                    disabled="@ShowSpinner"
+                    aria-label="تایید و ذخیره">
+              @if (ShowSpinner)
+              {
+                <div class="ds-spinner" aria-label="در حال ذخیره..."></div>
+              }
+              else
+              {
+                <span>@ConfirmText</span>
+              }
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="ds-content" role="main">
+        @ChildContent
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+  [Inject] IJSRuntime JS { get; set; } = default!;
+  [Parameter] public bool Show { get; set; }
+  [Parameter] public string Title { get; set; } = string.Empty;
+  [Parameter] public string ConfirmText { get; set; } = "تایید";
+  [Parameter] public string CancelText { get; set; } = "لغو";
+  [Parameter] public EventCallback OnConfirm { get; set; }
+  [Parameter] public EventCallback OnCancel { get; set; }
+  [Parameter] public bool ShowConfirmButton { get; set; } = true;
+  [Parameter] public bool ShowCancelButton { get; set; } = true;
+  [Parameter] public bool ShowDelete { get; set; }
+  [Parameter] public string DeleteText { get; set; } = "حذف";
+  [Parameter] public EventCallback OnDelete { get; set; }
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+  [Parameter] public bool Open { get; set; } = true;
+  [Parameter] public bool ShowSpinner { get; set; }
+
+  private bool _bodyLocked;
+
+  private async Task HandleOverlayClick() { await OnCancel.InvokeAsync(); }
+  
+  private async Task HandleKeyDown(KeyboardEventArgs e)
+  {
+    if (e.Key == "Escape")
+      await OnCancel.InvokeAsync();
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    // When the sheet is visible, prevent background/body scroll on mobile
+    if (Show && !_bodyLocked)
+    {
+      try
+      {
+        await JS.InvokeVoidAsync("eval", "document.body.classList.add('no-scroll')");
+        _bodyLocked = true;
+      }
+      catch { }
+    }
+    else if (!Show && _bodyLocked)
+    {
+      try { await JS.InvokeVoidAsync("eval", "document.body.classList.remove('no-scroll')"); } catch { }
+      _bodyLocked = false;
+    }
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    // Ensure body scroll is restored if the component is removed
+    if (_bodyLocked)
+    {
+      try { await JS.InvokeVoidAsync("eval", "document.body.classList.remove('no-scroll')"); } catch { }
+      _bodyLocked = false;
+    }
+  }
+}

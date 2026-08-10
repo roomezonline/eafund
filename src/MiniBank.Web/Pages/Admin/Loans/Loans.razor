@@ -1,0 +1,2364 @@
+@page "/admin/loans"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@using System.Globalization
+@using System.Threading
+@using Microsoft.AspNetCore.Components.Web
+@using MiniBank.Web.Pages.Admin.Loans
+@inject MiniBank.Web.Services.LoanService LoanService
+@inject MiniBank.Web.Services.LoanRateService LoanRateService
+@inject MiniBank.Web.Infrastructure.Repositories.MemberRepository MemberRepo
+@inject MiniBank.Web.Infrastructure.Repositories.CreditHoldRepository CreditHoldRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@using MiniBank.Web.Components.DesignSystem
+
+<style>
+  .prepay-modal {
+    max-width: 620px;
+    width: min(620px, calc(100vw - 28px));
+  }
+
+  .prepay-header-sub {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,.82);
+    margin-top: 2px;
+  }
+
+  .prepay-kv {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .prepay-kv-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .prepay-kv-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: #334155;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .prepay-kv-dots {
+    flex: 1;
+    height: 1px;
+    border-bottom: 1px dashed #cbd5e1;
+    opacity: .9;
+  }
+
+  .prepay-kv-value {
+    font-weight: 900;
+    font-size: 13px;
+    color: #0f172a;
+    direction: ltr;
+    text-align: left;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  .prepay-value { color: #0f172a; }
+  .prepay-value.principal { color: #1d4ed8; }
+  .prepay-value.current-interest { color: #b45309; }
+  .prepay-value.waived { color: #047857; }
+  .prepay-value.installments { color: #4338ca; }
+
+  .prepay-amount-box {
+    margin-top: 12px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .prepay-amount-box label {
+    display: block;
+    font-size: 12px;
+    font-weight: 900;
+    color: #0f172a;
+    margin-bottom: 8px;
+  }
+
+  .prepay-amount-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    font-weight: 900;
+    font-size: 14px;
+    direction: ltr;
+    text-align: left;
+    font-variant-numeric: tabular-nums lining-nums;
+    outline: none;
+  }
+
+  .prepay-amount-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+
+  .prepay-amount-hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 700;
+  }
+
+  .prepay-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  @@media (min-width: 520px) {
+    .prepay-actions { grid-template-columns: 1fr 1fr; }
+  }
+
+  .loan-disburse-modal-overlay.prepay-under-confirm {
+    z-index: 9000 !important;
+  }
+
+  .prepay-method {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+    gap: 22px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .prepay-method label {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    font-weight: 900;
+    font-size: 14px;
+    color: #0f172a;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .prepay-method input[type="radio"] {
+    transform: scale(1.05);
+    accent-color: #2563eb;
+  }
+
+  :global(.ds-confirm-overlay) {
+    z-index: 999999 !important;
+  }
+
+  .load-more-row {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0;
+  }
+  .load-more-btn {
+    background: rgba(255,255,255,.10);
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    padding: 8px 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background .15s;
+  }
+  .load-more-btn:hover:not(:disabled) {
+    background: #e2e8f0;
+  }
+  .load-more-btn:disabled {
+    opacity: .5;
+    cursor: default;
+  }
+</style>
+
+<div class="loan-mje2-page">
+  <DsPageHeader Icon="fa-solid fa-money-check-dollar"
+                Title="وام‌ها"
+                Subtitle="@($"تعداد کل: {_items.Count}")"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="ایجاد وام"
+                OnRefreshClick="Refresh"
+                OnAddClick="ToggleCreateInline">
+  </DsPageHeader>
+
+  @if (_showCreateInline)
+  {
+    <LoanCreateInline OnCancel="HideCreateInline" OnSaved="OnLoanSaved" EditLoanId="@_editLoanId" />
+  }
+
+  <div class="journal-history-container">
+    <div class="journal-history-header">
+      <h2><i class="fas fa-history"></i> لیست وام‌ها</h2>
+      <div class="history-actions">
+        <button class="refresh-btn" @onclick="Refresh"><i class="fas fa-rotate"></i> بروزرسانی</button>
+      </div>
+    </div>
+
+    <div class="history-filters">
+      <div class="filter-row">
+        <div class="filter-group filter-group-search">
+          <label>جستجو</label>
+          <input class="search-input" value="@_kw" @oninput="OnSearchInput" placeholder="شناسه/عضو/مبلغ/تاریخ..." />
+        </div>
+        <div class="filter-group filter-group-date">
+          <label>بازه تاریخ</label>
+          <div style="display:flex; gap:8px; align-items:center">
+            <input class="search-input" style="width:120px" value="@_fromDateText" @onchange="OnFromDateChanged" data-jdp="true" data-jdp-only-date="true" placeholder="از" />
+            <input class="search-input" style="width:120px" value="@_toDateText" @onchange="OnToDateChanged" data-jdp="true" data-jdp-only-date="true" placeholder="تا" />
+          </div>
+        </div>
+        <div class="filter-group filter-group-status">
+          <label>فیلتر</label>
+          <DsPillGroup Mode="filter"
+                       Items="@_filterItems"
+                       ActiveKey="@_filter"
+                       OnFilterChanged="OnFilterChanged" />
+        </div>
+        <div class="filter-group filter-group-sort desktop-only">
+          <label>مرتب‌سازی</label>
+          <DsPillGroup Mode="sort"
+                       Items="@_sortItems"
+                       ActiveKey="@_sortKey"
+                       ActiveKeyChanged="@(k => _sortKey = k)"
+                       Desc="@_sortDesc"
+                       DescChanged="@(d => _sortDesc = d)"
+                       OnSortChanged="OnSortChanged" />
+        </div>
+      </div>
+
+      <div class="loan-count-row">تعداد وام‌ها: @_items.Count</div>
+    </div>
+
+    <div class="journals-table-container">
+      @if (_loading)
+      {
+        <div class="loading-container">در حال بارگذاری...</div>
+      }
+      else if (!_items.Any())
+      {
+        <div class="empty-container">هیچ وامی یافت نشد</div>
+      }
+      else
+      {
+        <div class="journals-table-scroll">
+          <table class="journals-table">
+            <thead>
+              <tr>
+                <th>ردیف</th>
+                <th>شناسه</th>
+                <th>تاریخ</th>
+                <th>عضو</th>
+                <th>اصل وام</th>
+                <th>سود وام</th>
+                <th>کل وام</th>
+                <th>اقساط</th>
+                <th>قسط</th>
+                <th>مانده وام تا کنون</th>
+                <th>سند</th>
+                <th>وضعیت</th>
+                <th>جزئیات</th>
+              </tr>
+            </thead>
+            <tbody>
+              @{
+                var idx = 0;
+
+                decimal sumLoansPrincipal = 0m;
+                decimal sumLoansInterest = 0m;
+                decimal sumLoansTotal = 0m;
+                decimal sumLoansEmi = 0m;
+                decimal sumLoansRemPrincipal = 0m;
+                decimal sumLoansRemInterest = 0m;
+                decimal sumLoansRemTotal = 0m;
+
+                foreach (var it in _items)
+                {
+                  _installments.TryGetValue(it.LoanId, out var instForRowTotal);
+                  var itInterest = instForRowTotal != null && instForRowTotal.Count > 0
+                    ? instForRowTotal.Sum(x => x.InterestAmount)
+                    : (_interestSums.TryGetValue(it.LoanId, out var aggInterestTotal) ? aggInterestTotal : Math.Max(0m, (it.EmiAmount * it.TermMonths) - it.Principal));
+                  var itTotal = it.Principal + itInterest;
+
+                  _remainingAgg.TryGetValue(it.LoanId, out var itRemAgg);
+                  var itRemPrincipal = itRemAgg?.RemainingPrincipal ?? 0m;
+                  var itRemInterest = itRemAgg?.RemainingInterest ?? 0m;
+                  var itRemTotal = itRemPrincipal + itRemInterest;
+
+                  sumLoansPrincipal += it.Principal;
+                  sumLoansInterest += itInterest;
+                  sumLoansTotal += itTotal;
+                  sumLoansEmi += it.EmiAmount;
+                  sumLoansRemPrincipal += itRemPrincipal;
+                  sumLoansRemInterest += itRemInterest;
+                  sumLoansRemTotal += itRemTotal;
+                }
+              }
+              @foreach (var item in _items)
+              {
+                idx++;
+                _installments.TryGetValue(item.LoanId, out var instForRow);
+                var rowInterest = instForRow != null && instForRow.Count > 0
+                  ? instForRow.Sum(x => x.InterestAmount)
+                  : (_interestSums.TryGetValue(item.LoanId, out var aggInterest) ? aggInterest : Math.Max(0m, (item.EmiAmount * item.TermMonths) - item.Principal));
+                var rowTotal = item.Principal + rowInterest;
+
+                _remainingAgg.TryGetValue(item.LoanId, out var remAgg);
+                var remPrincipal = remAgg?.RemainingPrincipal ?? 0m;
+                var remInterest = remAgg?.RemainingInterest ?? 0m;
+                var remTotal = remPrincipal + remInterest;
+                LoanService.DisbursementJournalRef? disbRef = null;
+                if (_disbursementJournalRefs.TryGetValue(item.LoanId, out var djr) && djr != null)
+                {
+                  disbRef = djr;
+                }
+                <tr class="history-row @(_expanded.Contains(item.LoanId) ? "expanded" : "") @(item.Status == LoanStatus.Settled ? "loan-row-settled" : "")" @onclick="() => ToggleExpand(item.LoanId)">
+                  <td class="cell-center">@idx</td>
+                  <td class="cell-center">@item.LoanId</td>
+                  <td>@item.DisbursedAt.ToString("yyyy/MM/dd")</td>
+                  <td>@GetMemberName(item.MemberId)</td>
+                  <td class="amount-td">@ToMoney(item.Principal)</td>
+                  <td class="amount-td">@ToMoney(rowInterest)</td>
+                  <td class="amount-td">@ToMoney(rowTotal)</td>
+                  <td class="cell-center">@item.TermMonths</td>
+                  <td class="amount-td">@ToMoney(item.EmiAmount)</td>
+                  <td class="amount-td">
+                    <div style="display:flex; flex-direction:column; gap:2px">
+                      <div style="font-weight:800">@ToMoney(remTotal)</div>
+                      <div style="font-size:11px; color:#6b7280">اصل: @ToMoney(remPrincipal) | سود: @ToMoney(remInterest)</div>
+                    </div>
+                  </td>
+                  <td class="cell-center">
+                    @if (disbRef != null && disbRef.JournalId > 0)
+                    {
+                      <a class="journal-link" href="javascript:void(0)" @onclick="(async () => await OpenJournalDetailsAsync(disbRef.JournalId))" @onclick:stopPropagation="true">
+                        سند #@(disbRef.DocumentNumber?.ToString() ?? $"P-{disbRef.JournalId}")
+                      </a>
+                    }
+                    else
+                    {
+                      <span>-</span>
+                    }
+                  </td>
+                  <td><span class="status-badge @ToLoanStatusBadge(item.Status)">@ToStatusText(item.Status)</span></td>
+                  <td>
+                    <div class="history-actions-cell">
+                      <button class="history-edit-btn" @onclick="(() => OnEditClick(item.LoanId))" @onclick:stopPropagation="true">ویرایش</button>
+                      @if (item.Status == LoanStatus.Approved)
+                      {
+                        <button class="history-post-btn" @onclick="(() => OpenDisburseConfirmAsync(item.LoanId))" @onclick:stopPropagation="true">تایید و صدور سند</button>
+                      }
+                      @if (item.Status == LoanStatus.Disbursed || item.Status == LoanStatus.Active)
+                      {
+                        <button class="history-post-btn" style="background:#0f766e" @onclick="(() => OpenPrepayConfirmAsync(item.LoanId))" @onclick:stopPropagation="true">تسویه پیش از موعد</button>
+                      }
+                      <button class="history-force-status-btn" @onclick="(() => OpenForceStatusAsync(item.LoanId))" @onclick:stopPropagation="true">تغییر وضعیت</button>
+                      <button class="history-delete-btn" @onclick="(() => RequestDelete(item))" @onclick:stopPropagation="true">حذف</button>
+                    </div>
+                  </td>
+                </tr>
+
+                @if (_expanded.Contains(item.LoanId))
+                {
+                  <tr class="journal-details-row">
+                    <td colspan="13">
+                      <div class="journal-details-inline">
+                        @{
+                          _installments.TryGetValue(item.LoanId, out var instForSummary);
+                          var summaryInst = (instForSummary ?? new List<LoanInstallment>()).OrderBy(x => x.InstallmentNo).ToList();
+
+                          var totalInstallments = summaryInst.Count;
+                          var paidInstallments = summaryInst.Count(x => x.Status == LoanInstallmentStatus.Paid);
+                          var remainingInstallments = Math.Max(0, totalInstallments - paidInstallments);
+
+                          var firstDue = item.FirstDueDate;
+                          var lastDue = summaryInst.Count > 0 ? summaryInst[^1].DueDate : (DateTime?)null;
+                          var firstUnpaidDue = summaryInst.FirstOrDefault(x => x.Status != LoanInstallmentStatus.Paid)?.DueDate;
+
+                          var paidToDate = summaryInst.Sum(x => x.PaidPrincipal + x.PaidInterest + x.PaidPenalty);
+                          var paidPrincipalToDate = summaryInst.Sum(x => x.PaidPrincipal);
+                          var paidInterestToDate = summaryInst.Sum(x => x.PaidInterest);
+
+                          var remainingPrincipal = summaryInst.Count > 0
+                            ? summaryInst.Sum(x => Math.Max(0m, x.PrincipalAmount - x.PaidPrincipal))
+                            : Math.Max(0m, item.Principal - paidPrincipalToDate);
+
+                          var remainingInterest = summaryInst.Count > 0
+                            ? summaryInst.Sum(x => Math.Max(0m, x.InterestAmount - x.PaidInterest))
+                            : Math.Max(0m, 0m - paidInterestToDate);
+
+                          var remainingTotal = remainingPrincipal + remainingInterest;
+                        }
+
+                        <div class="journals-table-scroll" style="margin-bottom: 10px">
+                          <table class="journals-table loans-loan-summary-table" style="min-width: 1200px">
+                            <thead>
+                              <tr>
+                                <th>اولین سررسید</th>
+                                <th>اولین قسط وصول‌نشده</th>
+                                <th>آخرین سررسید</th>
+                                <th>مبلغ هر قسط</th>
+                                <th>اصل وام</th>
+                                <th>سود وام</th>
+                                <th>کل وام</th>
+                                <th>وصول‌شده تاکنون</th>
+                                <th>مانده وام تاکنون</th>
+                                <th>تعداد کل اقساط</th>
+                                <th>اقساط وصول‌شده</th>
+                                <th>اقساط باقیمانده</th>
+                                <th>نرخ سود</th>
+                                <th>نرخ دیرکرد</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                @{
+                                  var sumInterest = summaryInst.Count > 0
+                                    ? summaryInst.Sum(x => x.InterestAmount)
+                                    : (_interestSums.TryGetValue(item.LoanId, out var aggInterestSummary) ? aggInterestSummary : Math.Max(0m, (item.EmiAmount * item.TermMonths) - item.Principal));
+                                  var sumTotal = item.Principal + sumInterest;
+                                }
+                                <td class="cell-center">@firstDue.ToPersianDate()</td>
+                                <td class="cell-center">@(firstUnpaidDue.HasValue ? firstUnpaidDue.Value.ToPersianDate() : "-")</td>
+                                <td class="cell-center">@(lastDue.HasValue ? lastDue.Value.ToPersianDate() : "-")</td>
+                                <td class="amount-td">@ToMoney(item.EmiAmount)</td>
+                                <td class="amount-td">@ToMoney(item.Principal)</td>
+                                <td class="amount-td">@ToMoney(sumInterest)</td>
+                                <td class="amount-td">@ToMoney(sumTotal)</td>
+                                <td class="amount-td">@(summaryInst.Count > 0 ? ToMoney(paidToDate) : "-")</td>
+                                <td class="amount-td">@ToMoney(remainingTotal)</td>
+                                <td>@(totalInstallments > 0 ? totalInstallments.ToString(CultureInfo.InvariantCulture) : "-")</td>
+                                <td>@(totalInstallments > 0 ? paidInstallments.ToString(CultureInfo.InvariantCulture) : "-")</td>
+                                <td>@(totalInstallments > 0 ? remainingInstallments.ToString(CultureInfo.InvariantCulture) : "-")</td>
+                                <td>@(item.AnnualRatePercent.ToString("0", CultureInfo.InvariantCulture) + "%")</td>
+                                <td>@(item.PenaltyAnnualRatePercent.ToString("0", CultureInfo.InvariantCulture) + "%")</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        @if (_guaranteesLoading.Contains(item.LoanId) || _creditHoldsLoading.Contains(item.LoanId))
+                        {
+                          <div class="loading-container">در حال بارگذاری ضامنین...</div>
+                        }
+                        else
+                        {
+                          _guarantees.TryGetValue(item.LoanId, out var gs);
+                          _creditHolds.TryGetValue(item.LoanId, out var hs);
+                          gs ??= new List<LoanGuarantee>();
+                          hs ??= new List<CreditHold>();
+
+                          var gRows = new List<(string Kind, long? MemberId, string Code, decimal Amount, bool IsActive)>();
+
+                          foreach (var g in gs)
+                          {
+                            var kind = g.Type switch
+                            {
+                              LoanGuaranteeType.GuarantorMember => "ضامن",
+                              LoanGuaranteeType.DepositHold => "بلوکه سپرده",
+                              LoanGuaranteeType.Cheque => "چک",
+                              LoanGuaranteeType.Promissory => "سفته",
+                              _ => "ضمانت"
+                            };
+
+                            var code = g.Type switch
+                            {
+                              LoanGuaranteeType.GuarantorMember => (string.IsNullOrWhiteSpace(g.GuarantorMemberCode) ? "-" : g.GuarantorMemberCode),
+                              LoanGuaranteeType.DepositHold => (g.DepositAccountId.HasValue ? ("#" + g.DepositAccountId.Value.ToString(CultureInfo.InvariantCulture)) : "-"),
+                              _ => (string.IsNullOrWhiteSpace(g.GuarantorMemberCode) ? "-" : g.GuarantorMemberCode)
+                            };
+
+                            gRows.Add((kind, g.GuarantorMemberId, code!, g.Amount, g.IsActive));
+                          }
+
+                          foreach (var h in hs)
+                          {
+                            var code = string.IsNullOrWhiteSpace(h.MemberCode) ? "-" : h.MemberCode;
+                            var kind = h.Role == CreditHoldRole.Applicant ? "متقاضی (خود ضامن)" : "ضامن";
+                            // CreditHold has no IsActive; treat Active status as active
+                            var active = h.Status == CreditHoldStatus.Active;
+                            gRows.Add((kind, h.MemberId, code!, h.LockedAmount, active));
+                          }
+
+                          var guarantors = gRows
+                            .GroupBy(x => new { x.Kind, x.MemberId, x.Code, x.Amount })
+                            .Select(g => g.OrderByDescending(x => x.IsActive).First())
+                            .OrderByDescending(x => x.Amount)
+                            .ToList();
+
+                          if (guarantors.Count == 0)
+                          {
+                            <div class="empty-container" style="margin-bottom: 10px">ضامنی ثبت نشده است</div>
+                          }
+                          else
+                          {
+                            <div class="journals-table-scroll" style="margin-bottom: 10px">
+                              <table class="journals-table loans-guarantors-table" style="min-width: 820px">
+                                <thead>
+                                  <tr>
+                                    <th>نوع</th>
+                                    <th>نام ضامن / ضامنین</th>
+                                    <th>مبلغ</th>
+                                    <th>وضعیت</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  @foreach (var g in guarantors)
+                                  {
+                                    var display = (g.MemberId.HasValue && g.MemberId.Value > 0)
+                                      ? GetMemberName(g.MemberId.Value)
+                                      : g.Code;
+                                    <tr>
+                                      <td style="text-align:right">@g.Kind</td>
+                                      <td style="text-align:right">@display</td>
+                                      <td class="amount-td">@ToMoney(g.Amount)</td>
+                                      <td>
+                                        <span class="status-badge @(g.IsActive ? "paid" : "unpaid")">@(g.IsActive ? "فعال" : "غیرفعال")</span>
+                                      </td>
+                                    </tr>
+                                  }
+
+                                  @{
+                                    var totalGuarantees = guarantors.Sum(x => x.Amount);
+                                  }
+                                  <tr class="guarantors-total-row">
+                                    <td colspan="2" style="text-align:right; font-weight:900">جمع تضمین ضامنین</td>
+                                    <td class="amount-td">@ToMoney(totalGuarantees)</td>
+                                    <td></td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          }
+                        }
+
+                        @if (_installmentsLoading.Contains(item.LoanId))
+                        {
+                          <div class="loading-container">در حال بارگذاری اقساط...</div>
+                        }
+                        else if (_installments.TryGetValue(item.LoanId, out var inst) && inst.Any())
+                        {
+                          var ordered = inst.OrderBy(x => x.InstallmentNo).ToList();
+                          decimal cumPrincipal = 0m;
+                          decimal cumInterest = 0m;
+                          decimal totalPenalty = 0m;
+                          decimal totalWaivedPenalty = 0m;
+                          decimal totalPayableComputed = 0m;
+                          decimal totalPaidComputed = 0m;
+                          decimal totalRemainingComputed = 0m;
+                          var totalPrincipal = ordered.Sum(x => x.PrincipalAmount);
+                          var totalInterest = ordered.Sum(x => x.InterestAmount);
+                          var totalEmi = ordered.Sum(x => x.EmiAmount);
+
+                          <div class="journals-table-scroll">
+                            <table class="journals-table loans-installments-table" style="min-width: 1200px">
+                              <thead>
+                                <tr>
+                                  <th>شماره قسط</th>
+                                  <th>تاریخ قسط</th>
+                                  <th>مانده وام (ابتدای ماه)</th>
+                                  <th>مبلغ قسط وام</th>
+                                  <th>مبلغ قسط سود</th>
+                                  <th>اقساط سود تجمیعی</th>
+                                  <th>مبلغ قسط اصل</th>
+                                  <th>اقساط اصل تجمیعی</th>
+                                  <th>مانده وام (انتهای ماه)</th>
+                                  <th>جریمه ماه</th>
+                                  <th>جریمه بخشیده</th>
+                                  <th>قابل پرداخت</th>
+                                  <th>پرداخت‌شده</th>
+                                  <th>مانده قسط</th>
+                                  <th>وضعیت پرداخت</th>
+                                  <th>علت</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                @foreach (var it in ordered)
+                                {
+                                  cumPrincipal += it.PrincipalAmount;
+                                  cumInterest += it.InterestAmount;
+
+                                  var instRemainingPrincipal = Math.Max(0m, it.PrincipalAmount - it.PaidPrincipal);
+                                  var instRemainingInterest = Math.Max(0m, it.InterestAmount - it.PaidInterest);
+                                  var remainingBase = instRemainingPrincipal + instRemainingInterest;
+
+                                  var overdueDays = 0;
+                                  if (remainingBase > 0m)
+                                  {
+                                    var today = DateTime.Today;
+                                    var due = it.DueDate.Date;
+                                    overdueDays = Math.Max(0, (today - due).Days);
+                                  }
+
+                                  var penaltyDailyRate = (item.PenaltyAnnualRatePercent / 100m) / 365m;
+                                  var penaltyAmount = (overdueDays > 0 && remainingBase > 0m)
+                                    ? (remainingBase * penaltyDailyRate * overdueDays)
+                                    : 0m;
+
+                                  var waivedPenalty = 0m;
+                                  if (_waivedPenaltySums.TryGetValue(item.LoanId, out var wmap) && wmap != null)
+                                    waivedPenalty = wmap.TryGetValue(it.InstallmentId, out var w) ? w : 0m;
+
+                                  // For Paid installments, remainingBase becomes 0 and penaltyAmount will be 0.
+                                  // To keep the table transparent, show the historical settled penalty
+                                  // (paid + waived) for Paid installments.
+                                  var computedStatus = (instRemainingPrincipal <= 0.01m && instRemainingInterest <= 0.01m)
+                                    ? LoanInstallmentStatus.Paid
+                                    : (it.PaidPrincipal + it.PaidInterest + it.PaidPenalty > 0m ? LoanInstallmentStatus.PartiallyPaid : LoanInstallmentStatus.Unpaid);
+
+                                  var effectivePenalty = computedStatus == LoanInstallmentStatus.Paid
+                                    ? (it.PaidPenalty + waivedPenalty)
+                                    : penaltyAmount;
+
+                                  var payableBase = computedStatus == LoanInstallmentStatus.Paid
+                                    ? (it.PrincipalAmount + it.InterestAmount)
+                                    : remainingBase;
+
+                                  var payableAmount = payableBase + effectivePenalty;
+                                  var paidAmount = it.PaidPrincipal + it.PaidInterest + it.PaidPenalty;
+
+                                  var remainingPenalty = Math.Max(0m, effectivePenalty - (it.PaidPenalty + waivedPenalty));
+
+                                  // For partially/unpaid installments, remaining should reflect remaining principal+interest + remaining penalty.
+                                  // Previous logic subtracted total paid from remainingBase and incorrectly showed 0 for partially paid.
+                                  var remainingInstallment = computedStatus == LoanInstallmentStatus.Paid
+                                    ? 0m
+                                    : Math.Max(0m, remainingBase + remainingPenalty);
+
+                                  totalPenalty += penaltyAmount;
+                                  totalWaivedPenalty += waivedPenalty;
+                                  totalPayableComputed += payableAmount;
+                                  totalPaidComputed += paidAmount;
+                                  totalRemainingComputed += remainingInstallment;
+
+                                  MarkupString reasonMarkup = computedStatus switch
+                                  {
+                                    LoanInstallmentStatus.Paid => (waivedPenalty > 0.01m
+                                      ? new MarkupString($"<span>اصل/سود تسویه</span> <span class='reason-sep'>|</span> <span class='reason-penalty'>جریمه بخشیده={ToMoney(waivedPenalty)}</span>")
+                                      : (it.PaidPenalty > 0.01m
+                                        ? new MarkupString($"<span>اصل/سود تسویه</span> <span class='reason-sep'>|</span> <span class='reason-penalty'>جریمه پرداختی={ToMoney(it.PaidPenalty)}</span>")
+                                        : new MarkupString("<span>اصل و سود تسویه شده</span>"))),
+                                    LoanInstallmentStatus.PartiallyPaid => new MarkupString(
+                                      $"<span>مانده اصل={ToMoney(instRemainingPrincipal)}</span> <span class='reason-sep'>|</span> " +
+                                      $"<span>مانده سود={ToMoney(instRemainingInterest)}</span> <span class='reason-sep'>|</span> " +
+                                      $"<span class='reason-penalty'>مانده جریمه={ToMoney(remainingPenalty)}</span>"),
+                                    _ => (overdueDays > 0
+                                      ? new MarkupString($"<span>پرداختی ثبت نشده</span> <span class='reason-sep'>|</span> <span class='reason-days'>تاخیر {overdueDays} روز</span> <span class='reason-sep'>|</span> <span class='reason-penalty'>جریمه={ToMoney(penaltyAmount)}</span>")
+                                      : new MarkupString("<span>پرداختی ثبت نشده</span>"))
+                                  };
+
+                                  LoanService.InstallmentJournalRef? jref = null;
+                                  if (_installmentJournalRefs.TryGetValue(item.LoanId, out var byInst) && byInst != null)
+                                  {
+                                    byInst.TryGetValue(it.InstallmentId, out jref);
+                                  }
+
+                                  <tr>
+                                    <td class="cell-center">@it.InstallmentNo</td>
+                                    <td class="cell-center">@it.DueDate.ToPersianDate()</td>
+                                    <td class="amount-td">@ToMoney(it.OpeningBalance)</td>
+                                    <td class="amount-td">@ToMoney(it.EmiAmount)</td>
+                                    <td class="amount-td">@ToMoney(it.InterestAmount)</td>
+                                    <td class="amount-td">@ToMoney(cumInterest)</td>
+                                    <td class="amount-td">@ToMoney(it.PrincipalAmount)</td>
+                                    <td class="amount-td">@ToMoney(cumPrincipal)</td>
+                                    <td class="amount-td">@ToMoney(it.ClosingBalance)</td>
+                                    <td class="amount-td td-penalty">@ToMoney(effectivePenalty)</td>
+                                    <td class="amount-td td-penalty">@ToMoney(waivedPenalty)</td>
+                                    <td class="amount-td">@ToMoney(payableAmount)</td>
+                                    <td class="amount-td td-paid">@ToMoney(paidAmount)</td>
+                                    <td class="amount-td">@ToMoney(remainingInstallment)</td>
+                                    <td>
+                                      <span class="status-badge @ToInstallmentBadge(it.Status)">@ToInstallmentStatusText(it.Status)</span>
+                                    </td>
+                                    <td class="reason-td">
+                                      @reasonMarkup
+                                      @if (jref != null && jref.JournalId > 0)
+                                      {
+                                        <span class='reason-sep'>|</span>
+                                        <a class="journal-link" href="javascript:void(0)" @onclick="(async () => await OpenJournalDetailsAsync(jref.JournalId))" @onclick:stopPropagation="true">
+                                          سند #@(jref.DocumentNumber?.ToString() ?? $"P-{jref.JournalId}")
+                                        </a>
+                                        <span class="journal-link-date">(@jref.OccurredAt.ToLocalTime().ToPersianDate())</span>
+                                      }
+                                    </td>
+                                  </tr>
+                                }
+
+                                <tr class="installments-total-row">
+                                  <td colspan="3" style="text-align:right; font-weight:900">جمع</td>
+                                  <td class="amount-td">@ToMoney(totalEmi)</td>
+                                  <td class="amount-td">@ToMoney(totalInterest)</td>
+                                  <td class="amount-td">@ToMoney(totalInterest)</td>
+                                  <td class="amount-td">@ToMoney(totalPrincipal)</td>
+                                  <td class="amount-td">@ToMoney(totalPrincipal)</td>
+                                  <td class="amount-td">@ToMoney(0)</td>
+                                  <td class="amount-td">@ToMoney(totalPenalty)</td>
+                                  <td class="amount-td">@ToMoney(totalWaivedPenalty)</td>
+                                  <td class="amount-td">@ToMoney(totalPayableComputed)</td>
+                                  <td class="amount-td">@ToMoney(totalPaidComputed)</td>
+                                  <td class="amount-td">@ToMoney(totalRemainingComputed)</td>
+                                  <td></td>
+                                  <td></td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        }
+                        else
+                        {
+                          <div class="empty-container">اقساطی یافت نشد</div>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+
+              <tr class="loans-total-row">
+                <td colspan="4" class="cell-center">جمع</td>
+                <td class="amount-td">@ToMoney(sumLoansPrincipal)</td>
+                <td class="amount-td">@ToMoney(sumLoansInterest)</td>
+                <td class="amount-td">@ToMoney(sumLoansTotal)</td>
+                <td class="cell-center">-</td>
+                <td class="amount-td">@ToMoney(sumLoansEmi)</td>
+                <td class="amount-td">
+                  <div style="display:flex; flex-direction:column; gap:2px">
+                    <div style="font-weight:900">@ToMoney(sumLoansRemTotal)</div>
+                    <div style="font-size:11px; color:#6b7280">اصل: @ToMoney(sumLoansRemPrincipal) | سود: @ToMoney(sumLoansRemInterest)</div>
+                  </div>
+                </td>
+                <td class="cell-center">-</td>
+                <td class="cell-center">-</td>
+                <td class="cell-center">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        @if (_hasMore)
+        {
+          <div class="load-more-row">
+            <button class="load-more-btn" @onclick="LoadMoreAsync" disabled="@_loadingMore">
+              @(_loadingMore ? "در حال بارگذاری..." : "نمایش بیشتر")
+            </button>
+          </div>
+        }
+
+      }
+    </div>
+  </div>
+</div>
+
+@if (_showDisburseConfirm)
+{
+  <div class="loan-disburse-modal-overlay" @onclick="CloseDisburseConfirm">
+    <div class="loan-disburse-modal" @onclick:stopPropagation="true">
+      <div class="loan-disburse-modal-header">
+        <div class="loan-disburse-modal-title">تایید و صدور سند پرداخت وام</div>
+        <button type="button" class="loan-disburse-modal-close" @onclick="CloseDisburseConfirm">×</button>
+      </div>
+
+      @if (_disburseLoading)
+      {
+        <div class="loading-container">در حال آماده‌سازی...</div>
+      }
+      else if (_disbursePreview == null)
+      {
+        <div class="empty-container">اطلاعات سند قابل نمایش نیست</div>
+      }
+      else
+      {
+        <div class="loan-disburse-modal-meta">
+          <div><strong>شماره وام:</strong> @_disbursePreview.LoanId</div>
+          <div><strong>عضو:</strong> @_disbursePreview.MemberName</div>
+          <div><strong>اصل:</strong> @ToMoney(_disbursePreview.Principal)</div>
+          <div><strong>سود:</strong> @ToMoney(_disbursePreview.Interest)</div>
+        </div>
+
+        <div class="loan-disburse-notes">
+          <label>بابت / توضیحات</label>
+          <input class="loan-disburse-notes-input" value="@_disburseNotes" @oninput="OnDisburseNotesInput" placeholder="توضیحات سند..." />
+        </div>
+
+        <div class="loan-disburse-modal-table">
+          <table class="journals-table loan-disburse-journal-table">
+            <thead>
+              <tr>
+                <th>ردیف</th>
+                <th>معین</th>
+                <th>تفضیلی</th>
+                <th>بدهکار</th>
+                <th>بستانکار</th>
+                <th>شرح</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var l in _disbursePreview.Lines.OrderBy(x => x.LineNo))
+              {
+                var mainText = string.IsNullOrWhiteSpace(l.ParentName) ? l.ParentCode : $"{l.ParentCode} - {l.ParentName}";
+                var subText = !string.IsNullOrWhiteSpace(l.DisplaySubsidiary)
+                  ? l.DisplaySubsidiary
+                  : (string.IsNullOrWhiteSpace(l.AccountName) ? l.AccountCode : $"{l.AccountCode} - {l.AccountName}");
+                <tr>
+                  <td class="cell-center">@l.LineNo</td>
+                  <td class="loan-jp-main">@mainText</td>
+                  <td class="loan-jp-sub">@subText</td>
+                  <td class="amount-td">@ToMoney(l.Debit)</td>
+                  <td class="amount-td">@ToMoney(l.Credit)</td>
+                  <td>@l.Title</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="loan-disburse-modal-actions">
+          <button type="button" class="loan-disburse-cancel" @onclick="CloseDisburseConfirm" disabled="@_disbursePostingBusy">انصراف</button>
+          <button type="button" class="loan-disburse-confirm" @onclick="ConfirmDisburseAsync" disabled="@_disbursePostingBusy">@(_disbursePostingBusy ? "در حال ثبت..." : "تایید و ثبت سند")</button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@if (_showJournalDetails)
+{
+  <div class="journal-modal-overlay" @onclick="CloseJournalDetails">
+    <div class="journal-modal" @onclick:stopPropagation="true">
+      <div class="journal-modal-header">
+        <div class="journal-modal-title">جزئیات سند پرداخت</div>
+        <button type="button" class="journal-modal-close" @onclick="CloseJournalDetails">×</button>
+      </div>
+
+      @if (_journalDetailsLoading)
+      {
+        <div class="loading-container">در حال بارگذاری...</div>
+      }
+      else
+      {
+        <div class="journal-modal-meta">
+          <div><strong>شماره سند:</strong> @(_journalDetailsDocumentNumber?.ToString() ?? $"P-{_journalDetailsId}")</div>
+          <div><strong>تاریخ:</strong> @_journalDetailsDateText</div>
+          <div class="journal-modal-notes"><strong>شرح:</strong> @GetDisplayJournalNotes(_journalDetailsNotes)</div>
+        </div>
+
+        <div class="journal-modal-table">
+          <table class="journals-table" style="min-width: 920px">
+            <thead>
+              <tr>
+                <th>ردیف</th>
+                <th>معین</th>
+                <th>تفضیلی</th>
+                <th>بدهکار</th>
+                <th>بستانکار</th>
+                <th>شرح</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var l in _journalDetailsLines)
+              {
+                <tr>
+                  <td class="cell-center">@l.LineNo</td>
+                  <td>@l.MainAccount</td>
+                  <td>@l.SubsidiaryAccount</td>
+                  <td class="amount-td">@ToMoney(l.Debit)</td>
+                  <td class="amount-td">@ToMoney(l.Credit)</td>
+                  <td>@l.Description</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@if (_showPrepayConfirm && !_showPrepayConfirmHidden)
+{
+  <div class="loan-disburse-modal-overlay @(_showPrepayPostConfirm ? "prepay-under-confirm" : "")" @onclick="ClosePrepayConfirm">
+    <div class="loan-disburse-modal prepay-modal" @onclick:stopPropagation="true">
+      <div class="loan-disburse-modal-header">
+        <div class="loan-disburse-modal-title">تسویه پیش از موعد</div>
+        @if (_prepayLoan != null)
+        {
+          <div class="prepay-header-sub">وام #@_prepayLoan.LoanId | @GetMemberName(_prepayLoan.MemberId)</div>
+        }
+        <button type="button" class="loan-disburse-modal-close" @onclick="ClosePrepayConfirm">×</button>
+      </div>
+
+      @if (_prepayLoading)
+      {
+        <div class="loading-container">در حال آماده‌سازی...</div>
+      }
+      else if (_prepayLoan == null)
+      {
+        <div class="empty-container">اطلاعات وام قابل نمایش نیست</div>
+      }
+      else
+      {
+        <div class="prepay-kv">
+          <div class="prepay-kv-row">
+            <div class="prepay-kv-label"><span>تاریخ پرداخت</span><span class="prepay-kv-dots"></span></div>
+            <div class="prepay-kv-value">@_prepayLoan.DisbursedAt.ToPersianDate()</div>
+          </div>
+          <div class="prepay-kv-row">
+            <div class="prepay-kv-label"><span>تعداد اقساط</span><span class="prepay-kv-dots"></span></div>
+            <div class="prepay-kv-value">@_prepayLoan.TermMonths</div>
+          </div>
+          <div class="prepay-kv-row">
+            <div class="prepay-kv-label"><span>وصول‌شده</span><span class="prepay-kv-dots"></span></div>
+            <div class="prepay-kv-value prepay-value installments">@_prepayPaidInstallments</div>
+          </div>
+          <div class="prepay-kv-row">
+            <div class="prepay-kv-label"><span>باقی‌مانده</span><span class="prepay-kv-dots"></span></div>
+            <div class="prepay-kv-value prepay-value installments">@_prepayRemainingInstallments</div>
+          </div>
+          <div class="prepay-kv-row">
+            <div class="prepay-kv-label"><span>اصل باقی‌مانده</span><span class="prepay-kv-dots"></span></div>
+            <div class="prepay-kv-value prepay-value principal">@ToMoney(_prepayRemainingPrincipal)</div>
+          </div>
+          <div class="prepay-kv-row">
+            <div class="prepay-kv-label"><span>سود اقساط سررسیدشده تا ماه جاری</span><span class="prepay-kv-dots"></span></div>
+            <div class="prepay-kv-value prepay-value current-interest">@ToMoney(_prepayCurrentInstallmentInterest)</div>
+          </div>
+          <div class="prepay-kv-row">
+            <div class="prepay-kv-label"><span>جریمه دیرکرد تا امروز</span><span class="prepay-kv-dots"></span></div>
+            <div class="prepay-kv-value prepay-value" style="color:#b91c1c; font-weight:900">@ToMoney(_prepayOverduePenalty)</div>
+          </div>
+          <div class="prepay-kv-row">
+            <div class="prepay-kv-label"><span>سود بخشیده‌شده</span><span class="prepay-kv-dots"></span></div>
+            <div class="prepay-kv-value prepay-value waived">@ToMoney(_prepayWaivedInterest)</div>
+          </div>
+        </div>
+
+        @if (_prepayPaymentMethod == "member")
+        {
+          <div style="margin-top: 12px; background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:12px">
+            <div style="font-weight:900; font-size:13px; margin-bottom:10px">وضعیت مالی عضو</div>
+            @if (_prepayMemberFinancialLoading)
+            {
+              <div class="loading-container">در حال بررسی موجودی...</div>
+            }
+            else
+            {
+              <div class="prepay-kv" style="margin-top:0">
+                <div class="prepay-kv-row">
+                  <div class="prepay-kv-label"><span>اصل سپرده عضو</span><span class="prepay-kv-dots"></span></div>
+                  <div class="prepay-kv-value">@ToMoney(_prepayMemberNetPrincipal)</div>
+                </div>
+                <div class="prepay-kv-row">
+                  <div class="prepay-kv-label"><span>بلوکه</span><span class="prepay-kv-dots"></span></div>
+                  <div class="prepay-kv-value" style="color:#b91c1c; font-weight:900">@ToMoney(_prepayMemberLocked)</div>
+                </div>
+                <div class="prepay-kv-row">
+                  <div class="prepay-kv-label"><span>قابل برداشت</span><span class="prepay-kv-dots"></span></div>
+                  <div class="prepay-kv-value" style="color:#047857; font-weight:900">@ToMoney(_prepayMemberAvailable)</div>
+                </div>
+              </div>
+
+              @if (_prepayMemberLockedSameLoan > 0)
+              {
+                <div style="margin-top:10px; font-size:12px; color:#0f766e; font-weight:800">
+                  مبلغ @ToMoney(_prepayMemberLockedSameLoan) بابت همین وام، در محاسبه قابل برداشت لحاظ نشده است.
+                </div>
+              }
+
+              @if (_prepayMemberLockedItems != null && _prepayMemberLockedItems.Count > 0)
+              {
+                <div style="margin-top:10px; border-top:1px dashed #cbd5e1; padding-top:10px">
+                  <div style="font-weight:900; font-size:12px; margin-bottom:8px">ریز مبالغ بلوکه</div>
+                  <div style="border:1px solid #eef2f7; border-radius:12px; padding:8px; background:#fff">
+                    <div style="display:flex; flex-direction:column; gap:6px; max-height:160px; overflow:auto">
+                      @foreach (var x in _prepayMemberLockedItems)
+                      {
+                        <div style="display:flex; align-items:center; gap:10px; font-size:12px; white-space:nowrap; overflow-x:auto; padding:6px 8px; border:1px solid #f1f5f9; border-radius:10px">
+                          <div style="font-weight:900; color:#0f172a">وام @x.LoanId</div>
+                          <div style="color:#64748b">به نام</div>
+                          <div style="font-weight:800; color:#0f172a">@(string.IsNullOrWhiteSpace(x.BorrowerName) ? $"#{x.BorrowerMemberId}" : x.BorrowerName)</div>
+                          <div style="color:#64748b">نقش</div>
+                          <div style="font-weight:800; color:#0f172a">@(x.Role == CreditHoldRole.Guarantor ? "ضامن" : "وام‌گیرنده")</div>
+                          <div style="margin-right:auto"></div>
+                          <div style="font-weight:900; color:#b91c1c">@ToMoney(x.LockedAmount)</div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        }
+
+        <div class="prepay-method">
+          <label>
+            <input type="radio" name="prepay_method" value="cash" checked="@(_prepayPaymentMethod == "cash")" @onchange="OnPrepayPaymentMethodChanged" />
+            نقدی
+          </label>
+          <label>
+            <input type="radio" name="prepay_method" value="member" checked="@(_prepayPaymentMethod == "member")" @onchange="OnPrepayPaymentMethodChanged" />
+            برداشت از حساب عضو
+          </label>
+        </div>
+
+        <div class="prepay-amount-box">
+          <label>مبلغ قابل پرداخت (قابل تغییر)</label>
+          <input class="prepay-amount-input" value="@_prepayAmountText" @oninput="OnPrepayAmountInput" placeholder="مثال: 4,531,434,128" />
+          <div class="prepay-amount-hint">فرمول پیشنهادی: اصل باقی‌مانده + سود ماه جاری (جریمه جداگانه ثبت می‌شود)</div>
+          @if (!string.IsNullOrWhiteSpace(_prepayAmountError))
+          {
+            <div style="margin-top:8px; color:#b91c1c; font-weight:900; font-size:12px">@_prepayAmountError</div>
+          }
+        </div>
+
+        <div class="loan-disburse-modal-actions prepay-actions">
+          <button type="button" class="loan-disburse-cancel" @onclick="ClosePrepayConfirm">انصراف</button>
+          <button type="button" class="loan-disburse-confirm" @onclick="ConfirmPrepayAsync">@(_prepayPreview == null ? "تایید" : "ثبت سند")</button>
+        </div>
+
+        @if (_prepayPreview != null && _prepayPreview.Lines != null && _prepayPreview.Lines.Count > 0)
+        {
+          <div style="margin-top: 14px; margin-bottom: 14px">
+            <div style="font-weight: 900; margin-bottom: 8px">پیش‌نمایش سند (@(_prepayPaymentMethod == "member" ? "برداشت از حساب عضو" : "نقدی"))</div>
+            <div class="journals-table-scroll" style="border: 1px solid #e2e8f0; border-radius: 12px">
+              <table class="journals-table" style="min-width: 920px">
+                <thead>
+                  <tr>
+                    <th>ردیف</th>
+                    <th>معین</th>
+                    <th>نام حساب</th>
+                    <th>تفصیلی</th>
+                    <th>بدهکار</th>
+                    <th>بستانکار</th>
+                    <th>شرح</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach (var l in _prepayPreview.Lines)
+                  {
+                    <tr>
+                      <td class="cell-center">@l.LineNo</td>
+                      <td>@l.ParentCode</td>
+                      <td>@l.ParentName</td>
+                      <td>@l.DisplaySubsidiary</td>
+                      <td class="amount-td">@ToMoney(l.Debit)</td>
+                      <td class="amount-td">@ToMoney(l.Credit)</td>
+                      <td>@l.Title</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+}
+
+<DsConfirm Show="@_showPrepayPostConfirm"
+           Title="تایید ثبت سند"
+           Message="@_prepayPostConfirmMessage"
+           Variant="danger"
+           ConfirmText="ثبت"
+           CancelText="انصراف"
+           OnConfirm="OnConfirmPrepayPostAsync"
+           OnCancel="OnCancelPrepayPost" />
+
+<DsConfirm Show="@_showDeleteConfirm"
+           Title="تایید حذف وام"
+           Message="@_deleteConfirmMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           OnConfirm="OnConfirmDelete"
+           OnCancel="OnCancelDelete" />
+
+@if (_showForceStatus)
+{
+  <div class="loan-disburse-modal-overlay" @onclick="CloseForceStatus">
+    <div class="loan-disburse-modal" @onclick:stopPropagation="true">
+      <div class="loan-disburse-modal-header">
+        <div class="loan-disburse-modal-title">تغییر وضعیت وام</div>
+        <button type="button" class="loan-disburse-modal-close" @onclick="CloseForceStatus">×</button>
+      </div>
+
+      @if (_forceStatusLoan != null)
+      {
+        <div class="force-status-meta">
+          <div><strong>شماره وام:</strong> @_forceStatusLoan.LoanId</div>
+          <div><strong>عضو:</strong> @GetMemberName(_forceStatusLoan.MemberId)</div>
+          <div><strong>تاریخ پرداخت:</strong> @_forceStatusLoan.DisbursedAt.ToPersianDate()</div>
+          <div><strong>اصل وام:</strong> @ToMoney(_forceStatusLoan.Principal) ریال</div>
+          <div><strong>تعداد اقساط:</strong> @_forceStatusLoan.TermMonths</div>
+          <div><strong>وضعیت فعلی:</strong> <span class="status-badge @ToLoanStatusBadge(_forceStatusLoan.Status)">@ToStatusText(_forceStatusLoan.Status)</span></div>
+        </div>
+
+        <div class="force-status-field">
+          <label>وضعیت جدید</label>
+          <select class="force-status-select" @onchange="OnForceStatusNewStatusChanged">
+            @foreach (var s in _forceStatusOptions)
+            {
+              <option value="@((int)s.Value)" selected="@(s.Value == _forceStatusNewStatus)">@s.Text</option>
+            }
+          </select>
+        </div>
+
+        <div class="force-status-warning">
+          هشدار: این تغییر بدون بررسی شرایط انجام می‌شود.
+        </div>
+
+        <div class="loan-disburse-modal-actions">
+          <button type="button" class="loan-disburse-cancel" @onclick="CloseForceStatus" disabled="@_forceStatusBusy">انصراف</button>
+          <button type="button" class="loan-disburse-confirm" @onclick="ConfirmForceStatusAsync" disabled="@_forceStatusBusy">@(_forceStatusBusy ? "در حال ثبت..." : "تایید تغییر وضعیت")</button>
+        </div>
+      }
+      else
+      {
+        <div class="empty-container">اطلاعات وام یافت نشد</div>
+      }
+    </div>
+  </div>
+}
+
+@code {
+  private List<Loan> _items = new();
+  private List<Loan> _all = new();
+  private bool _loading;
+  private bool _loadingMore;
+
+  private const int _pageSize = 100;
+  private int _offset;
+  private bool _hasMore;
+
+  private bool _showDisburseConfirm;
+  private bool _disburseLoading;
+  private bool _disbursePostingBusy;
+  private long _disburseLoanId;
+  private string _disburseNotes = string.Empty;
+  private LoanService.DisbursementJournalPreview? _disbursePreview;
+
+  private readonly Dictionary<long, List<LoanInstallment>> _installments = new();
+  private readonly HashSet<long> _installmentsLoading = new();
+
+  private IReadOnlyDictionary<long, MiniBank.Web.Infrastructure.Repositories.LoanInstallmentRepository.LoanRemainingAggRow> _remainingAgg
+    = new Dictionary<long, MiniBank.Web.Infrastructure.Repositories.LoanInstallmentRepository.LoanRemainingAggRow>();
+
+  private readonly Dictionary<long, IReadOnlyDictionary<long, decimal>> _waivedPenaltySums = new();
+
+  private readonly Dictionary<long, IReadOnlyDictionary<long, LoanService.InstallmentJournalRef>> _installmentJournalRefs = new();
+
+  private bool _showJournalDetails;
+  private bool _journalDetailsLoading;
+  private long _journalDetailsId;
+  private int? _journalDetailsDocumentNumber;
+  private string _journalDetailsDateText = string.Empty;
+  private string _journalDetailsNotes = string.Empty;
+
+  private bool _showPrepayConfirm;
+  private bool _prepayLoading;
+  private long _prepayLoanId;
+  private Loan? _prepayLoan;
+  private decimal _prepayRemainingPrincipal;
+  private decimal _prepayCurrentInstallmentInterest;
+  private decimal _prepayWaivedInterest;
+  private decimal _prepayOverduePenalty;
+  private int _prepayPaidInstallments;
+  private int _prepayRemainingInstallments;
+  private string _prepayAmountText = string.Empty;
+  private string _prepayAmountError = string.Empty;
+  private LoanService.PrepayCashJournalPreview? _prepayPreview;
+  private string _prepayPaymentMethod = "cash"; // cash|member
+  private bool _showPrepayPostConfirm;
+  private string _prepayPostConfirmMessage = string.Empty;
+  private bool _showPrepayConfirmHidden;
+  private bool _prepayMemberFinancialLoading;
+  private decimal _prepayMemberNetPrincipal;
+  private decimal _prepayMemberTotalNet;
+  private decimal _prepayMemberLocked;
+  private decimal _prepayMemberAvailable;
+  private bool _prepayMemberFinancialLoaded;
+  private decimal _prepayMemberLockedSameLoan;
+  private List<MemberFinancialSnapshot.LockedItem> _prepayMemberLockedItems = new();
+
+  private bool _showForceStatus;
+  private bool _forceStatusBusy;
+  private Loan? _forceStatusLoan;
+  private LoanStatus _forceStatusNewStatus;
+  private List<(LoanStatus Value, string Text)> _forceStatusOptions = new()
+  {
+    (LoanStatus.Draft, "پیش‌نویس"),
+    (LoanStatus.Approved, "آماده پرداخت"),
+    (LoanStatus.Disbursed, "در جریان وصول"),
+    (LoanStatus.Active, "فعال"),
+    (LoanStatus.Settled, "تسویه شده"),
+    (LoanStatus.Cancelled, "لغو شده"),
+  };
+
+  private sealed class JournalDetailsLine
+  {
+    public int LineNo { get; set; }
+    public string MainAccount { get; set; } = string.Empty;
+    public string SubsidiaryAccount { get; set; } = string.Empty;
+    public decimal Debit { get; set; }
+    public decimal Credit { get; set; }
+    public string Description { get; set; } = string.Empty;
+  }
+
+  private List<JournalDetailsLine> _journalDetailsLines = new();
+
+  private IReadOnlyDictionary<long, decimal> _interestSums = new Dictionary<long, decimal>();
+
+  private IReadOnlyDictionary<long, LoanService.DisbursementJournalRef> _disbursementJournalRefs = new Dictionary<long, LoanService.DisbursementJournalRef>();
+
+  private readonly Dictionary<long, List<LoanGuarantee>> _guarantees = new();
+  private readonly HashSet<long> _guaranteesLoading = new();
+
+  private readonly Dictionary<long, List<CreditHold>> _creditHolds = new();
+  private readonly HashSet<long> _creditHoldsLoading = new();
+
+  private readonly Dictionary<long, string> _memberNames = new();
+
+  private string _kw = string.Empty;
+  private string _keyword
+  {
+    get => _kw;
+    set { _kw = value ?? string.Empty; _ = DebouncedApplyFilterAsync(); }
+  }
+
+  private bool _showCreateInline;
+  private long? _editLoanId;
+  private bool _editModeWasActive;
+  private bool _showDeleteConfirm;
+  private bool _deleteIsForce;
+  private bool _deleteIsAll;
+  private long _deleteLoanId;
+  private string _deleteConfirmMessage = "";
+  private Loan? _deleteLoan;
+
+  private string _filter = "disbursed";
+  private string _sortKey = "id"; // id|date
+  private bool _sortDesc = true;
+
+  private CancellationTokenSource? _searchCts;
+  private HashSet<long> _expanded = new();
+
+  private List<DsPillGroup.DsPillItem> _filterItems = new()
+  {
+    new() { Key = "all", Text = "همه" },
+    new() { Key = "approved", Text = "آماده پرداخت" },
+    new() { Key = "disbursed", Text = "در جریان وصول" },
+    new() { Key = "settled", Text = "تسویه شده" },
+  };
+
+  private string _fromDateText = string.Empty;
+  private string _toDateText = string.Empty;
+  private DateTime? _fromDate;
+  private DateTime? _toDate;
+
+  private List<DsPillGroup.DsPillItem> _sortItems = new()
+  {
+    new() { Key = "id", Text = "شناسه" },
+    new() { Key = "date", Text = "تاریخ پرداخت" },
+  };
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAsync();
+  }
+
+  private async Task OnLoanSaved()
+  {
+    _showCreateInline = false;
+    _editLoanId = null;
+
+    _expanded.Clear();
+    _installments.Clear();
+    _installmentsLoading.Clear();
+    _guarantees.Clear();
+    _guaranteesLoading.Clear();
+    _creditHolds.Clear();
+    _creditHoldsLoading.Clear();
+
+    await LoadAsync();
+    Toasts.Success(_editModeWasActive ? "وام با موفقیت ویرایش شد" : "وام با موفقیت ایجاد شد");
+    _editModeWasActive = false;
+  }
+
+  private async Task HideCreateInline()
+  {
+    _showCreateInline = false;
+    _editLoanId = null;
+    _editModeWasActive = false;
+    await Task.CompletedTask;
+  }
+
+  private void ToggleCreateInline()
+  {
+    _showCreateInline = !_showCreateInline;
+    if (_showCreateInline)
+    {
+      _editLoanId = null;
+      _editModeWasActive = false;
+    }
+    StateHasChanged();
+  }
+
+  private void OnSearchInput(ChangeEventArgs e)
+  {
+    _keyword = e.Value?.ToString() ?? string.Empty;
+  }
+
+  private Task OnDetailsClick(long loanId)
+    => OpenInstallments(loanId);
+
+  private void OnEditClick(long loanId)
+  {
+    var loan = _items.FirstOrDefault(x => x.LoanId == loanId);
+    if (loan == null)
+    {
+      Toasts.Warning("وام یافت نشد");
+      return;
+    }
+
+    _editLoanId = loanId;
+    _editModeWasActive = true;
+    _showCreateInline = true;
+    StateHasChanged();
+  }
+
+  private async Task RequestDelete(Loan loan)
+  {
+    // quick UI gating before hitting DB
+    if (loan.Status != LoanStatus.Draft && loan.Status != LoanStatus.Approved)
+    {
+      Toasts.Warning("حذف فقط برای وام‌های پیش‌نویس یا آماده پرداخت مجاز است");
+      return;
+    }
+
+    var can = await LoanService.CanDeleteLoanAsync(loan.LoanId);
+    if (!can)
+    {
+      Toasts.Warning("برای این وام پرداخت/تراکنش ثبت شده و حذف مجاز نیست");
+      return;
+    }
+
+    _deleteIsForce = false;
+
+    _deleteLoan = loan;
+    _deleteLoanId = loan.LoanId;
+
+    var memberName = System.Net.WebUtility.HtmlEncode(GetMemberName(loan.MemberId));
+    _deleteConfirmMessage = $@"
+<div style='line-height:1.9'>
+  <div style='margin-bottom:8px'>آیا از حذف این وام مطمئن هستید؟</div>
+  <div style='background: rgba(220,38,38,.06); border: 1px solid rgba(220,38,38,.25); border-radius: 10px; padding: 10px 12px'>
+    <div><strong>شماره وام:</strong> {loan.LoanId}</div>
+    <div><strong>عضو:</strong> {memberName}</div>
+    <div><strong>تاریخ پرداخت:</strong> {loan.DisbursedAt.ToPersianDate()}</div>
+    <div><strong>اصل وام:</strong> {ToMoney(loan.Principal)} ریال</div>
+    <div><strong>تعداد اقساط:</strong> {loan.TermMonths}</div>
+    <div><strong>وضعیت:</strong> {ToStatusText(loan.Status)}</div>
+  </div>
+</div>";
+    _showDeleteConfirm = true;
+    StateHasChanged();
+  }
+
+  private async Task OpenDisburseConfirmAsync(long loanId)
+  {
+    _showDisburseConfirm = true;
+    _disburseLoading = true;
+    _disbursePostingBusy = false;
+    _disburseLoanId = loanId;
+    _disburseNotes = $"صدور سند پرداخت وام #{loanId}";
+    _disbursePreview = null;
+    StateHasChanged();
+
+    try
+    {
+      _disbursePreview = await LoanService.BuildDisbursementJournalPreviewAsync(loanId);
+
+      var member = await MemberRepo.GetByIdAsync(_disbursePreview.MemberId);
+      var displayName = _disbursePreview.MemberName;
+      if (member != null && !string.IsNullOrWhiteSpace(member.FatherName))
+      {
+        displayName = displayName.Contains("☆")
+          ? displayName
+          : $"{displayName} ☆ {member.FatherName}";
+      }
+      _disburseNotes = $"بابت صدور سند پرداخت وام شماره {loanId} - {displayName}";
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در آماده‌سازی سند: {ex.Message}");
+      _showDisburseConfirm = false;
+    }
+    finally
+    {
+      _disburseLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task LoadMoreAsync()
+  {
+    if (_loading || _loadingMore || !_hasMore) return;
+    _loadingMore = true;
+    StateHasChanged();
+    try
+    {
+      await LoadPageAsync(reset: false);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری: {ex.Message}");
+    }
+    finally
+    {
+      _loadingMore = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task LoadPageAsync(bool reset)
+  {
+    if (reset)
+    {
+      _offset = 0;
+      _hasMore = false;
+      _expanded.Clear();
+      _installments.Clear();
+      _installmentsLoading.Clear();
+      _guarantees.Clear();
+      _guaranteesLoading.Clear();
+      _creditHolds.Clear();
+      _creditHoldsLoading.Clear();
+      _installmentJournalRefs.Clear();
+      _waivedPenaltySums.Clear();
+      _interestSums = new Dictionary<long, decimal>();
+      _remainingAgg = new Dictionary<long, MiniBank.Web.Infrastructure.Repositories.LoanInstallmentRepository.LoanRemainingAggRow>();
+      _disbursementJournalRefs = new Dictionary<long, LoanService.DisbursementJournalRef>();
+      _all = new();
+      _items = new();
+    }
+
+    var statusFilter = _filter switch
+    {
+      "approved" => LoanStatus.Approved,
+      "disbursed" => LoanStatus.Disbursed,
+      "settled" => LoanStatus.Settled,
+      _ => (LoanStatus?)null
+    };
+    var page = (await LoanService.GetAllPagedAsync(_offset, _pageSize, statusFilter)).ToList();
+    if (page.Count == 0)
+    {
+      _hasMore = false;
+      ApplyFilter();
+      return;
+    }
+
+    _offset += page.Count;
+    _hasMore = page.Count >= _pageSize;
+
+    var loanIds = page.Select(x => x.LoanId).Distinct().ToList();
+    var memberIds = page.Select(x => x.MemberId).Distinct().ToList();
+
+    var interest = await LoanService.GetInterestSumsByLoanIdsAsync(loanIds);
+    var remaining = await LoanService.GetRemainingSumsByLoanIdsAsync(loanIds);
+    var disbRefs = await LoanService.GetDisbursementJournalRefsByLoanIdAsync(loanIds);
+
+    foreach (var kv in interest)
+      ((Dictionary<long, decimal>)_interestSums)[kv.Key] = kv.Value;
+    foreach (var kv in remaining)
+      ((Dictionary<long, MiniBank.Web.Infrastructure.Repositories.LoanInstallmentRepository.LoanRemainingAggRow>)_remainingAgg)[kv.Key] = kv.Value;
+    foreach (var kv in disbRefs)
+      ((Dictionary<long, LoanService.DisbursementJournalRef>)_disbursementJournalRefs)[kv.Key] = kv.Value;
+
+    await EnsureMemberNamesLoadedAsync(memberIds);
+
+    _all.AddRange(page);
+    ApplyFilter();
+  }
+
+  private void CloseDisburseConfirm()
+  {
+    if (_disbursePostingBusy) return;
+    _showDisburseConfirm = false;
+    _disburseLoading = false;
+    _disbursePreview = null;
+    _disburseLoanId = 0;
+    _disburseNotes = string.Empty;
+    StateHasChanged();
+  }
+
+  private void CloseDisburseConfirmForce()
+  {
+    _showDisburseConfirm = false;
+    _disburseLoading = false;
+    _disbursePreview = null;
+    _disburseLoanId = 0;
+    _disburseNotes = string.Empty;
+    StateHasChanged();
+  }
+
+  private void OnDisburseNotesInput(ChangeEventArgs e)
+  {
+    _disburseNotes = e.Value?.ToString() ?? string.Empty;
+  }
+
+  private async Task ConfirmDisburseAsync()
+  {
+    if (_disbursePostingBusy) return;
+    if (_disburseLoanId <= 0) return;
+
+    try
+    {
+      _disbursePostingBusy = true;
+      StateHasChanged();
+
+      var jid = await LoanService.PostDisbursementJournalAsync(_disburseLoanId, _disburseNotes, "admin");
+      Toasts.Success($"سند با موفقیت ثبت شد (#{jid})");
+      _disbursePostingBusy = false;
+      CloseDisburseConfirmForce();
+      await LoadAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ثبت سند: {ex.Message}");
+    }
+    finally
+    {
+      _disbursePostingBusy = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task OpenPrepayConfirmAsync(long loanId)
+  {
+    _showPrepayConfirm = true;
+    _prepayLoading = true;
+    _prepayLoanId = loanId;
+    _prepayLoan = _items.FirstOrDefault(x => x.LoanId == loanId) ?? _all.FirstOrDefault(x => x.LoanId == loanId);
+    _prepayAmountText = string.Empty;
+    _prepayAmountError = string.Empty;
+    _prepayRemainingPrincipal = 0m;
+    _prepayCurrentInstallmentInterest = 0m;
+    _prepayWaivedInterest = 0m;
+    _prepayOverduePenalty = 0m;
+    _prepayMemberFinancialLoading = false;
+    _prepayMemberNetPrincipal = 0m;
+    _prepayMemberTotalNet = 0m;
+    _prepayMemberLocked = 0m;
+    _prepayMemberAvailable = 0m;
+    _prepayMemberFinancialLoaded = false;
+    _prepayMemberLockedSameLoan = 0m;
+    _prepayMemberLockedItems = new();
+    StateHasChanged();
+
+    try
+    {
+      await EnsureInstallmentsLoadedAsync(loanId);
+      _installments.TryGetValue(loanId, out var inst);
+      var list = (inst ?? new List<LoanInstallment>()).OrderBy(x => x.InstallmentNo).ToList();
+
+      var remainingPrincipal = list.Sum(x => Math.Max(0m, x.PrincipalAmount - x.PaidPrincipal));
+      var remainingInterest = list.Sum(x => Math.Max(0m, x.InterestAmount - x.PaidInterest));
+
+      var totalInstallments = list.Count;
+      var paidInstallments = list.Count(x => x.Status == LoanInstallmentStatus.Paid);
+      _prepayPaidInstallments = paidInstallments;
+      _prepayRemainingInstallments = Math.Max(0, totalInstallments - paidInstallments);
+
+      var today = DateTime.Today;
+      var pc = new PersianCalendar();
+      var currentPy = pc.GetYear(today);
+      var currentPm = pc.GetMonth(today);
+      var dueInterest = list
+        .Where(i => {
+          var iy = pc.GetYear(i.DueDate);
+          var im = pc.GetMonth(i.DueDate);
+          return iy < currentPy || (iy == currentPy && im <= currentPm);
+        })
+        .Sum(i => Math.Max(0m, i.InterestAmount - i.PaidInterest));
+
+      var penaltyDailyRate = (_prepayLoan.PenaltyAnnualRatePercent / 100m) / 365m;
+      var penalty = 0m;
+      foreach (var it in list)
+      {
+        var remP = Math.Max(0m, it.PrincipalAmount - it.PaidPrincipal);
+        var remI = Math.Max(0m, it.InterestAmount - it.PaidInterest);
+        var remainingBase = remP + remI;
+        if (remainingBase <= 0m) continue;
+        var due = it.DueDate.Date;
+        if (due >= today) continue;
+        var overdueDays = Math.Max(0, (today - due).Days);
+        if (overdueDays <= 0) continue;
+        penalty += remainingBase * penaltyDailyRate * overdueDays;
+      }
+
+      _prepayRemainingPrincipal = remainingPrincipal;
+      _prepayCurrentInstallmentInterest = dueInterest;
+      _prepayOverduePenalty = penalty;
+      _prepayWaivedInterest = Math.Max(0m, remainingInterest - dueInterest);
+
+      var suggested = remainingPrincipal + dueInterest;
+      _prepayAmountText = ToMoney(suggested);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در آماده‌سازی تسویه: {ex.Message}");
+      _showPrepayConfirm = false;
+    }
+    finally
+    {
+      _prepayLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private void ClosePrepayConfirm()
+  {
+    if (_prepayLoading) return;
+    _showPrepayConfirm = false;
+    _prepayLoading = false;
+    _prepayLoanId = 0;
+    _prepayLoan = null;
+    _prepayAmountText = string.Empty;
+    _prepayAmountError = string.Empty;
+    _prepayRemainingPrincipal = 0m;
+    _prepayCurrentInstallmentInterest = 0m;
+    _prepayWaivedInterest = 0m;
+    _prepayPaidInstallments = 0;
+    _prepayRemainingInstallments = 0;
+    _prepayPreview = null;
+    _prepayPaymentMethod = "cash";
+    _showPrepayPostConfirm = false;
+    _prepayPostConfirmMessage = string.Empty;
+    _showPrepayConfirmHidden = false;
+    _prepayMemberFinancialLoading = false;
+    _prepayMemberTotalNet = 0m;
+    _prepayMemberLocked = 0m;
+    _prepayMemberAvailable = 0m;
+    _prepayMemberFinancialLoaded = false;
+    _prepayMemberLockedSameLoan = 0m;
+    _prepayMemberLockedItems = new();
+    StateHasChanged();
+  }
+
+  private async Task LoadPrepayMemberFinancialAsync()
+  {
+    if (_prepayLoan == null) return;
+    if (_prepayMemberFinancialLoading) return;
+
+    _prepayMemberFinancialLoading = true;
+    StateHasChanged();
+    try
+    {
+      var snap = await LoanService.GetMemberFinancialSnapshotByMemberIdAsync(_prepayLoan.MemberId);
+      _prepayMemberNetPrincipal = snap.NetPrincipal;
+      _prepayMemberTotalNet = snap.TotalNet;
+      _prepayMemberLocked = snap.LockedAmount;
+      _prepayMemberLockedItems = snap.LockedItems ?? new();
+      _prepayMemberLockedSameLoan = _prepayMemberLockedItems
+        .Where(x => x.LoanId == _prepayLoanId)
+        .Sum(x => x.LockedAmount);
+      var effectiveLocked = _prepayMemberLocked - _prepayMemberLockedSameLoan;
+      if (effectiveLocked < 0) effectiveLocked = 0;
+      var effectiveAvailable = _prepayMemberTotalNet - effectiveLocked;
+      _prepayMemberAvailable = effectiveAvailable < 0 ? 0 : effectiveAvailable;
+      _prepayMemberFinancialLoaded = true;
+    }
+    catch
+    {
+      _prepayMemberNetPrincipal = 0m;
+      _prepayMemberTotalNet = 0m;
+      _prepayMemberLocked = 0m;
+      _prepayMemberAvailable = 0m;
+      _prepayMemberFinancialLoaded = false;
+      _prepayMemberLockedSameLoan = 0m;
+      _prepayMemberLockedItems = new();
+      throw;
+    }
+    finally
+    {
+      _prepayMemberFinancialLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task OnPrepayPaymentMethodChanged(ChangeEventArgs e)
+  {
+    var v = e.Value?.ToString() ?? "cash";
+    _prepayPaymentMethod = v == "member" ? "member" : "cash";
+    _prepayPreview = null;
+    _prepayAmountError = string.Empty;
+    _showPrepayPostConfirm = false;
+    _prepayPostConfirmMessage = string.Empty;
+    _showPrepayConfirmHidden = false;
+    if (_prepayPaymentMethod == "member")
+    {
+      try { await LoadPrepayMemberFinancialAsync(); }
+      catch (Exception ex) { _prepayAmountError = ex.Message; }
+    }
+    StateHasChanged();
+  }
+
+  private Task OnCancelPrepayPost()
+  {
+    _showPrepayPostConfirm = false;
+    _showPrepayConfirmHidden = false;
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private async Task OnConfirmPrepayPostAsync()
+  {
+    if (_prepayLoanId <= 0 || _prepayPreview == null)
+    {
+      _showPrepayPostConfirm = false;
+      StateHasChanged();
+      return;
+    }
+
+    _showPrepayPostConfirm = false;
+    _prepayLoading = true;
+    StateHasChanged();
+
+    try
+    {
+      var raw = (_prepayAmountText ?? string.Empty).Replace(",", string.Empty).Trim();
+      decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount);
+
+      if (_prepayPaymentMethod == "member")
+      {
+        if (!_prepayMemberFinancialLoaded && !_prepayMemberFinancialLoading)
+        {
+          try { await LoadPrepayMemberFinancialAsync(); }
+          catch (Exception ex)
+          {
+            Toasts.Error(ex.Message);
+            _prepayLoading = false;
+            StateHasChanged();
+            return;
+          }
+        }
+        var available = _prepayMemberAvailable < 0 ? 0 : _prepayMemberAvailable;
+        if (available < amount)
+        {
+          Toasts.Error("موجودی قابل برداشت عضو کافی نیست (با لحاظ مبالغ بلوکه‌شده)");
+          _prepayLoading = false;
+          StateHasChanged();
+          return;
+        }
+      }
+
+      var jid = await LoanService.PostPrepayJournalAsync(_prepayLoanId, amount, _prepayPaymentMethod, null, "admin");
+      Toasts.Success($"سند تسویه ثبت شد (#{jid})");
+      ClosePrepayConfirm();
+      _installments.Remove(_prepayLoanId);
+      _installmentsLoading.Remove(_prepayLoanId);
+      _installmentJournalRefs.Remove(_prepayLoanId);
+      _waivedPenaltySums.Remove(_prepayLoanId);
+      await LoadAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ثبت سند تسویه: {ex.Message}");
+      _prepayLoading = false;
+      _showPrepayConfirmHidden = false;
+      StateHasChanged();
+    }
+  }
+
+  private void OnPrepayAmountInput(ChangeEventArgs e)
+  {
+    _prepayAmountText = e.Value?.ToString() ?? string.Empty;
+    _prepayAmountError = string.Empty;
+  }
+
+  private async Task ConfirmPrepayAsync()
+  {
+    _prepayAmountError = string.Empty;
+    var raw = (_prepayAmountText ?? string.Empty).Replace(",", string.Empty).Trim();
+    if (!decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount) || amount <= 0)
+    {
+      _prepayAmountError = "مبلغ وارد شده معتبر نیست";
+      StateHasChanged();
+      return;
+    }
+
+    if (_prepayLoanId <= 0)
+    {
+      _prepayAmountError = "شناسه وام معتبر نیست";
+      StateHasChanged();
+      return;
+    }
+
+    if (_prepayPaymentMethod == "member")
+    {
+      if (!_prepayMemberFinancialLoaded && !_prepayMemberFinancialLoading)
+      {
+        try { await LoadPrepayMemberFinancialAsync(); }
+        catch (Exception ex)
+        {
+          _prepayAmountError = ex.Message;
+          StateHasChanged();
+          return;
+        }
+      }
+      var available = _prepayMemberAvailable < 0 ? 0 : _prepayMemberAvailable;
+      if (available < (amount + _prepayOverduePenalty))
+      {
+        _prepayAmountError = "موجودی قابل برداشت عضو کافی نیست (با لحاظ مبالغ بلوکه‌شده)";
+        StateHasChanged();
+        return;
+      }
+    }
+    if (_prepayPreview != null)
+    {
+      var methodText = _prepayPaymentMethod == "member" ? "برداشت از حساب عضو" : "نقدی";
+      _prepayPostConfirmMessage = $@"
+<div style='line-height:1.9'>
+  <div style='margin-bottom:8px'>آیا از ثبت سند تسویه پیش از موعد مطمئن هستید؟</div>
+  <div><strong>وام:</strong> #{_prepayLoanId}</div>
+  <div><strong>شیوه پرداخت:</strong> {methodText}</div>
+  <div><strong>مبلغ:</strong> {ToMoney(amount)} ریال</div>
+</div>";
+      _showPrepayPostConfirm = true;
+      _showPrepayConfirmHidden = true;
+      StateHasChanged();
+      return;
+    }
+
+    _prepayLoading = true;
+    _prepayPreview = null;
+    StateHasChanged();
+
+    try
+    {
+      _prepayPreview = _prepayPaymentMethod == "member"
+        ? await LoanService.BuildPrepayMemberAccountJournalPreviewAsync(_prepayLoanId, amount)
+        : await LoanService.BuildPrepayCashJournalPreviewAsync(_prepayLoanId, amount);
+      Toasts.Info("پیش‌نمایش سند آماده شد. برای ثبت، دوباره روی «ثبت سند» کلیک کنید");
+    }
+    catch (Exception ex)
+    {
+      _prepayAmountError = ex.Message;
+    }
+    finally
+    {
+      _prepayLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private void RequestForceDeleteAll()
+  {
+    _deleteIsForce = true;
+    _deleteIsAll = true;
+    _deleteLoan = null;
+    _deleteLoanId = 0;
+
+    _deleteConfirmMessage = $@"
+<div style='line-height:1.9'>
+  <div style='margin-bottom:8px'>آیا از حذف اجباری همه وام‌ها مطمئن هستید؟</div>
+  <div style='margin-bottom:8px; color:#b91c1c'><strong>هشدار:</strong> این عملیات تمام وام‌ها و وابستگی‌ها (اقساط، پرداخت‌ها، تخصیص‌ها، بلوکه‌ها، ضامن‌ها) را حذف می‌کند.</div>
+</div>";
+
+    _showDeleteConfirm = true;
+    StateHasChanged();
+  }
+
+  private async Task RequestForceDelete(Loan loan)
+  {
+    _deleteIsForce = true;
+    _deleteIsAll = false;
+
+    _deleteLoan = loan;
+    _deleteLoanId = loan.LoanId;
+
+    var memberName = System.Net.WebUtility.HtmlEncode(GetMemberName(loan.MemberId));
+    _deleteConfirmMessage = $@"
+<div style='line-height:1.9'>
+  <div style='margin-bottom:8px'>آیا از حذف این وام مطمئن هستید؟</div>
+  <div style='margin-bottom:8px; color:#b91c1c'>این عملیات اجباری است و تمام وابستگی‌های وام را نیز حذف می‌کند.</div>
+  <div style='background: rgba(220,38,38,.06); border: 1px solid rgba(220,38,38,.25); border-radius: 10px; padding: 10px 12px'>
+    <div><strong>شماره وام:</strong> {loan.LoanId}</div>
+    <div><strong>عضو:</strong> {memberName}</div>
+    <div><strong>تاریخ پرداخت:</strong> {loan.DisbursedAt.ToPersianDate()}</div>
+    <div><strong>اصل وام:</strong> {ToMoney(loan.Principal)} ریال</div>
+    <div><strong>تعداد اقساط:</strong> {loan.TermMonths}</div>
+    <div><strong>وضعیت:</strong> {ToStatusText(loan.Status)}</div>
+  </div>
+</div>";
+
+    _showDeleteConfirm = true;
+    StateHasChanged();
+  }
+
+  private async Task OnConfirmDelete()
+  {
+    var loanId = _deleteLoanId;
+    _showDeleteConfirm = false;
+    _deleteLoan = null;
+    StateHasChanged();
+
+    try
+    {
+      if (_deleteIsForce)
+      {
+        if (_deleteIsAll)
+          await LoanService.ForceDeleteAllLoansAsync();
+        else
+          await LoanService.ForceDeleteLoanAsync(loanId);
+      }
+      else
+        await LoanService.DeleteLoanAsync(loanId);
+      await LoadAsync();
+      Toasts.Success("وام حذف شد");
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در حذف وام: {ex.Message}");
+    }
+  }
+
+  private Task OnCancelDelete()
+  {
+    _showDeleteConfirm = false;
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private async Task LoadAsync()
+  {
+    _loading = true;
+    StateHasChanged();
+
+    try
+    {
+      await LoadPageAsync(reset: true);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task EnsureMemberNamesLoadedAsync(List<long> memberIds)
+  {
+    var missing = memberIds.Where(id => !_memberNames.ContainsKey(id)).Take(200).ToList();
+    if (!missing.Any()) return;
+
+    // Load members (best-effort). MemberRepository supports limit; we fetch recent and map.
+    var members = await MemberRepo.GetAllAsync(limit: 500);
+    foreach (var m in members)
+    {
+      if (!_memberNames.ContainsKey(m.MemberId))
+        _memberNames[m.MemberId] = m.FullName;
+    }
+
+    // Fallback for still-missing IDs
+    foreach (var id in missing)
+    {
+      if (!_memberNames.ContainsKey(id))
+        _memberNames[id] = $"#{id}";
+    }
+  }
+
+  private void ApplyFilter()
+  {
+    IEnumerable<Loan> q = _all;
+
+    if (_fromDate.HasValue)
+      q = q.Where(x => x.DisbursedAt.Date >= _fromDate.Value.Date);
+    if (_toDate.HasValue)
+      q = q.Where(x => x.DisbursedAt.Date <= _toDate.Value.Date);
+
+    var key = (_keyword ?? string.Empty).Trim();
+    if (!string.IsNullOrEmpty(key))
+    {
+      var kw = key.ToLowerInvariant();
+      q = q.Where(x =>
+        x.LoanId.ToString(CultureInfo.InvariantCulture).Contains(kw) ||
+        GetMemberName(x.MemberId).ToLowerInvariant().Contains(kw) ||
+        x.Principal.ToString(CultureInfo.InvariantCulture).Contains(kw) ||
+        x.DisbursedAt.ToPersianDate().ToLowerInvariant().Contains(kw)
+      );
+    }
+
+    q = (_sortKey, _sortDesc) switch
+    {
+      ("date", false) => q.OrderBy(x => x.DisbursedAt).ThenBy(x => x.LoanId),
+      ("date", true) => q.OrderByDescending(x => x.DisbursedAt).ThenByDescending(x => x.LoanId),
+      ("id", false) => q.OrderBy(x => x.LoanId),
+      _ => q.OrderByDescending(x => x.LoanId)
+    };
+
+    _items = q.ToList();
+    StateHasChanged();
+  }
+
+  private async Task DebouncedApplyFilterAsync(int delayMs = 180)
+  {
+    _searchCts?.Cancel();
+    _searchCts = new CancellationTokenSource();
+    var token = _searchCts.Token;
+    try
+    {
+      await Task.Delay(delayMs, token);
+      if (!token.IsCancellationRequested) ApplyFilter();
+    }
+    catch (TaskCanceledException) { }
+  }
+
+  private async Task OnFilterChanged(string key)
+  {
+    if (_filter == key) return;
+    _filter = key;
+    await LoadAsync();
+  }
+
+  private Task OnFromDateChanged(ChangeEventArgs e)
+  {
+    _fromDateText = e.Value?.ToString() ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(_fromDateText))
+      _fromDate = null;
+    else
+      _fromDate = DateTimeExtensions.FromPersianDate(_fromDateText).Date;
+    ApplyFilter();
+    return Task.CompletedTask;
+  }
+
+  private Task OnToDateChanged(ChangeEventArgs e)
+  {
+    _toDateText = e.Value?.ToString() ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(_toDateText))
+      _toDate = null;
+    else
+      _toDate = DateTimeExtensions.FromPersianDate(_toDateText).Date;
+    ApplyFilter();
+    return Task.CompletedTask;
+  }
+
+  private Task OnSortChanged((string key, bool desc) s)
+  { _sortKey = s.key; _sortDesc = s.desc; ApplyFilter(); return Task.CompletedTask; }
+
+  private void ToggleExpand(long id)
+  {
+    if (_expanded.Contains(id))
+    {
+      _expanded.Remove(id);
+      StateHasChanged();
+      return;
+    }
+
+    _expanded.Clear();
+    _expanded.Add(id);
+    _ = EnsureGuaranteesLoadedAsync(id);
+    _ = EnsureCreditHoldsLoadedAsync(id);
+    _ = EnsureInstallmentsLoadedAsync(id);
+    StateHasChanged();
+  }
+
+  private async Task OpenInstallments(long loanId)
+  {
+    _expanded.Clear();
+    _expanded.Add(loanId);
+    await EnsureGuaranteesLoadedAsync(loanId);
+    await EnsureCreditHoldsLoadedAsync(loanId);
+    await EnsureInstallmentsLoadedAsync(loanId);
+    StateHasChanged();
+  }
+
+  private async Task EnsureCreditHoldsLoadedAsync(long loanId)
+  {
+    if (_creditHolds.ContainsKey(loanId) || _creditHoldsLoading.Contains(loanId)) return;
+
+    _creditHoldsLoading.Add(loanId);
+    StateHasChanged();
+
+    try
+    {
+      var hs = (await CreditHoldRepo.GetByLoanIdAsync(loanId)).ToList();
+      _creditHolds[loanId] = hs;
+
+      var ids = hs.Select(x => x.MemberId).Where(x => x > 0).Distinct().Take(200).ToList();
+      if (ids.Count > 0)
+        await EnsureMemberNamesLoadedAsync(ids);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری بلوکه‌ها: {ex.Message}");
+    }
+    finally
+    {
+      _creditHoldsLoading.Remove(loanId);
+      StateHasChanged();
+    }
+  }
+
+  private async Task EnsureGuaranteesLoadedAsync(long loanId)
+  {
+    if (_guarantees.ContainsKey(loanId) || _guaranteesLoading.Contains(loanId)) return;
+
+    _guaranteesLoading.Add(loanId);
+    StateHasChanged();
+
+    try
+    {
+      var gs = (await LoanService.GetGuaranteesAsync(loanId)).ToList();
+      _guarantees[loanId] = gs;
+
+      var ids = gs.Select(x => x.GuarantorMemberId ?? 0).Where(x => x > 0).Distinct().Take(200).ToList();
+      if (ids.Count > 0)
+        await EnsureMemberNamesLoadedAsync(ids);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری ضامنین: {ex.Message}");
+    }
+    finally
+    {
+      _guaranteesLoading.Remove(loanId);
+      StateHasChanged();
+    }
+  }
+
+  private async Task EnsureInstallmentsLoadedAsync(long loanId)
+  {
+    if (_installments.ContainsKey(loanId) || _installmentsLoading.Contains(loanId)) return;
+
+    _installmentsLoading.Add(loanId);
+    StateHasChanged();
+
+    try
+    {
+      var inst = (await LoanService.GetInstallmentsAsync(loanId)).OrderBy(x => x.InstallmentNo).ToList();
+      _installments[loanId] = inst;
+
+      var waived = await LoanService.GetWaivedPenaltySumsByInstallmentIdAsync(loanId);
+      _waivedPenaltySums[loanId] = waived;
+
+      var refs = await LoanService.GetLastJournalRefsByInstallmentIdAsync(loanId);
+      _installmentJournalRefs[loanId] = refs;
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری اقساط: {ex.Message}");
+    }
+    finally
+    {
+      _installmentsLoading.Remove(loanId);
+      StateHasChanged();
+    }
+  }
+
+  private async Task Refresh() => await LoadAsync();
+
+  private string GetMemberName(long memberId)
+    => _memberNames.TryGetValue(memberId, out var n) ? n : $"#{memberId}";
+
+  private static string ToMoney(decimal v)
+    => decimal.Truncate(v).ToString("#,0", CultureInfo.InvariantCulture);
+
+  private static string ToLoanTitle(Loan l)
+    => $"{ToMoney(l.Principal)} ریال | {l.TermMonths} قسط";
+
+  private string ToLoanSubtitle(Loan l)
+    => $"{GetMemberName(l.MemberId)} | {l.DisbursedAt.ToPersianDate()}";
+
+  private static string ToStatusText(LoanStatus s)
+    => s switch
+    {
+      LoanStatus.Active => "در جریان وصول",
+      LoanStatus.Settled => "تسویه شده",
+      LoanStatus.Cancelled => "لغو شده",
+      LoanStatus.Disbursed => "در جریان وصول",
+      LoanStatus.Approved => "آماده پرداخت",
+      _ => "پیش‌نویس"
+    };
+
+  private static string ToLoanStatusBadge(LoanStatus s)
+    => s switch
+    {
+      LoanStatus.Disbursed => "paid",
+      LoanStatus.Settled => "settled",
+      LoanStatus.Approved => "approved",
+      LoanStatus.Cancelled => "unpaid",
+      _ => "partial"
+    };
+
+  private static string ToInstallmentStatusText(LoanInstallmentStatus s)
+    => s switch
+    {
+      LoanInstallmentStatus.Paid => "پرداخت شده",
+      LoanInstallmentStatus.PartiallyPaid => "نیمه پرداخت",
+      _ => "پرداخت نشده"
+    };
+
+  private static string ToInstallmentBadge(LoanInstallmentStatus s)
+    => s switch
+    {
+      LoanInstallmentStatus.Paid => "paid",
+      LoanInstallmentStatus.PartiallyPaid => "partial",
+      _ => "unpaid"
+    };
+
+  private async Task OpenJournalDetailsAsync(long journalId)
+  {
+    _showJournalDetails = true;
+    _journalDetailsLoading = true;
+    _journalDetailsId = journalId;
+    _journalDetailsDocumentNumber = null;
+    _journalDetailsDateText = string.Empty;
+    _journalDetailsNotes = string.Empty;
+    _journalDetailsLines = new();
+    StateHasChanged();
+
+    try
+    {
+      var h = await LoanService.GetJournalHeaderAsync(journalId);
+      if (h != null)
+      {
+        _journalDetailsDocumentNumber = h.DocumentNumber;
+        _journalDetailsDateText = h.OccurredAt.ToLocalTime().ToPersianDate();
+        _journalDetailsNotes = h.Notes ?? string.Empty;
+      }
+
+      var rows = (await LoanService.GetJournalLinesDetailsAsync(journalId)).ToList();
+      foreach (var r in rows)
+      {
+        bool hasParent = r.ParentAccountId.HasValue && r.ParentAccountId.Value > 0;
+        string main = hasParent
+          ? ($"{r.ParentCode} - {r.ParentName}")
+          : ($"{r.AccCode} - {r.AccName}");
+        string sub = hasParent
+          ? ($"{r.AccCode} - {r.AccName}")
+          : "-";
+
+        _journalDetailsLines.Add(new JournalDetailsLine
+        {
+          LineNo = r.LineNo,
+          MainAccount = main,
+          SubsidiaryAccount = sub,
+          Debit = r.Debit,
+          Credit = r.Credit,
+          Description = r.Description ?? string.Empty
+        });
+      }
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری جزئیات سند: {ex.Message}");
+    }
+    finally
+    {
+      _journalDetailsLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private void CloseJournalDetails()
+  {
+    _showJournalDetails = false;
+    _journalDetailsLoading = false;
+    _journalDetailsLines = new();
+    StateHasChanged();
+  }
+
+  private static string GetDisplayJournalNotes(string? notes)
+  {
+    if (string.IsNullOrWhiteSpace(notes))
+      return string.Empty;
+
+    var parts = notes.Split('|', StringSplitOptions.RemoveEmptyEntries)
+      .Select(x => x.Trim())
+      .Where(x => x.Length > 0)
+      .Where(x => !x.StartsWith("Run:", StringComparison.OrdinalIgnoreCase))
+      .Where(x => !x.StartsWith("Member:", StringComparison.OrdinalIgnoreCase))
+      .Where(x => !x.StartsWith("Loan:", StringComparison.OrdinalIgnoreCase))
+      .Where(x => !x.Equals("LoanDisburse", StringComparison.OrdinalIgnoreCase))
+      .ToList();
+
+    return parts.Count == 0 ? (notes ?? string.Empty) : string.Join(" | ", parts);
+  }
+
+  private async Task OpenForceStatusAsync(long loanId)
+  {
+    var loan = _items.FirstOrDefault(x => x.LoanId == loanId) ?? _all.FirstOrDefault(x => x.LoanId == loanId);
+    if (loan == null)
+    {
+      Toasts.Warning("وام یافت نشد");
+      return;
+    }
+
+    _showForceStatus = true;
+    _forceStatusBusy = false;
+    _forceStatusLoan = loan;
+    _forceStatusNewStatus = loan.Status;
+    StateHasChanged();
+  }
+
+  private void CloseForceStatus()
+  {
+    _showForceStatus = false;
+    _forceStatusBusy = false;
+    _forceStatusLoan = null;
+    StateHasChanged();
+  }
+
+  private void OnForceStatusNewStatusChanged(ChangeEventArgs e)
+  {
+    if (int.TryParse(e.Value?.ToString(), out var val))
+      _forceStatusNewStatus = (LoanStatus)val;
+  }
+
+  private async Task ConfirmForceStatusAsync()
+  {
+    if (_forceStatusBusy) return;
+    if (_forceStatusLoan == null) return;
+
+    _forceStatusBusy = true;
+    StateHasChanged();
+
+    try
+    {
+      await LoanService.ForceUpdateLoanStatusAsync(_forceStatusLoan.LoanId, _forceStatusNewStatus);
+      Toasts.Success($"وضعیت وام #{_forceStatusLoan.LoanId} به {ToStatusText(_forceStatusNewStatus)} تغییر یافت");
+      CloseForceStatus();
+      await LoadAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در تغییر وضعیت: {ex.Message}");
+    }
+    finally
+    {
+      _forceStatusBusy = false;
+      StateHasChanged();
+    }
+  }
+}

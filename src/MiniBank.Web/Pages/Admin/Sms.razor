@@ -1,0 +1,153 @@
+@page "/admin/sms"
+@using MiniBank.Web.Services
+@using MiniBank.Web.Infrastructure.Repositories
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject NavigationManager Nav
+@inject SmsSender SmsSender
+@inject SmsPanelRepository SmsPanelRepo
+@using System.Globalization
+@using System.Linq
+
+<section class="page sms-page latin-digits" dir="rtl">
+    <h3>ارسال پیامک</h3>
+
+    <div class="form">
+        <div class="form-row">
+            <label>شماره موبایل</label>
+            <input type="tel" class="input" @bind="mobile" @oninput="OnInputChanged" placeholder="09xxxxxxxxx" />
+        </div>
+        <div class="form-row">
+            <label>مبلغ (PRICE)</label>
+            <input type="text" class="input" value="@PRICE" @oninput="OnPRICEInput" />
+        </div>
+        <div class="form-row">
+            <label>بابت (BABAT)</label>
+            <input type="text" class="input" @bind="BABAT" @oninput="OnInputChanged" />
+        </div>
+        <div class="form-row">
+            <label>مانده بابت (MANBAB)</label>
+            <input type="text" class="input" @bind="MANBAB" @oninput="OnInputChanged" />
+        </div>
+        <div class="form-row">
+            <label>مانده موجودی (MANPRICE)</label>
+            <input type="text" class="input" value="@MANPRICE" @oninput="OnMANPRICEInput" />
+        </div>
+
+        <div class="actions">
+            <button class="chip" @onclick="SendAsync" disabled="@isSending">
+                @if (isSending)
+                {
+                    <span>در حال ارسال...</span>
+                }
+                else
+                {
+                    <span>ارسال پیامک</span>
+                }
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(serverResponse))
+        {
+            <div class="server-response">
+                <pre>@serverResponse</pre>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // موقتا دسترسی به صفحه ارسال پیامک بسته است
+        Toasts.Warning("بخش ارسال پیامک موقتا غیرفعال است.");
+        Nav.NavigateTo("/admin/dashboard");
+    }
+
+    private string mobile = string.Empty;
+    private string PRICE = string.Empty;
+    private string BABAT = string.Empty;
+    private string MANBAB = string.Empty;
+    private string MANPRICE = string.Empty;
+
+    private string? serverResponse;
+    private bool isSending = false;
+
+    private async Task SendAsync()
+    {
+        if (string.IsNullOrWhiteSpace(mobile))
+        {
+            Toasts.Warning("شماره موبایل را وارد کنید.");
+            return;
+        }
+
+        try
+        {
+            isSending = true;
+            var settings = await SmsPanelRepo.GetSettingsAsync();
+            var templateId = ParseInt(settings.VerifyTemplateId);
+            if (templateId <= 0)
+            {
+                Toasts.Warning("شناسه تمپلیت verify تنظیم نشده است.");
+                return;
+            }
+            // ارسال مقادیر فرمت‌شده با جداکننده هزارگان طبق درخواست شما
+            serverResponse = await SmsSender.SendVerifyAsync(
+                mobile,
+                templateId,
+                PRICE,
+                BABAT,
+                MANBAB,
+                MANPRICE);
+            Toasts.Success("درخواست ارسال پیامک ثبت شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ارسال پیامک: {ex.Message}");
+        }
+        finally
+        {
+            isSending = false;
+        }
+    }
+
+    private void OnInputChanged(ChangeEventArgs e)
+    {
+        // Handle general input changes
+        StateHasChanged();
+    }
+
+    private void OnPRICEInput(ChangeEventArgs e)
+    {
+        PRICE = FormatThousands(e?.Value?.ToString());
+    }
+
+    // MANBAB به عنوان متن آزاد ارسال می‌شود و فرمت عددی روی آن اعمال نمی‌گردد
+
+    private void OnMANPRICEInput(ChangeEventArgs e)
+    {
+        MANPRICE = FormatThousands(e?.Value?.ToString());
+    }
+
+    private static string FormatThousands(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        // keep only digits
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(digits)) return string.Empty;
+        if (!decimal.TryParse(digits, out var number)) return raw; // fallback
+        return string.Format(CultureInfo.InvariantCulture, "{0:N0}", number);
+    }
+
+    private static string DigitsOnly(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        return new string(raw.Where(char.IsDigit).ToArray());
+    }
+
+    private static int ParseInt(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return 0;
+        var digits = DigitsOnly(raw);
+        return int.TryParse(digits, out var n) ? n : 0;
+    }
+}

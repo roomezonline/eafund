@@ -1,0 +1,18 @@
+<div class="loading-overlay @(Show ? "show" : string.Empty)" role="status" aria-live="polite">
+  <div class="loading-card">
+    <div class="loading-hero-text large">امام علی (ع)</div>
+    <div class="loading-title">@Title</div>
+    @if (!string.IsNullOrWhiteSpace(Subtitle))
+    {
+      <div class="loading-sub">@Subtitle</div>
+    }
+    <div class="spinner" aria-hidden="true"></div>
+  </div>
+</div>
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public string Title { get; set; } = "صندوق امام علی (ع)";
+    [Parameter] public string Subtitle { get; set; } = "در حال بارگذاری...";
+    [Parameter] public string Icon { get; set; } = "fa-solid fa-vault"; // kept for compatibility, not used in text hero
+}

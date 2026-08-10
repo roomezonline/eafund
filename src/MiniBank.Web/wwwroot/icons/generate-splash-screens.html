@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PWA Splash Screen Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; direction: rtl; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .splash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .splash-item { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+        canvas { border: 1px solid #ccc; max-width: 100%; height: auto; }
+        button { padding: 12px 24px; margin: 5px; background: #6750a4; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .instructions { background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3; }
+        .size-info { font-size: 11px; color: #666; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>تولید Splash Screen های PWA</h1>
+        
+        <div class="instructions">
+            <h3>دستورالعمل:</h3>
+            <ol>
+                <li>روی "تولید همه Splash Screen ها" کلیک کنید</li>
+                <li>روی هر تصویر راست کلیک کرده و "Save image as" را انتخاب کنید</li>
+                <li>فایل‌ها را با نام‌های دقیق مشخص شده ذخیره کنید</li>
+                <li>فایل‌ها را در پوشه icons قرار دهید</li>
+            </ol>
+        </div>
+        
+        <button onclick="generateAllSplashScreens()">تولید همه Splash Screen ها</button>
+        <button onclick="downloadAllAsZip()" style="background: #4caf50;">دانلود همه به صورت ZIP</button>
+        
+        <div id="splash-container" class="splash-grid"></div>
+    </div>
+
+    <script>
+        const splashSizes = [
+            { width: 750, height: 1334, name: 'splash-750x1334.png', device: 'iPhone 6/7/8' },
+            { width: 828, height: 1792, name: 'splash-828x1792.png', device: 'iPhone XR' },
+            { width: 1125, height: 2436, name: 'splash-1125x2436.png', device: 'iPhone X/XS' },
+            { width: 1170, height: 2532, name: 'splash-1170x2532.png', device: 'iPhone 12/13 mini' },
+            { width: 1179, height: 2556, name: 'splash-1179x2556.png', device: 'iPhone 14 Pro' },
+            { width: 1290, height: 2796, name: 'splash-1290x2796.png', device: 'iPhone 14 Pro Max' },
+            { width: 1536, height: 2048, name: 'splash-1536x2048.png', device: 'iPad' },
+            { width: 1668, height: 2388, name: 'splash-1668x2388.png', device: 'iPad Pro 11"' },
+            { width: 2048, height: 2732, name: 'splash-2048x2732.png', device: 'iPad Pro 12.9"' }
+        ];
+
+        const canvases = {};
+
+        function createSplashScreen(width, height) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            gradient.addColorStop(0, '#10101a');
+            gradient.addColorStop(0.5, '#1a1a2e');
+            gradient.addColorStop(1, '#16213e');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // Center content
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // App icon size based on screen size
+            const iconSize = Math.min(width, height) * 0.15;
+            
+            // Draw app icon background
+            const iconRadius = iconSize * 0.15;
+            const iconGradient = ctx.createLinearGradient(
+                centerX - iconSize/2, centerY - iconSize/2,
+                centerX + iconSize/2, centerY + iconSize/2
+            );
+            iconGradient.addColorStop(0, '#6750a4');
+            iconGradient.addColorStop(1, '#4f378b');
+            ctx.fillStyle = iconGradient;
+            ctx.beginPath();
+            ctx.roundRect(centerX - iconSize/2, centerY - iconSize/2, iconSize, iconSize, iconRadius);
+            ctx.fill();
+
+            // Draw vault icon
+            ctx.strokeStyle = '#ffffff';
+            ctx.fillStyle = '#ffffff';
+            ctx.lineWidth = iconSize * 0.04;
+            ctx.lineCap = 'round';
+
+            // Main circle (vault door)
+            const vaultRadius = iconSize * 0.25;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, vaultRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // Inner circle (combination dial)
+            const dialRadius = iconSize * 0.15;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, dialRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // Center dot
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, iconSize * 0.02, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Handle
+            const handleX = centerX + vaultRadius * 0.6;
+            const handleY = centerY;
+            const handleRadius = iconSize * 0.04;
+            ctx.beginPath();
+            ctx.arc(handleX, handleY, handleRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // App title
+            const titleY = centerY + iconSize/2 + 40;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `${iconSize * 0.12}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('صندوق امام علی (ع)', centerX, titleY);
+
+            // Subtitle
+            const subtitleY = titleY + 30;
+            ctx.fillStyle = '#b0b0b0';
+            ctx.font = `${iconSize * 0.08}px Arial`;
+            ctx.fillText('سیستم مدیریت صندوق قرض‌الحسنه', centerX, subtitleY);
+
+            return canvas;
+        }
+
+        function generateAllSplashScreens() {
+            const container = document.getElementById('splash-container');
+            container.innerHTML = '';
+
+            splashSizes.forEach(splash => {
+                const canvas = createSplashScreen(splash.width, splash.height);
+                canvases[splash.name] = canvas;
+                
+                // Scale canvas for display
+                const displayCanvas = document.createElement('canvas');
+                const displayCtx = displayCanvas.getContext('2d');
+                const scale = Math.min(150 / splash.width, 200 / splash.height);
+                displayCanvas.width = splash.width * scale;
+                displayCanvas.height = splash.height * scale;
+                displayCtx.drawImage(canvas, 0, 0, displayCanvas.width, displayCanvas.height);
+                
+                const div = document.createElement('div');
+                div.className = 'splash-item';
+                div.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 5px;">${splash.name}</div>
+                    <div class="size-info">${splash.width}x${splash.height}</div>
+                    <div class="size-info">${splash.device}</div>
+                `;
+                div.appendChild(displayCanvas);
+                
+                displayCanvas.style.cursor = 'pointer';
+                displayCanvas.title = `راست کلیک و Save image as "${splash.name}"`;
+                displayCanvas.addEventListener('click', () => {
+                    downloadCanvas(canvas, splash.name);
+                });
+                
+                container.appendChild(div);
+            });
+        }
+
+        function downloadCanvas(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function downloadAllAsZip() {
+            // Simple download all - click each canvas
+            Object.keys(canvases).forEach((filename, index) => {
+                setTimeout(() => {
+                    downloadCanvas(canvases[filename], filename);
+                }, index * 500); // Delay to avoid browser blocking
+            });
+        }
+
+        // Auto-generate on load
+        window.addEventListener('load', generateAllSplashScreens);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1122 @@
+@page "/admin/reports/subsidiary-transactions/{AccountId:long}"
+@using System.Globalization
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Services
+@inject TrialBalanceRepository TrialBalanceRepo
+@inject DsToastService Toast
+@inject NavigationManager Nav
+@inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject IJSRuntime JS
+
+<PageTitle>ریز تراکنش‌های @LevelLabel</PageTitle>
+
+<style>
+    .tx-badge { display:inline-flex; align-items:center; justify-content:center; padding:2px 8px; border-radius:999px; font-weight:900; font-size:12px; line-height:1.2; border:1px solid rgba(0,0,0,.08); }
+    .tx-badge-loan { background:#ede9fe; color:#5b21b6; border-color:#ddd6fe; }
+    .tx-badge-interest { background:#ecfccb; color:#365314; border-color:#d9f99d; }
+    .tx-badge-prepay { background:#cffafe; color:#155e75; border-color:#a5f3fc; }
+
+    .journal-history-container {
+        margin-top: 20px;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        direction: rtl;
+    }
+
+    .journal-history-header {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 12px;
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+    }
+
+    .header-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .header-sub-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .subsidiary-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(8px);
+        font-weight: 900;
+        color: #0f172a;
+        max-width: 100%;
+    }
+
+    .subsidiary-badge .code {
+        direction: ltr;
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: 'tnum' 1, 'lnum' 1;
+        padding: 4px 8px;
+        border-radius: 10px;
+        background: rgba(79, 70, 229, 0.10);
+        border: 1px solid rgba(79, 70, 229, 0.18);
+        color: #312e81;
+        white-space: nowrap;
+    }
+
+    .subsidiary-badge .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .journal-history-header h2 {
+        color: #0f172a;
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+    }
+
+    .journal-history-header h2 i {
+        margin-left: 8px;
+        color: #4f46e5;
+    }
+
+    .history-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .back-btn {
+        padding: 8px 12px;
+        border: 1px solid rgba(79, 70, 229, 0.22);
+        border-radius: 10px;
+        background: rgba(79, 70, 229, 0.10);
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 12px;
+        white-space: nowrap;
+        color: #312e81;
+        box-shadow: 0 6px 16px rgba(79, 70, 229, 0.14);
+    }
+    .back-btn:hover { background: rgba(79, 70, 229, 0.16); }
+
+    .refresh-btn {
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        background: #ffffff;
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    .refresh-btn:hover { background: #f3f4f6; }
+
+    .history-filters {
+        background: white;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 12px;
+    }
+
+    .summary-panel {
+        background: white;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 12px;
+    }
+
+    .summary-title {
+        font-weight: 900;
+        color: #0f172a;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .summary-inline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #f8fafc;
+        padding: 10px 12px;
+    }
+
+    .summary-inline .left {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 900;
+        color: #0f172a;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .summary-inline .right {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .summary-inline .value {
+        font-size: 16px;
+        font-weight: 900;
+        color: #0f172a;
+        direction: ltr;
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: 'tnum' 1, 'lnum' 1;
+        line-height: 1.1;
+        letter-spacing: 0.2px;
+    }
+
+    .summary-inline .unit {
+        font-size: 12px;
+        font-weight: 800;
+        color: #475569;
+    }
+
+    .summary-card.full-span {
+        grid-column: 1 / -1;
+    }
+
+    .summary-card.half-span {
+        grid-column: span 2;
+    }
+
+    .summary-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #f8fafc;
+        padding: 10px;
+        text-align: center;
+    }
+
+    .summary-label {
+        font-size: 12px;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 6px;
+    }
+
+    .summary-value {
+        font-size: 14px;
+        font-weight: 900;
+        color: #0f172a;
+        direction: ltr;
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: 'tnum' 1, 'lnum' 1;
+        line-height: 1.1;
+        letter-spacing: 0.2px;
+    }
+
+    .summary-value.text-green { color: #166534; }
+    .summary-value.text-red { color: #991b1b; }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr;
+        gap: 10px;
+        align-items: end;
+    }
+
+    .filter-date-pair {
+        display: contents;
+    }
+
+    .filter-group label {
+        display: block;
+        font-weight: 800;
+        font-size: 12px;
+        margin-bottom: 6px;
+        color: #111827;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        outline: none;
+        font-weight: 700;
+    }
+
+    .journals-table-container {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+    }
+
+    .journals-table-scroll {
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .journals-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        min-width: 1200px;
+    }
+
+    .journals-table thead th {
+        position: sticky;
+        top: 0;
+        background: #FFD700;
+        color: #8B4513;
+        border: 1px solid #DAA520;
+        padding: 10px 8px;
+        text-align: center;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .journals-table tbody td {
+        border: 1px solid #e5e7eb;
+        padding: 8px;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .journals-table tbody tr:nth-child(even):not(.journal-details-row) td {
+        background: #f8fafc;
+    }
+
+    .journals-table tbody tr.history-row {
+        cursor: pointer;
+    }
+
+    .journals-table tbody tr.history-row:hover td {
+        background: #e0f2fe;
+    }
+
+    .history-actions-cell {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .history-details-btn {
+        padding: 4px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #ffffff;
+        cursor: pointer;
+        font-weight: 900;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    .history-details-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+
+    .journal-details-row td {
+        background: #eff6ff;
+        padding: 0;
+    }
+
+    .journal-details-inline {
+        padding: 12px;
+    }
+
+    .journal-lines-table table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1200px;
+    }
+
+    .journal-lines-table table thead th {
+        background: #60a5fa;
+        color: #0b2a7a;
+        border: 1px solid #111827;
+        padding: 10px 8px;
+        text-align: center;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .journal-lines-table table tbody td {
+        border: 1px solid #111827;
+        padding: 8px;
+        text-align: center;
+        white-space: nowrap;
+        background: #ffffff;
+    }
+
+    .journal-lines-table table tbody tr.current-subsidiary-line td {
+        background: #DCFCE7 !important;
+        border-top-color: #16A34A !important;
+        border-bottom-color: #16A34A !important;
+        border-left-color: #16A34A !important;
+        border-right-color: #16A34A !important;
+    }
+
+    .journal-lines-table table tbody tr.current-subsidiary-line td:first-child {
+        box-shadow: inset 4px 0 0 #16A34A;
+    }
+
+    .amount-td {
+        direction: ltr;
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: 'tnum' 1, 'lnum' 1;
+        font-weight: 900;
+        line-height: 1.1;
+        letter-spacing: 0.2px;
+        vertical-align: middle;
+    }
+
+    .debit-amount { color: #166534; }
+    .credit-amount { color: #991b1b; }
+    .totals-debit-bg { background: #dcfce7 !important; }
+    .totals-credit-bg { background: #fee2e2 !important; }
+
+    .loading-container,
+    .empty-container {
+        padding: 18px;
+        text-align: center;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    @@media (max-width: 768px) {
+        .journal-history-container { margin-top: 10px; padding: 10px; }
+        .journal-history-header { margin-bottom: 10px; padding: 10px; }
+        .journal-history-header h2 { font-size: 16px; text-align: center; }
+        .header-title-row { justify-content: center; }
+        .header-sub-row { flex-direction: row; justify-content: space-between; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .subsidiary-badge { padding: 6px 8px; border-radius: 10px; }
+        .subsidiary-badge .code { padding: 3px 6px; border-radius: 8px; }
+        .back-btn { padding: 7px 10px; border-radius: 10px; }
+        .history-filters { padding: 10px; }
+        .filter-row { grid-template-columns: 1fr; }
+
+        .filter-date-pair {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .filter-group label { font-size: 11px; margin-bottom: 5px; }
+        .summary-title { margin-bottom: 6px; }
+        .summary-inline { padding: 8px 10px; border-radius: 12px; }
+        .summary-inline .left { font-size: 12px; }
+        .summary-inline .value { font-size: 15px; }
+    }
+</style>
+
+<div class="journal-history-container">
+    <div class="journal-history-header">
+        <div class="header-title-row">
+            <h2><i class="fas fa-history"></i> ریز تراکنش‌های @LevelLabel</h2>
+        </div>
+        <div class="header-sub-row">
+            <button class="back-btn" @onclick="GoBack">
+                <i class="fas fa-arrow-right"></i> بازگشت
+            </button>
+
+            @if (!string.IsNullOrWhiteSpace(_accountCode) || !string.IsNullOrWhiteSpace(_accountName))
+            {
+                <div class="subsidiary-badge">
+                    <span class="code">@(_accountCode ?? "-")</span>
+                    <span class="name">@(_accountName ?? "-")</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="history-filters">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>جستجو</label>
+                <input type="text" class="search-input" placeholder="شماره سند، تاریخ یا شرح..." autocomplete="on" value="@SearchTerm" @oninput="OnSearchInput" />
+            </div>
+            <div class="filter-date-pair">
+                <div class="filter-group">
+                    <label>از تاریخ</label>
+                    <DsJalaliDatePicker Value="@FromDate" ValueChanged="@(v => { FromDate = v ?? string.Empty; PerformSearch(); })" Placeholder="1404/06/01" />
+                </div>
+                <div class="filter-group">
+                    <label>تا تاریخ</label>
+                    <DsJalaliDatePicker Value="@ToDate" ValueChanged="@(v => { ToDate = v ?? string.Empty; PerformSearch(); })" Placeholder="1404/06/31" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="summary-panel">
+        <div class="summary-title">
+            <i class="fas fa-chart-pie" style="color:#3b82f6;"></i>
+            خلاصه وضعیت
+        </div>
+        <div class="summary-inline">
+            <div class="left">
+                <i class="fas fa-file-invoice" style="color:#4f46e5;"></i>
+                تعداد سند
+            </div>
+            <div class="right">
+                <span class="value">@JournalCount</span>
+                <span class="unit">عدد</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="journals-table-container">
+        @if (JournalHistoryLoading)
+        {
+            <div class="loading-container">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>در حال بارگذاری...</span>
+            </div>
+        }
+        else if (FilteredJournalHistory.Count == 0)
+        {
+            <div class="empty-container">
+                <i class="fas fa-inbox"></i>
+                <span>هیچ سندی یافت نشد</span>
+            </div>
+        }
+        else
+        {
+            <div class="journals-table-scroll">
+                <table class="journals-table">
+                    <thead>
+                        <tr>
+                            <th>ردیف</th>
+                            <th class="sortable-header" @onclick="SortByJournalId">
+                                شماره سند
+                                @if (SortColumn == "DocumentNumber")
+                                {
+                                    if (SortAscending)
+                                    {
+                                        <i class="fas fa-sort-up" style="margin-right: 5px;"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-sort-down" style="margin-right: 5px;"></i>
+                                    }
+                                }
+                            </th>
+                            <th class="sortable-header" @onclick="SortByOccurredAt">
+                                تاریخ سند
+                                @if (SortColumn == "OccurredAt")
+                                {
+                                    if (SortAscending)
+                                    {
+                                        <i class="fas fa-sort-up" style="margin-right: 5px;"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-sort-down" style="margin-right: 5px;"></i>
+                                    }
+                                }
+                            </th>
+                            <th class="sortable-header" @onclick="SortByDocumentTypeName">
+                                نوع سند
+                                @if (SortColumn == "DocumentTypeName")
+                                {
+                                    if (SortAscending)
+                                    {
+                                        <i class="fas fa-sort-up" style="margin-right: 5px;"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-sort-down" style="margin-right: 5px;"></i>
+                                    }
+                                }
+                            </th>
+                            <th class="sortable-header" @onclick="SortByTransactionTypeName">
+                                نوع تراکنش
+                                @if (SortColumn == "TransactionTypeName")
+                                {
+                                    if (SortAscending)
+                                    {
+                                        <i class="fas fa-sort-up" style="margin-right: 5px;"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-sort-down" style="margin-right: 5px;"></i>
+                                    }
+                                }
+                            </th>
+                            <th class="sortable-header" @onclick="SortByTransactionAmount">
+                                مبلغ تراکنش
+                                @if (SortColumn == "TransactionAmount")
+                                {
+                                    if (SortAscending)
+                                    {
+                                        <i class="fas fa-sort-up" style="margin-right: 5px;"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-sort-down" style="margin-right: 5px;"></i>
+                                    }
+                                }
+                            </th>
+                            <th class="sortable-header" @onclick="SortByChannelName">
+                                کانال پرداخت
+                                @if (SortColumn == "ChannelName")
+                                {
+                                    if (SortAscending)
+                                    {
+                                        <i class="fas fa-sort-up" style="margin-right: 5px;"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-sort-down" style="margin-right: 5px;"></i>
+                                    }
+                                }
+                            </th>
+                            <th class="sortable-header" @onclick="SortByDisplayName">
+                                طرف مقابل
+                                @if (SortColumn == "DisplayName")
+                                {
+                                    if (SortAscending)
+                                    {
+                                        <i class="fas fa-sort-up" style="margin-right: 5px;"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-sort-down" style="margin-right: 5px;"></i>
+                                    }
+                                }
+                            </th>
+                            <th class="sortable-header" @onclick="SortByNotes">
+                                شرح
+                                @if (SortColumn == "Notes")
+                                {
+                                    if (SortAscending)
+                                    {
+                                        <i class="fas fa-sort-up" style="margin-right: 5px;"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-sort-down" style="margin-right: 5px;"></i>
+                                    }
+                                }
+                            </th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var idx = 0;
+                        }
+                        @foreach (var journal in FilteredJournalHistory)
+                        {
+                            idx++;
+                            <tr class="history-row" @onclick="() => ToggleJournalDetails(journal.JournalId)">
+                                <td>@idx</td>
+                                    <td>@(journal.DocumentNumber?.ToString() ?? $"P-{journal.JournalId}")</td>
+                                <td>@journal.OccurredAt.ToString("yyyy/MM/dd")</td>
+                                <td>@(string.IsNullOrWhiteSpace(journal.DocumentTypeName) ? "-" : journal.DocumentTypeName)</td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(journal.BadgeText) && !string.IsNullOrWhiteSpace(journal.BadgeCssClass))
+                                    {
+                                        <span class="@journal.BadgeCssClass">@journal.BadgeText</span>
+                                    }
+                                    <span style="margin-inline-start:6px">@(string.IsNullOrWhiteSpace(journal.TransactionTypeName) ? "-" : journal.TransactionTypeName)</span>
+                                </td>
+                                <td class="amount-td">@journal.TransactionAmount.ToString("N0")</td>
+                                <td>@(string.IsNullOrWhiteSpace(journal.ChannelName) ? "-" : journal.ChannelName)</td>
+                                <td>@(string.IsNullOrWhiteSpace(journal.DisplayName) ? "-" : journal.DisplayName)</td>
+                                <td style="text-align:right; white-space: normal; min-width: 320px;">@(string.IsNullOrEmpty(journal.Notes) ? "بدون شرح" : journal.Notes)</td>
+                                <td>
+                                    <span class="history-actions-cell">
+                                        <button class="history-details-btn" @onclick="() => ToggleJournalDetails(journal.JournalId)" @onclick:stopPropagation="true">جزئیات</button>
+                                    </span>
+                                </td>
+                            </tr>
+
+                            @if (ExpandedJournals.Contains(journal.JournalId))
+                            {
+                                <tr class="journal-details-row">
+                                    <td colspan="10">
+                                        <div class="journal-details-inline">
+                                            <div class="journal-lines-table">
+                                                <table>
+                                                    <thead>
+                                                        <tr>
+                                                            <th>ردیف</th>
+                                                            <th>شناسه</th>
+                                                            <th>کد معین</th>
+                                                            <th>معین</th>
+                                                            <th>کد تفضیلی</th>
+                                                            <th>تفضیلی</th>
+                                                            <th class="debit-header">بدهکار</th>
+                                                            <th class="credit-header">بستانکار</th>
+                                                            <th>شرح سند</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @{
+                                                            var lineIdx = 0;
+                                                        }
+                                                        @foreach (var line in journal.Lines)
+                                                        {
+                                                            lineIdx++;
+                                                            <tr class="@(IsCurrentSubsidiaryLine(line) ? "current-subsidiary-line" : "")">
+                                                                <td>@lineIdx</td>
+                                                                <td>@line.JournalLineId</td>
+                                                                <td>@line.MoeenCode</td>
+                                                                <td>@line.MoeenName</td>
+                                                                <td style="text-align:center; white-space: nowrap; min-width: 90px;">@(string.IsNullOrWhiteSpace(line.SubsidiaryCode) ? "-" : line.SubsidiaryCode)</td>
+                                                                <td style="text-align:right; white-space: normal; min-width: 200px;">@line.SubsidiaryName</td>
+                                                                <td class="amount-td debit-amount">@(line.Debit > 0 ? line.Debit.ToString("N0") : "-")</td>
+                                                                <td class="amount-td credit-amount">@(line.Credit > 0 ? line.Credit.ToString("N0") : "-")</td>
+                                                                <td style="text-align:right; white-space: normal; min-width: 260px;">@(string.IsNullOrWhiteSpace(line.Description) ? "-" : line.Description)</td>
+                                                            </tr>
+                                                        }
+
+                                                        @{
+                                                            var totalDebit = journal.Lines.Sum(x => x.Debit);
+                                                            var totalCredit = journal.Lines.Sum(x => x.Credit);
+                                                        }
+
+                                                        <tr style="background: #e0f2fe; font-weight: 900;">
+                                                            <td colspan="6" style="text-align:center;">جمع و موازنه</td>
+                                                            <td class="amount-td debit-amount totals-debit-bg">@totalDebit.ToString("N0")</td>
+                                                            <td class="amount-td credit-amount totals-credit-bg">@totalCredit.ToString("N0")</td>
+                                                            <td style="text-align:center; white-space: nowrap;">-</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public long AccountId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "level")]
+    public int? LevelQ { get; set; }
+
+    [SupplyParameterFromQuery(Name = "fromDate")]
+    public string? FromDateQ { get; set; }
+
+    [SupplyParameterFromQuery(Name = "toDate")]
+    public string? ToDateQ { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tafsiliAccountId")]
+    public long? TafsiliAccountIdQ { get; set; }
+
+    private string LevelLabel => (LevelQ ?? 4) switch
+    {
+        1 => "گروه",
+        2 => "کل",
+        3 => "معین",
+        4 => "تفصیلی",
+        _ => "تفصیلی"
+    };
+
+    [SupplyParameterFromQuery(Name = "includeChildren")]
+    public bool IncludeChildren { get; set; }
+
+    private List<JournalHistoryItem> JournalHistory = new();
+    private List<JournalHistoryItem> FilteredJournalHistory = new();
+    private List<long> ExpandedJournals = new();
+    private bool JournalHistoryLoading = false;
+    private string SearchTerm = "";
+    private string FromDate = "";
+    private string ToDate = "";
+
+    private string SortColumn = "OccurredAt";
+    private bool SortAscending = false;
+
+    private CancellationTokenSource? _searchDebounceCts;
+
+    private int JournalCount = 0;
+
+    private string? _currentSubsidiaryCode;
+    private string? _accountCode;
+    private string? _accountName;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(FromDateQ))
+            FromDate = FromDateQ;
+        if (!string.IsNullOrWhiteSpace(ToDateQ))
+            ToDate = ToDateQ;
+
+        if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))
+        {
+            try
+            {
+                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
+                if (fy != null)
+                {
+                    if (string.IsNullOrWhiteSpace(FromDate)) FromDate = fy.StartDate.ToPersianDate();
+                    if (string.IsNullOrWhiteSpace(ToDate)) ToDate = fy.EndDate.ToPersianDate();
+                }
+            }
+            catch { }
+            if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))
+            {
+                var r = MiniBank.Web.Components.Extensions.DateTimeExtensions.CurrentJalaliYearRange();
+                if (string.IsNullOrWhiteSpace(FromDate)) FromDate = r.From;
+                if (string.IsNullOrWhiteSpace(ToDate)) ToDate = r.To;
+            }
+        }
+
+        await LoadJournalHistory();
+    }
+
+    public class JournalHistoryItem
+    {
+        public long JournalId { get; set; }
+        public int? DocumentNumber { get; set; }
+        public DateTime OccurredAt { get; set; }
+        public string Notes { get; set; } = string.Empty;
+        public string CreatedBy { get; set; } = string.Empty;
+        public byte? DocumentType { get; set; }
+        public string? TransactionType { get; set; }
+        public byte? PayChannel { get; set; }
+        public string? CounterpartyName { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public decimal TransactionAmount { get; set; }
+
+        public string DocumentTypeName { get; set; } = string.Empty;
+        public string TransactionTypeName { get; set; } = string.Empty;
+        public string ChannelName { get; set; } = string.Empty;
+
+        public string BadgeText { get; set; } = string.Empty;
+        public string BadgeCssClass { get; set; } = string.Empty;
+
+        public List<TrialBalanceRepository.JournalLineHistoryItem> Lines { get; set; } = new();
+    }
+
+    private async Task Log(string msg)
+    {
+        try { await JS.InvokeVoidAsync("console.log", $"[SubsidiaryTx] {msg}"); } catch { }
+    }
+
+    private async Task LoadJournalHistory()
+    {
+        try
+        {
+            await Log($"LoadJournalHistory started. AccountId={AccountId}, FromDateQ={FromDateQ}, ToDateQ={ToDateQ}, LevelQ={LevelQ}, TafsiliAccountIdQ={TafsiliAccountIdQ}, IncludeChildren={IncludeChildren}");
+
+            JournalHistoryLoading = true;
+            await InvokeAsync(StateHasChanged);
+
+            if (string.IsNullOrWhiteSpace(_currentSubsidiaryCode))
+            {
+                var codeId = TafsiliAccountIdQ.HasValue ? TafsiliAccountIdQ.Value : AccountId;
+                await Log($"Fetching account code for AccountId={codeId}");
+                _currentSubsidiaryCode = TafsiliAccountIdQ.HasValue
+                    ? await TrialBalanceRepo.GetAccountCodeByIdAsync(TafsiliAccountIdQ.Value)
+                    : await TrialBalanceRepo.GetAccountCodeByIdAsync(AccountId);
+                await Log($"Account code = '{_currentSubsidiaryCode}'");
+            }
+
+            if (string.IsNullOrWhiteSpace(_accountCode) && string.IsNullOrWhiteSpace(_accountName))
+            {
+                await Log($"Fetching account display for AccountId={AccountId}");
+                var display = await TrialBalanceRepo.GetAccountDisplayByIdAsync(AccountId);
+                if (display.HasValue)
+                {
+                    _accountCode = display.Value.Code;
+                    _accountName = display.Value.Name;
+                    await Log($"Account display: Code={_accountCode}, Name={_accountName}");
+                }
+                else await Log("Account display returned null");
+            }
+
+            DateTime? fromDateTime = null;
+            DateTime? toDateTime = null;
+
+            if (!string.IsNullOrWhiteSpace(FromDate))
+            {
+                try { fromDateTime = ConvertJalaliToGregorian(FromDate).Date; await Log($"FromDate '{FromDate}' -> Gregorian {fromDateTime:yyyy-MM-dd}"); }
+                catch (Exception ex) { await Log($"FromDate parse error: {ex.Message}"); }
+            }
+            else await Log("FromDate is empty");
+
+            if (!string.IsNullOrWhiteSpace(ToDate))
+            {
+                try { toDateTime = ConvertJalaliToGregorian(ToDate).Date; await Log($"ToDate '{ToDate}' -> Gregorian {toDateTime:yyyy-MM-dd}"); }
+                catch (Exception ex) { await Log($"ToDate parse error: {ex.Message}"); }
+            }
+            else await Log("ToDate is empty");
+
+            List<TrialBalanceRepository.JournalHeaderItem> headers;
+            if (TafsiliAccountIdQ.HasValue && (LevelQ ?? 4) == 3)
+            {
+                await Log($"Calling GetJournalHeadersByMoeenAndTafsiliAsync(AccountId={AccountId}, TafsiliAccountIdQ={TafsiliAccountIdQ}, from={fromDateTime:yyyy-MM-dd}, to={toDateTime:yyyy-MM-dd})");
+                headers = await TrialBalanceRepo.GetJournalHeadersByMoeenAndTafsiliAsync(AccountId, TafsiliAccountIdQ.Value, fromDateTime, toDateTime);
+            }
+            else
+            {
+                if (IncludeChildren)
+                {
+                    await Log($"Calling GetJournalHeadersByAccountIncludingChildrenAsync(rootAccountId={AccountId}, from={fromDateTime:yyyy-MM-dd}, to={toDateTime:yyyy-MM-dd})");
+                    headers = await TrialBalanceRepo.GetJournalHeadersByAccountIncludingChildrenAsync(AccountId, fromDateTime, toDateTime);
+                }
+                else
+                {
+                    await Log($"Calling GetJournalHeadersByAccountAsync(accountId={AccountId}, from={fromDateTime:yyyy-MM-dd}, to={toDateTime:yyyy-MM-dd})");
+                    headers = await TrialBalanceRepo.GetJournalHeadersByAccountAsync(AccountId, fromDateTime, toDateTime);
+                }
+            }
+
+            await Log($"Repository returned {headers?.Count ?? -1} headers");
+
+            var journals = headers
+                .Select(h => new JournalHistoryItem
+                {
+                    JournalId = h.JournalId,
+                    DocumentNumber = h.DocumentNumber,
+                    OccurredAt = h.OccurredAt,
+                    CreatedBy = h.CreatedBy,
+                    Notes = h.Notes,
+                    DocumentType = h.DocumentType,
+                    TransactionType = h.TransactionType,
+                    PayChannel = h.PayChannel,
+                    CounterpartyName = h.CounterpartyName,
+                    DisplayName = h.DisplayName,
+                    TransactionAmount = h.TransactionAmount,
+                    Lines = new()
+                })
+                .ToList();
+
+            await Log($"Mapped {journals.Count} journals to view model");
+
+            var journalIds = journals.Select(j => j.JournalId).ToList();
+            await Log($"Batch-fetching lines for {journalIds.Count} journals...");
+            var linesByJournal = await TrialBalanceRepo.GetJournalLinesByJournalIdsAsync(journalIds);
+            await Log($"Batch fetch complete: {linesByJournal.Sum(kv => kv.Value.Count)} total lines");
+
+            foreach (var journal in journals)
+            {
+                journal.Lines = linesByJournal.GetValueOrDefault(journal.JournalId, new());
+                await Log($"Journal {journal.JournalId}: {journal.Lines.Count} lines");
+
+                var p = TransactionPresentationService.Build(
+                    new TransactionPresentationService.PresentationInput
+                    {
+                        JournalId = journal.JournalId,
+                        Notes = journal.Notes,
+                        DocumentType = journal.DocumentType,
+                        TransactionType = journal.TransactionType,
+                        PayChannel = journal.PayChannel,
+                        CounterpartyName = journal.CounterpartyName,
+                        DisplayName = journal.DisplayName
+                    },
+                    null);
+
+                journal.DocumentTypeName = p.DocumentTypeName;
+                journal.TransactionTypeName = p.TransactionTypeName;
+                journal.ChannelName = p.ChannelName;
+                journal.DisplayName = p.DisplayName;
+                journal.BadgeText = p.BadgeText;
+                journal.BadgeCssClass = p.BadgeCssClass;
+
+                if (journal.TransactionAmount <= 0)
+                {
+                    var td = journal.Lines.Sum(x => x.Debit);
+                    var tc = journal.Lines.Sum(x => x.Credit);
+                    journal.TransactionAmount = Math.Max(td, tc);
+                }
+            }
+
+            JournalHistory = journals;
+            JournalCount = JournalHistory.Count;
+            await Log($"JournalHistory set with {JournalCount} items, calling PerformSearch");
+            PerformSearch();
+            await Log("LoadJournalHistory completed successfully");
+        }
+        catch (Exception ex)
+        {
+            await Log($"ERROR: {ex.GetType().Name}: {ex.Message}");
+            if (ex.InnerException != null) await Log($"Inner: {ex.InnerException.Message}");
+            Toast.Error($"خطا در بارگذاری ریز تراکنش‌ها: {ex.Message}");
+            JournalHistory = new();
+            FilteredJournalHistory = new();
+        }
+        finally
+        {
+            JournalHistoryLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void GoBack()
+    {
+        Nav.NavigateTo("/admin/reports/trial-balance");
+    }
+
+    private bool IsCurrentSubsidiaryLine(TrialBalanceRepository.JournalLineHistoryItem line)
+    {
+        if (string.IsNullOrWhiteSpace(_currentSubsidiaryCode))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(line.SubsidiaryCode))
+            return false;
+
+        return string.Equals(line.SubsidiaryCode.Trim(), _currentSubsidiaryCode.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void PerformSearch()
+    {
+        var term = (SearchTerm ?? string.Empty).Trim();
+        var termLower = NormalizeDigits(term).ToLowerInvariant();
+
+        DateTime? fromDateTime = null;
+        DateTime? toDateTime = null;
+
+        if (!string.IsNullOrWhiteSpace(FromDate))
+        {
+            try { fromDateTime = ConvertJalaliToGregorian(FromDate).Date; } catch { }
+        }
+
+        if (!string.IsNullOrWhiteSpace(ToDate))
+        {
+            try { toDateTime = ConvertJalaliToGregorian(ToDate).Date; } catch { }
+        }
+
+        var filtered = JournalHistory.Where(j =>
+        {
+            var dateText = j.OccurredAt.ToString("yyyy/MM/dd");
+            var dateTextNormalized = NormalizeDigits(dateText).ToLowerInvariant();
+
+            bool matchesSearch = string.IsNullOrEmpty(termLower) ||
+                j.DocumentNumber.HasValue && j.DocumentNumber.Value.ToString().Contains(termLower) ||
+                j.JournalId.ToString().Contains(termLower) ||
+                dateTextNormalized.Contains(termLower) ||
+                (!string.IsNullOrWhiteSpace(j.Notes) && NormalizeDigits(j.Notes).ToLowerInvariant().Contains(termLower)) ||
+                (!string.IsNullOrWhiteSpace(j.DisplayName) && NormalizeDigits(j.DisplayName).ToLowerInvariant().Contains(termLower)) ||
+                (!string.IsNullOrWhiteSpace(j.DocumentTypeName) && NormalizeDigits(j.DocumentTypeName).ToLowerInvariant().Contains(termLower)) ||
+                (!string.IsNullOrWhiteSpace(j.TransactionTypeName) && NormalizeDigits(j.TransactionTypeName).ToLowerInvariant().Contains(termLower)) ||
+                (!string.IsNullOrWhiteSpace(j.ChannelName) && NormalizeDigits(j.ChannelName).ToLowerInvariant().Contains(termLower));
+
+            var d = j.OccurredAt.Date;
+            bool matchesDateRange = (!fromDateTime.HasValue || d >= fromDateTime.Value)
+                                  && (!toDateTime.HasValue || d <= toDateTime.Value);
+
+            return matchesSearch && matchesDateRange;
+        }).ToList();
+
+        FilteredJournalHistory = SortColumn switch
+        {
+            "DocumentNumber" => SortAscending ? filtered.OrderBy(j => j.DocumentNumber ?? 0).ToList() : filtered.OrderByDescending(j => j.DocumentNumber ?? 0).ToList(),
+            "OccurredAt" => SortAscending ? filtered.OrderBy(j => j.OccurredAt).ToList() : filtered.OrderByDescending(j => j.OccurredAt).ToList(),
+            "Notes" => SortAscending ? filtered.OrderBy(j => j.Notes ?? "").ToList() : filtered.OrderByDescending(j => j.Notes ?? "").ToList(),
+            "DocumentTypeName" => SortAscending ? filtered.OrderBy(j => j.DocumentTypeName ?? "").ToList() : filtered.OrderByDescending(j => j.DocumentTypeName ?? "").ToList(),
+            "TransactionTypeName" => SortAscending ? filtered.OrderBy(j => j.TransactionTypeName ?? "").ToList() : filtered.OrderByDescending(j => j.TransactionTypeName ?? "").ToList(),
+            "TransactionAmount" => SortAscending ? filtered.OrderBy(j => j.TransactionAmount).ToList() : filtered.OrderByDescending(j => j.TransactionAmount).ToList(),
+            "ChannelName" => SortAscending ? filtered.OrderBy(j => j.ChannelName ?? "").ToList() : filtered.OrderByDescending(j => j.ChannelName ?? "").ToList(),
+            "DisplayName" => SortAscending ? filtered.OrderBy(j => j.DisplayName ?? "").ToList() : filtered.OrderByDescending(j => j.DisplayName ?? "").ToList(),
+            _ => SortAscending ? filtered.OrderBy(j => j.OccurredAt).ToList() : filtered.OrderByDescending(j => j.OccurredAt).ToList()
+        };
+    }
+
+    private void ToggleJournalDetails(long journalId)
+    {
+        if (ExpandedJournals.Contains(journalId))
+            ExpandedJournals.Remove(journalId);
+        else
+            ExpandedJournals.Add(journalId);
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchTerm = e.Value?.ToString() ?? string.Empty;
+
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+        _searchDebounceCts = new CancellationTokenSource();
+        var token = _searchDebounceCts.Token;
+
+        try
+        {
+            await Task.Delay(180, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        if (token.IsCancellationRequested) return;
+        PerformSearch();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void SortByJournalId() => SortByColumn("DocumentNumber");
+    private void SortByOccurredAt() => SortByColumn("OccurredAt");
+    private void SortByNotes() => SortByColumn("Notes");
+    private void SortByDocumentTypeName() => SortByColumn("DocumentTypeName");
+    private void SortByTransactionTypeName() => SortByColumn("TransactionTypeName");
+    private void SortByTransactionAmount() => SortByColumn("TransactionAmount");
+    private void SortByChannelName() => SortByColumn("ChannelName");
+    private void SortByDisplayName() => SortByColumn("DisplayName");
+
+    private void SortByColumn(string columnName)
+    {
+        if (SortColumn == columnName)
+        {
+            SortAscending = !SortAscending;
+        }
+        else
+        {
+            SortColumn = columnName;
+            SortAscending = true;
+        }
+        PerformSearch();
+    }
+
+    private DateTime ConvertJalaliToGregorian(string jalaliDate)
+        => DateTime.SpecifyKind(Components.Extensions.DateTimeExtensions.FromPersianDate(jalaliDate), DateTimeKind.Local);
+
+    private static string NormalizeDigits(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return string.Empty;
+
+        return input
+            .Replace('۰', '0').Replace('۱', '1').Replace('۲', '2').Replace('۳', '3').Replace('۴', '4')
+            .Replace('۵', '5').Replace('۶', '6').Replace('۷', '7').Replace('۸', '8').Replace('۹', '9')
+            .Replace('٠', '0').Replace('١', '1').Replace('٢', '2').Replace('٣', '3').Replace('٤', '4')
+            .Replace('٥', '5').Replace('٦', '6').Replace('٧', '7').Replace('٨', '8').Replace('٩', '9');
+    }
+}

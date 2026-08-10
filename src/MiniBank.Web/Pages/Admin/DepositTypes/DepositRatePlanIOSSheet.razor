@@ -1,0 +1,458 @@
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@using System.Globalization
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+@inject MiniBank.Web.Services.DepositRateService DepositRateService
+
+<style>
+  .rates-vertical-container .ds-field {
+    margin-bottom: 0 !important;
+  }
+
+  .rates-vertical-container .rate-row {
+    border: 1px solid var(--ds-outline);
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 10px 10px;
+    margin: 8px 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .rates-vertical-container .rate-row:hover {
+    border-color: var(--ds-gray-300);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  }
+
+  .rates-vertical-container .rate-info {
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  .rates-vertical-container .tier-amount {
+    flex: 1.3 1 0;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .rates-vertical-container .tier-rate {
+    width: 84px;
+    min-width: 84px;
+    text-align: center;
+  }
+
+  .rates-vertical-container .tier-delete {
+    width: 56px;
+    min-width: 56px;
+  }
+
+  .rates-vertical-container .tier-delete-btn {
+    height: 34px;
+    padding: 6px 6px;
+    text-align: center;
+    color: #dc2626;
+    border-color: #fecaca;
+    background: #fff5f5;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.15s ease;
+  }
+
+  .rates-vertical-container .tier-delete-btn:hover {
+    background: #ffe4e6;
+    border-color: #fca5a5;
+  }
+
+  .rates-vertical-container .tier-add-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+  }
+
+  .rates-vertical-container .tier-add-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(14, 165, 233, 0.35);
+    background: rgba(14, 165, 233, 0.08);
+    color: var(--ds-text-primary);
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.15s ease;
+  }
+
+  .rates-vertical-container .tier-add-btn:hover {
+    background: rgba(14, 165, 233, 0.14);
+    border-color: rgba(14, 165, 233, 0.55);
+  }
+
+  @@media (max-width: 768px) {
+    .rates-vertical-container .rate-row {
+      padding: 10px 8px;
+    }
+
+    .rates-vertical-container .tier-amount {
+      flex: 1.6 1 0;
+    }
+
+    .rates-vertical-container .tier-rate {
+      width: 64px;
+      min-width: 64px;
+    }
+
+    .rates-vertical-container .tier-delete {
+      width: 44px;
+      min-width: 44px;
+    }
+
+    .rates-vertical-container .tier-add-btn {
+      width: 100%;
+      border-radius: 12px;
+    }
+  }
+</style>
+
+@if (_isVisible)
+{
+  <DsSheet Show="_isVisible"
+           Title="@(IsNew ? "نرخ سود جدید" : "ویرایش نرخ سود")"
+           ConfirmText="تایید"
+           CancelText="لغو"
+           OnConfirm="OnConfirm"
+           OnCancel="Cancel"
+           Open="true"
+           ShowSpinner="_isSaving">
+
+    <div class="ios-form-section">
+      <div class="ios-form-header">
+        <i class="fa-solid fa-percent"></i>
+        <span>مشخصات نرخ سود</span>
+      </div>
+
+      <div class="ios-form-group">
+        <DsDropdown Label="نوع نرخ"
+                    Items="@_modeItems"
+                    Value="@_modeStr"
+                    ValueChanged="@(v => _modeStr = v)"
+                    Placeholder="-- انتخاب کنید --" />
+
+        <div class="ios-form-grid">
+          <div class="ios-form-col">
+            <DsInput Value="@EffectiveFromString"
+                     ValueChanged="@(v => EffectiveFromString = v)"
+                     Label="تاریخ شروع اعتبار"
+                     Class="center-text"
+                     Required="true"
+                     Placeholder="مثال: 1404/06/27"
+                     ErrorMessage="@(_fromError ? "تاریخ شروع الزامی است" : null)"
+                     data-jdp="true"
+                     data-jdp-only-date="true" />
+          </div>
+          <div class="ios-form-col">
+            <DsInput Value="@EffectiveToString"
+                     ValueChanged="@(v => EffectiveToString = v)"
+                     Label="تاریخ پایان اعتبار (اختیاری)"
+                     Class="center-text"
+                     Placeholder="خالی = بدون محدودیت"
+                     data-jdp="true"
+                     data-jdp-only-date="true" />
+          </div>
+        </div>
+
+        @if (SelectedMode == DepositRateMode.Single)
+        {
+          <DsInput @bind-Value="_singleRateText"
+                   Label="نرخ سود (درصد)"
+                   Type="text"
+                   inputmode="decimal"
+                   pattern="[0-9]*[.,]?[0-9]*"
+                   Class="center-text"
+                   Required="true"
+                   Placeholder="مثال: 18"
+                   ErrorMessage="@(_singleRateError ? "نرخ سود الزامی است" : null)" />
+        }
+        else
+        {
+          <div class="ios-form-header" style="margin-top:12px">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>پله‌های نرخ (پلکانی)</span>
+          </div>
+
+          <div class="rates-vertical-container">
+            @if (_tiers.Count == 0)
+            {
+              <div class="no-rates">
+                <p>هیچ پله‌ای تعریف نشده</p>
+              </div>
+            }
+            else
+            {
+              @for (var i = 0; i < _tiers.Count; i++)
+              {
+                var idx = i;
+                var t = _tiers[idx];
+                <div class="rate-row">
+                  <div class="rate-info" style="display:flex; align-items:flex-end; gap:8px; width:100%">
+                    <div class="tier-amount">
+                      <DsMoneyInput Label="از"
+                                    Value="@ToMoneyText(t.FromAmount)"
+                                    ValueChanged="@(v => t.FromAmount = ParseMoney(v))"
+                                    style="height:34px; padding:6px 10px; font-size:12px" />
+                    </div>
+                    <div class="tier-amount">
+                      <DsMoneyInput Label="تا"
+                                    Value="@ToMoneyText(t.ToAmount)"
+                                    ValueChanged="@(v => t.ToAmount = string.IsNullOrWhiteSpace(v) ? null : ParseMoney(v))"
+                                    style="height:34px; padding:6px 10px; font-size:12px" />
+                    </div>
+                    <div class="tier-rate">
+                      <DsInput Value="@t.RatePercent.ToString(CultureInfo.InvariantCulture)"
+                               ValueChanged="@(v => t.RatePercent = ParseDecimal(v))"
+                               Label="٪"
+                               Type="text"
+                               inputmode="decimal"
+                               pattern="[0-9]*[.,]?[0-9]*"
+                               Class="center-text"
+                               Placeholder="15"
+                               style="height:34px; padding:6px 8px; font-size:12px" />
+                    </div>
+                    <div class="tier-delete">
+                      <div class="ds-field" style="margin:0">
+                        <label class="ds-label" style="visibility:hidden">.</label>
+                        <button type="button"
+                                class="ds-input tier-delete-btn"
+                                title="حذف پله"
+                                @onclick="(() => RemoveTier(idx))"
+                                @onclick:stopPropagation="true">حذف</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            }
+
+            <div class="tier-add-footer">
+              <button type="button" class="tier-add-btn" @onclick="AddTier">
+                <i class="fa-solid fa-plus"></i>
+                <span>افزودن پله</span>
+              </button>
+            </div>
+          </div>
+        }
+        <DsToggle @bind-Value="Model.IsActive"
+                  Label="وضعیت فعال"
+                  Description="این نرخ در سیستم فعال باشد"
+                  Icon="fa-solid fa-toggle-on" />
+
+      </div>
+    </div>
+  </DsSheet>
+}
+
+@code {
+  [Parameter] public DepositRatePlan Model { get; set; } = new();
+  [Parameter] public List<DepositRateTier> Tiers { get; set; } = new();
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _isVisible;
+  private bool _isSaving;
+  private bool _fromError;
+  private bool _singleRateError;
+
+  private string _modeStr = ((byte)DepositRateMode.Single).ToString();
+  private string _singleRateText = string.Empty;
+
+  private List<DepositRateTier> _tiers = new();
+
+  private IEnumerable<DsDropdown.DsDropdownItem> _modeItems = new[]
+  {
+    new DsDropdown.DsDropdownItem { Value = ((byte)DepositRateMode.Single).ToString(), Text = "تک‌نرخی" },
+    new DsDropdown.DsDropdownItem { Value = ((byte)DepositRateMode.Tiered).ToString(), Text = "پلکانی" },
+  };
+
+  private DepositRateMode SelectedMode
+  {
+    get
+    {
+      if (byte.TryParse(_modeStr, out var b) && Enum.IsDefined(typeof(DepositRateMode), b))
+        return (DepositRateMode)b;
+      return DepositRateMode.Single;
+    }
+  }
+
+  private string EffectiveFromString
+  {
+    get => Model.EffectiveFrom == default ? string.Empty : Model.EffectiveFrom.ToPersianDate();
+    set
+    {
+      if (string.IsNullOrWhiteSpace(value))
+        Model.EffectiveFrom = default;
+      else
+        Model.EffectiveFrom = DateTimeExtensions.FromPersianDate(value);
+    }
+  }
+
+  private string EffectiveToString
+  {
+    get => Model.EffectiveTo?.ToPersianDate() ?? string.Empty;
+    set
+    {
+      if (string.IsNullOrWhiteSpace(value))
+        Model.EffectiveTo = null;
+      else
+        Model.EffectiveTo = DateTimeExtensions.FromPersianDate(value);
+    }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    await Task.Delay(50);
+    _isVisible = true;
+    await InitJalaliPicker();
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (_isVisible) await InitJalaliPicker();
+  }
+
+  private async Task InitJalaliPicker()
+  {
+    try { await JS.InvokeVoidAsync("initJdp"); } catch { }
+  }
+
+  protected override void OnParametersSet()
+  {
+    _isVisible = true;
+    if (Model is null) Model = new DepositRatePlan();
+
+    if (IsNew)
+      Model.IsActive = false;
+
+    _modeStr = ((byte)Model.Mode).ToString();
+    _singleRateText = Model.SingleRatePercent.HasValue
+      ? Model.SingleRatePercent.Value.ToString(CultureInfo.InvariantCulture)
+      : string.Empty;
+
+    _tiers = (Tiers ?? new List<DepositRateTier>()).Select(t => new DepositRateTier
+    {
+      TierId = t.TierId,
+      PlanId = t.PlanId,
+      OrderNo = t.OrderNo,
+      FromAmount = t.FromAmount,
+      ToAmount = t.ToAmount,
+      RatePercent = t.RatePercent
+    }).ToList();
+
+    if (_tiers.Count == 0 && SelectedMode == DepositRateMode.Tiered)
+      AddTier();
+
+    _fromError = false;
+    _singleRateError = false;
+  }
+
+  private void AddTier()
+  {
+    decimal NextFromAmount()
+    {
+      if (_tiers.Count == 0) return 0m;
+      var prev = _tiers.Last();
+      var prevEnd = prev.ToAmount ?? prev.FromAmount;
+      return prevEnd + 1m;
+    }
+
+    _tiers.Add(new DepositRateTier
+    {
+      PlanId = Model.PlanId,
+      OrderNo = _tiers.Count + 1,
+      FromAmount = NextFromAmount(),
+      ToAmount = null,
+      RatePercent = 0
+    });
+  }
+
+  private void RemoveTier(int index)
+  {
+    if (index < 0 || index >= _tiers.Count) return;
+    _tiers.RemoveAt(index);
+    for (var i = 0; i < _tiers.Count; i++) _tiers[i].OrderNo = i + 1;
+  }
+
+  private async Task OnConfirm()
+  {
+    if (_isSaving) return;
+
+    _fromError = Model.EffectiveFrom == default;
+
+    Model.Mode = SelectedMode;
+
+    decimal? parsedSingle = null;
+    if (SelectedMode == DepositRateMode.Single)
+    {
+      parsedSingle = ParseDecimalNullable(_singleRateText);
+      _singleRateError = !parsedSingle.HasValue || parsedSingle.Value <= 0;
+      Model.SingleRatePercent = parsedSingle;
+    }
+    else
+    {
+      _singleRateError = false;
+      Model.SingleRatePercent = null;
+    }
+
+    if (_fromError || _singleRateError)
+    {
+      if (_fromError) Toasts.Warning("تاریخ شروع الزامی است");
+      if (_singleRateError) Toasts.Warning("نرخ سود معتبر وارد کنید");
+      StateHasChanged();
+      return;
+    }
+
+    _isSaving = true;
+    try
+    {
+      var id = await DepositRateService.SaveAsync(Model, SelectedMode == DepositRateMode.Tiered ? _tiers : null);
+      Model.PlanId = id;
+      await OnClose.InvokeAsync(true);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره: {ex.Message}");
+    }
+    finally
+    {
+      _isSaving = false;
+      StateHasChanged();
+    }
+  }
+
+  private Task Cancel() => OnClose.InvokeAsync(false);
+
+  private static decimal ParseMoney(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return 0m;
+    var digits = new string(s.Where(char.IsDigit).ToArray());
+    if (string.IsNullOrEmpty(digits)) return 0m;
+    return decimal.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var d) ? d : 0m;
+  }
+
+  private static string ToMoneyText(decimal? v)
+  {
+    if (!v.HasValue) return string.Empty;
+    return ((long)v.Value).ToString("N0", CultureInfo.InvariantCulture);
+  }
+
+  private static decimal ParseDecimal(string? s) => ParseDecimalNullable(s) ?? 0m;
+
+  private static decimal? ParseDecimalNullable(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return null;
+    var x = s.Trim().Replace('٬', ' ').Replace(" ", string.Empty).Replace(',', '.');
+    return decimal.TryParse(x, NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? d : (decimal?)null;
+  }
+}

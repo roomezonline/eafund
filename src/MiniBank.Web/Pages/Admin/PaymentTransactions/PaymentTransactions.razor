@@ -1,0 +1,506 @@
+@page "/admin/payment-transactions"
+@using System.Globalization
+@using System.Text.Json
+@using MiniBank.Web.Models
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Services
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Components.Extensions
+@using System.Linq
+@using System.Net.Http.Json
+@using Microsoft.JSInterop
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject MiniBank.Web.Infrastructure.Repositories.HouseholdReceiptRepository ReceiptRepo
+@inject MiniBank.Web.Infrastructure.Repositories.HouseholdReceiptAllocationRepository AllocationRepo
+@inject MiniBank.Web.Infrastructure.Repositories.MemberRepository MemberRepo
+@inject MiniBank.Web.Infrastructure.Repositories.TransactionRepository TxRepo
+@inject MiniBank.Web.Core.Interfaces.IHouseholdRepository HouseholdRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountRepo
+@inject MiniBank.Web.Services.BankAccountService BankAccountService
+@inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+
+<div class="payment-transactions-container">
+    <div class="page-header">
+        <div class="header-content">
+            <div class="header-info">
+                <h1 class="page-title">
+                    <i class="fa-solid fa-exchange-alt"></i>
+                    تراکنش های پرداخت
+                </h1>
+                <p class="page-description">مدیریت و مشاهده تراکنش‌های پرداخت انجام شده</p>
+            </div>
+        </div>
+    </div>
+
+    @* Payment Transactions List *@
+    <div class="form-card">
+        <div class="form-header">
+            <i class="fa-solid fa-receipt"></i>
+            <h2>رسیدهای تسهیم شده</h2>
+        </div>
+        
+        <div class="duo-controls">
+            <DsSearchCard @bind-Value="processedReceiptsKeyword" 
+                          @bind-Value:after="OnProcessedReceiptsSearchChanged"
+                          Placeholder="جستجو: نام خانوار، نام عضو، کد عضویت" />
+            <div class='duo-filters'>
+                <div class="date-filter-group">
+                    <label class="filter-label">بازه تاریخ:</label>
+                    <div class="date-inputs">
+                        <DsJalaliDatePicker @bind-Value="fromDateString" />
+                        <span class="date-separator">تا</span>
+                        <DsJalaliDatePicker @bind-Value="toDateString" 
+                                          @bind-Value:after="OnDateFilterChanged"
+                                          Placeholder="تا تاریخ" />
+                        <button class="btn-secondary btn-sm" @onclick="ClearDateFilter">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class='duo-sort'>
+                <DsPillGroup Mode="sort"
+                           Items="@processedReceiptsSortItems"
+                           ActiveKey="@processedReceiptsSortKey"
+                           ActiveKeyChanged="@(k => processedReceiptsSortKey = k)"
+                           Desc="@processedReceiptsSortDesc"
+                           DescChanged="@(d => processedReceiptsSortDesc = d)"
+                           OnSortChanged="OnProcessedReceiptsSortChanged" />
+            </div>
+        </div>
+
+        @if (processedReceiptsLoading)
+        {
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <p>در حال بارگذاری رسیدها...</p>
+            </div>
+        }
+        else if (!processedReceipts.Any())
+        {
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <h3>هیچ رسیدی یافت نشد</h3>
+                <p>رسیدهای تسهیم شده در اینجا نمایش داده می‌شوند</p>
+            </div>
+        }
+        else
+        {
+            <div class="items-grid">
+                @{int rowIndex = (processedReceiptsPage - 1) * ProcessedReceiptsPageSize;}
+                @foreach (var receipt in processedReceipts)
+                {
+                    rowIndex++;
+                    var expanded = expandedProcessedReceiptId == receipt.HouseholdReceiptId;
+                    <div class="item-card @(expanded ? "expanded" : null)" @onclick="(() => ToggleProcessedReceipt(receipt.HouseholdReceiptId))">
+                        <div class="item-header">
+                            <div class="item-info">
+                                <div class="header-row-1">
+                                    <span class="row-number">@rowIndex</span>
+                                    <h3 class="item-title">@GetHouseholdNameById(receipt.TargetHouseholdId)</h3>
+                                </div>
+                                <div class="header-row-2">
+                                    <span class="receipt-amount">@receipt.AmountTotal.ToString("N0", CultureInfo.InvariantCulture) ریال</span>
+                                    <span class="receipt-date">@receipt.CreatedAt.ToLocalTime().ToPersianDate()</span>
+                                </div>
+                            </div>
+                            <div class="item-actions">
+                                <button class="btn-danger btn-sm" title="حذف رسید" @onclick="(() => RequestDeleteProcessedReceipt(receipt.HouseholdReceiptId))" @onclick:stopPropagation="true">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                                <button class="btn-caret" title="نمایش جزئیات" @onclick="(() => ToggleProcessedReceipt(receipt.HouseholdReceiptId))" @onclick:stopPropagation="true">
+                                    <i class="fa-solid fa-chevron-down @(expanded ? "open" : null)"></i>
+                                </button>
+                            </div>
+                        </div>
+                        @if (expanded)
+                        {
+                            <div class="item-details">
+                                @if (receipt.Allocations?.Any() == true)
+                                {
+                                    <div class="allocations-section">
+                                        <h4 class="allocations-title">
+                                            <i class="fa-solid fa-list-check"></i>
+                                            تسهیمات
+                                        </h4>
+                                        <div class="allocations-grid">
+                                            @foreach (var allocation in receipt.Allocations)
+                                            {
+                                                <div class="allocation-table">
+                                                    <div class="allocation-row">
+                                                        <div class="allocation-cell icon-cell">
+                                                            <i class="fa-solid fa-user-tag" aria-hidden="true"></i>
+                                                        </div>
+                                                        <div class="allocation-cell text-cell">
+                                                            عضو #@allocation.MemberId
+                                                        </div>
+                                                    </div>
+                                                    <div class="allocation-row">
+                                                        <div class="allocation-cell icon-cell">
+                                                            <i class="fa-solid fa-user" aria-hidden="true"></i>
+                                                        </div>
+                                                        <div class="allocation-cell text-cell">
+                                                            @GetMemberNameById(allocation.MemberId)
+                                                        </div>
+                                                    </div>
+                                                    <div class="allocation-row">
+                                                        <div class="allocation-cell icon-cell">
+                                                            <i class="fa-solid fa-tag" aria-hidden="true"></i>
+                                                        </div>
+                                                        <div class="allocation-cell text-cell">
+                                                            @GetPurposeName(allocation.PurposeType)
+                                                        </div>
+                                                    </div>
+                                                    <div class="allocation-row">
+                                                        <div class="allocation-cell icon-cell">
+                                                            <i class="fa-solid fa-coins" aria-hidden="true"></i>
+                                                        </div>
+                                                        <div class="allocation-cell text-cell">
+                                                            @allocation.Amount.ToString("N0", CultureInfo.InvariantCulture) ریال
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="no-allocations">
+                                        <i class="fa-solid fa-exclamation-circle"></i>
+                                        <span>هیچ تسهیمی ثبت نشده</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(receipt.Notes))
+                                {
+                                    <div class="receipt-notes">
+                                        <i class="fa-solid fa-sticky-note"></i>
+                                        <div class="notes-content">
+                                            <strong>توضیحات:</strong>
+                                            <p>@receipt.Notes</p>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            
+            @if (hasMoreProcessedReceipts)
+            {
+                <div class="load-more-container" @ref="loadMoreTrigger">
+                    @if (loadingMoreProcessedReceipts)
+                    {
+                        <div class="loading-more">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            <span>در حال بارگذاری...</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <button class="btn-secondary btn-load-more" @onclick="LoadMoreProcessedReceipts">
+                            <i class="fa-solid fa-plus"></i>
+                            نمایش بیشتر
+                        </button>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<!-- Delete Confirmation Dialog -->
+<DsConfirm Show="@showDeleteConfirm"
+           Title="تأیید حذف رسید"
+           Message="@GetDeletionMessage()"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           Variant="danger"
+           OnConfirm="ConfirmDeleteReceipt"
+           OnCancel="CancelDeleteReceipt" />
+
+@code {
+    // Receipt data
+    private List<ProcessedReceiptSummary> processedReceipts = new();
+    private List<Household> households = new();
+    private bool processedReceiptsLoading = false;
+    private bool loadingMoreProcessedReceipts = false;
+    private bool hasMoreProcessedReceipts = false;
+    private long? expandedProcessedReceiptId;
+    private string processedReceiptsKeyword = string.Empty;
+    private string processedReceiptsSortKey = "date";
+    private bool processedReceiptsSortDesc = true;
+    private string fromDateString = string.Empty;
+    private string toDateString = string.Empty;
+    private int processedReceiptsPage = 1;
+    private const int ProcessedReceiptsPageSize = 20;
+    private ElementReference loadMoreTrigger;
+    private readonly Dictionary<long, string> memberNameCache = new();
+
+    private readonly List<DsPillGroup.DsPillItem> processedReceiptsSortItems = new()
+    {
+        new() { Key = "date", Text = "تاریخ" },
+        new() { Key = "amount", Text = "مبلغ" },
+        new() { Key = "household", Text = "خانوار" }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(fromDateString) || string.IsNullOrWhiteSpace(toDateString))
+        {
+            try
+            {
+                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
+                if (fy != null)
+                {
+                    fromDateString = fy.StartDate.ToPersianDate();
+                    toDateString = fy.EndDate.ToPersianDate();
+                }
+            }
+            catch { }
+            if (string.IsNullOrWhiteSpace(fromDateString) || string.IsNullOrWhiteSpace(toDateString))
+            {
+                var r = DateTimeExtensions.CurrentJalaliYearRange();
+                fromDateString = r.From;
+                toDateString = r.To;
+            }
+        }
+        await LoadHouseholds();
+        await LoadProcessedReceipts();
+    }
+
+    private async Task LoadHouseholds()
+    {
+        try
+        {
+            households = (await HouseholdRepo.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Load households failed: {ex}");
+            households = new List<Household>();
+        }
+    }
+
+    private async Task LoadProcessedReceipts()
+    {
+        try
+        {
+            processedReceiptsLoading = true;
+            StateHasChanged();
+
+            var receipts = await ReceiptRepo.GetProcessedReceiptsAsync(
+                page: processedReceiptsPage,
+                pageSize: ProcessedReceiptsPageSize,
+                keyword: processedReceiptsKeyword,
+                sortBy: processedReceiptsSortKey,
+                sortDesc: processedReceiptsSortDesc,
+                fromDate: ParsePersianDate(fromDateString),
+                toDate: ParsePersianDate(toDateString)
+            );
+            
+            if (processedReceiptsPage == 1)
+            {
+                processedReceipts = receipts.ToList();
+            }
+            else
+            {
+                processedReceipts.AddRange(receipts);
+            }
+            
+            hasMoreProcessedReceipts = receipts.Count() == ProcessedReceiptsPageSize;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Load processed receipts failed: {ex}");
+            processedReceipts = new List<ProcessedReceiptSummary>();
+            hasMoreProcessedReceipts = false;
+        }
+        finally
+        {
+            processedReceiptsLoading = false;
+            loadingMoreProcessedReceipts = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMoreProcessedReceipts()
+    {
+        if (loadingMoreProcessedReceipts || !hasMoreProcessedReceipts) return;
+        
+        loadingMoreProcessedReceipts = true;
+        processedReceiptsPage++;
+        await LoadProcessedReceipts();
+    }
+
+    private void ToggleProcessedReceipt(long receiptId)
+    {
+        expandedProcessedReceiptId = expandedProcessedReceiptId == receiptId ? null : receiptId;
+    }
+
+    private async Task OnProcessedReceiptsSortChanged()
+    {
+        processedReceiptsPage = 1;
+        await LoadProcessedReceipts();
+    }
+
+    private async Task ClearDateFilter()
+    {
+        try
+        {
+            var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
+            if (fy != null)
+            {
+                fromDateString = fy.StartDate.ToPersianDate();
+                toDateString = fy.EndDate.ToPersianDate();
+            }
+        }
+        catch { }
+        if (string.IsNullOrWhiteSpace(fromDateString) || string.IsNullOrWhiteSpace(toDateString))
+        {
+            var r = DateTimeExtensions.CurrentJalaliYearRange();
+            fromDateString = r.From;
+            toDateString = r.To;
+        }
+        processedReceiptsPage = 1;
+        _ = LoadProcessedReceipts();
+    }
+
+    private async Task OnDateFilterChanged()
+    {
+        processedReceiptsPage = 1;
+        await LoadProcessedReceipts();
+    }
+
+    private async Task OnProcessedReceiptsSearchChanged()
+    {
+        processedReceiptsPage = 1;
+        await LoadProcessedReceipts();
+    }
+
+    private long? pendingDeleteReceiptId = null;
+    private bool showDeleteConfirm = false;
+    private ReceiptDeletionInfo? deletionInfo = null;
+
+    private async Task RequestDeleteProcessedReceipt(long receiptId)
+    {
+        try
+        {
+            pendingDeleteReceiptId = receiptId;
+            deletionInfo = await ReceiptRepo.GetDeletionInfoAsync(receiptId);
+            showDeleteConfirm = true;
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"خطا در دریافت اطلاعات حذف: {ex.Message}");
+        }
+    }
+
+    private async Task ConfirmDeleteReceipt()
+    {
+        if (pendingDeleteReceiptId.HasValue)
+        {
+            try
+            {
+                await ReceiptRepo.DeleteAsync(pendingDeleteReceiptId.Value);
+                Toast.Success("رسید با موفقیت حذف شد");
+                await LoadProcessedReceipts();
+            }
+            catch (Exception ex)
+            {
+                Toast.Error($"خطا در حذف رسید: {ex.Message}");
+            }
+        }
+        
+        showDeleteConfirm = false;
+        pendingDeleteReceiptId = null;
+        deletionInfo = null;
+    }
+
+    private void CancelDeleteReceipt()
+    {
+        showDeleteConfirm = false;
+        pendingDeleteReceiptId = null;
+        deletionInfo = null;
+    }
+
+    private string GetDeletionMessage()
+    {
+        if (deletionInfo == null) return "آیا از حذف این رسید اطمینان دارید؟";
+        
+        return $@"
+            <div class='deletion-details'>
+                <p class='mb-3'>با حذف این رسید، موارد زیر نیز حذف خواهند شد:</p>
+                <div class='deletion-table'>
+                    <div class='deletion-row'>
+                        <div class='deletion-label'>تسهیمات (Allocations):</div>
+                        <div class='deletion-count'>{deletionInfo.AllocationsCount} مورد</div>
+                    </div>
+                    <div class='deletion-row'>
+                        <div class='deletion-label'>تراکنش‌ها (Transactions):</div>
+                        <div class='deletion-count'>{deletionInfo.TransactionsCount} مورد</div>
+                    </div>
+                    <div class='deletion-row'>
+                        <div class='deletion-label'>ژورنال‌ها (Journals):</div>
+                        <div class='deletion-count'>{deletionInfo.JournalsCount} مورد</div>
+                    </div>
+                    <div class='deletion-row'>
+                        <div class='deletion-label'>خطوط ژورنال (Journal Lines):</div>
+                        <div class='deletion-count'>{deletionInfo.JournalLinesCount} مورد</div>
+                    </div>
+                </div>
+                <div class='deletion-warning'>
+                    <i class='fa-solid fa-triangle-exclamation'></i>
+                    این عمل غیرقابل بازگشت است و تمام اطلاعات مرتبط حذف خواهد شد.
+                </div>
+            </div>";
+    }
+
+    private string GetHouseholdNameById(long householdId)
+    {
+        var household = households.FirstOrDefault(h => h.HouseholdId == householdId);
+        return household?.Name ?? $"خانوار #{householdId}";
+    }
+
+    private string GetMemberNameById(long memberId)
+    {
+        if (memberNameCache.TryGetValue(memberId, out var cachedName))
+            return cachedName;
+
+        // In a real implementation, you'd fetch this from the member repository
+        var name = $"عضو #{memberId}";
+        memberNameCache[memberId] = name;
+        return name;
+    }
+
+    private string GetPurposeName(int purposeType)
+    {
+        return purposeType switch
+        {
+            1 => "سپرده",
+            2 => "وام",
+            3 => "سود",
+            _ => "نامشخص"
+        };
+    }
+
+    private DateTime? ParsePersianDate(string persianDate)
+    {
+        if (string.IsNullOrWhiteSpace(persianDate)) return null;
+        
+        try
+        {
+            // Implement Persian date parsing logic here
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}

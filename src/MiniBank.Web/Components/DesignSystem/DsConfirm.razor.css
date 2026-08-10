@@ -1,0 +1,220 @@
+/* DsConfirm - Modal/Bottom Sheet Confirm Dialog */
+
+/* Global override to ensure DsConfirm is always on top */
+::deep .ds-confirm-overlay,
+:global(.ds-confirm-overlay) {
+  z-index: 999999 !important;
+}
+
+/* Overlay with backdrop blur */
+.ds-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Highest layer above sheets and modals; toast should use a higher z-index like --ds-z-toast */
+  z-index: var(--ds-z-confirm, 99999) !important;
+  padding: var(--ds-spacing-4);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.ds-confirm-overlay.visible {
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 1;
+}
+
+/* Hide DsFab when DsConfirm is visible - global rule */
+body:has(.ds-confirm-overlay.visible) .ds-fab {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Main dialog container */
+.ds-confirm {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  max-width: 520px;
+  width: 92%;
+  text-align: start;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  transform: translateY(12px) scale(0.98);
+  opacity: 0;
+  transition: transform .25s ease, opacity .25s ease, box-shadow .25s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-confirm.visible { transform: translateY(0) scale(1); opacity: 1; }
+
+/* Icon container - perfect centering */
+/* Header */
+.ds-confirm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+.ds-confirm-header-left { display: flex; align-items: center; gap: 10px; }
+.ds-confirm-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.ds-confirm-badge i { line-height: 1; }
+.ds-confirm-badge-danger { background:#fee2e2; color:#dc2626; }
+.ds-confirm-badge-warning { background:#fef3c7; color:#d97706; }
+.ds-confirm-badge-info { background:#dbeafe; color:#2563eb; }
+.ds-confirm-badge-success { background:#dcfce7; color:#16a34a; }
+
+.ds-confirm-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+/* Title color by variant (to match screenshot: red title on danger) */
+.ds-confirm-danger .ds-confirm-title { color: #dc2626; }
+.ds-confirm-warning .ds-confirm-title { color: #b45309; }
+.ds-confirm-info .ds-confirm-title { color: #1d4ed8; }
+.ds-confirm-success .ds-confirm-title { color: #15803d; }
+
+.ds-confirm-close {
+  background: none; border: 0; cursor: pointer; color:#6b7280;
+  padding: 6px; border-radius: 8px; transition: background .2s ease, color .2s ease;
+}
+.ds-confirm-close:hover { background:#f3f4f6; color:#374151; }
+
+/* Icon variants */
+.ds-confirm-icon-danger {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.ds-confirm-icon-warning {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.ds-confirm-icon-info {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.ds-confirm-icon-success {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+/* Content area */
+.ds-confirm-body {
+  padding: 18px;
+  color:#374151; line-height:1.6; font-size:14px;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+
+/* Alert (warning) inside body */
+.ds-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  margin-bottom: 12px;
+}
+.ds-alert .ds-alert-icon { font-size: 16px; line-height: 1; }
+.ds-alert .ds-alert-content { display: inline-flex; gap: 6px; align-items: center; color: #6b7280; }
+.ds-alert .ds-alert-content strong { color: #92400e; }
+.ds-alert-warning { background: #fef3c7; border-color: #f59e0b; }
+
+/* Highlight bold text (user names) in message */
+.ds-confirm-message strong,
+.ds-confirm-message b {
+  color: #dc2626 !important;
+  font-weight: 700 !important;
+  background: rgba(220, 38, 38, 0.1) !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+}
+
+/* Actions area */
+.ds-confirm-footer { display:flex; gap:10px; justify-content:flex-end; padding: 12px 18px; }
+.ds-confirm-footer .ds-btn { min-width: 110px; }
+/* Stack vertically when requested (desktop and mobile) */
+.ds-confirm-footer.stack { flex-direction: column; }
+.ds-confirm-footer.stack .ds-btn { width: 100%; }
+
+/* Mobile bottom sheet */
+@media (max-width: 768px) {
+  .ds-confirm-overlay { align-items: flex-end; padding: 0; }
+  .ds-confirm {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(100%);
+    box-shadow: 0 -10px 40px rgba(0,0,0,.2);
+  }
+  .ds-confirm.visible { transform: translateY(0); }
+  .ds-confirm-header { padding: 14px 16px; }
+  .ds-confirm-title { font-size: 16px; }
+  .ds-confirm-body { font-size: 13px; padding: 14px 16px; }
+  .ds-confirm-footer { padding: 12px 16px; flex-direction: column-reverse; }
+  .ds-confirm-footer .ds-btn { width: 100%; }
+}
+
+/* Dark theme */
+[data-theme="dark"] .ds-confirm {
+  background: rgba(30, 30, 30, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .ds-confirm-actions {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .ds-confirm-actions .ds-btn:first-child {
+  border-right-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .ds-confirm-actions .ds-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Dark theme for content area */
+[data-theme="dark"] .ds-confirm-content {
+  background: #000000;
+}
+
+[data-theme="dark"] .ds-confirm-title,
+[data-theme="dark"] .ds-confirm-message {
+  color: #ffffff;
+}
+
+/* Dark theme for highlighted text */
+[data-theme="dark"] .ds-confirm-message strong,
+[data-theme="dark"] .ds-confirm-message b {
+  color: #f87171 !important;
+  background: rgba(248, 113, 113, 0.2) !important;
+}
+
+[data-theme="dark"] .ds-confirm-icon-container {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}

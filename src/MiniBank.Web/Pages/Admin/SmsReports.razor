@@ -1,0 +1,456 @@
+@page "/admin/sms-reports"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Models.Sms
+@using MiniBank.Web.Services
+@using System.Globalization
+@using System.Linq
+@inject DsToastService Toasts
+@inject SmsMessageLogRepository Repo
+@inject SmsSender SmsSender
+
+<PageTitle>گزارش پیامک‌ها</PageTitle>
+
+<DsPageHeader Title="گزارش پیامک‌ها"
+             Icon="fa-solid fa-message"
+             Subtitle="لیست پیامک‌های ارسال‌شده و وضعیت Delivery"
+             ShowBackButton="true" />
+
+<section class="page" dir="rtl">
+    <div class="card" style="padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+        <div style="font-weight:900; margin-bottom:10px;">فیلترها</div>
+
+        <div style="display:grid; gap:10px;">
+            <div style="display:grid; gap:10px; grid-template-columns: 1fr 1fr; align-items:end;">
+                <DsJalaliDatePicker Label="از تاریخ" Value="@_fromJalali" ValueChanged="async (v) => { _fromJalali = v ?? string.Empty; await ScheduleFilterLoadAsync(0); }" Placeholder="مثال: 1404/06/01" />
+                <DsJalaliDatePicker Label="تا تاریخ" Value="@_toJalali" ValueChanged="async (v) => { _toJalali = v ?? string.Empty; await ScheduleFilterLoadAsync(0); }" Placeholder="مثال: 1404/06/30" />
+            </div>
+
+            <div style="display:grid; gap:6px;">
+                <label style="font-weight:900; font-size:12px;">جستجو (موبایل / کد عضویت / نام و نام خانوادگی)</label>
+                <input class="input" style="height:40px; border-radius:10px; border:1px solid #cbd5e1; padding:0 10px; font-weight:900; width:100%;" value="@_query" @oninput="OnQueryInput" placeholder="مثلاً 0912... یا 123 یا محمد حسینی" />
+            </div>
+
+            <div style="display:grid; gap:6px;">
+                <label style="font-weight:900; font-size:12px;">فیلتر دلیوری</label>
+                <select class="input" style="height:40px; border-radius:10px; border:1px solid #cbd5e1; padding:0 10px; font-weight:900;" value="@_deliveryFilter" @onchange="OnDeliveryChanged">
+                    <option value="">همه</option>
+                    <option value="null">نامشخص</option>
+                    <option value="1">رسیده</option>
+                    <option value="2">نرسیده به گوشی</option>
+                    <option value="3">رسیده به مخابرات</option>
+                    <option value="4">نرسیده به مخابرات</option>
+                    <option value="5">رسیده به اپراتور</option>
+                    <option value="6">ناموفق</option>
+                    <option value="7">لیست سیاه</option>
+                    <option value="8">نامشخص (سیستمی)</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" style="height:40px; border-radius:10px; border:1px solid #e2e8f0; background:#fff; color:#0f172a; font-weight:900; padding:0 14px;" @onclick="ClearFilters" disabled="@_loading">پاک کردن</button>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <div style="font-weight:900;">نتایج</div>
+            <div style="font-size:12px; opacity:.75;">@_items.Count مورد</div>
+        </div>
+
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" style="height:36px; border-radius:10px; border:1px solid #0ea5e9; background:#0ea5e9; color:#fff; font-weight:900; padding:0 12px; font-size:12px;" @onclick="RefreshNonDeliveredAsync" disabled="@(_loading || _autoRefreshing)">
+                @(_autoRefreshing ? "در حال بروزرسانی..." : "بروزرسانی دستی پیامک‌های غیر رسیده")
+            </button>
+        </div>
+
+        @if (_autoRefreshing)
+        {
+            <div style="margin-top:10px; display:flex; align-items:center; gap:10px; font-weight:900;">
+                <span>در حال استعلام وضعیت پیامک‌های غیر رسیده...</span>
+                <span style="font-size:12px; opacity:.75;">لطفاً صبر کنید</span>
+            </div>
+        }
+
+        @if (_loading)
+        {
+            <div style="margin-top:10px;">در حال بارگذاری...</div>
+        }
+        else if (_items.Count == 0)
+        {
+            <div style="margin-top:10px; font-size:12px; opacity:.75;">موردی یافت نشد.</div>
+        }
+        else
+        {
+            <div style="margin-top:10px; display:grid; gap:10px;">
+                @foreach (var x in _items)
+                {
+                    var isOpen = IsDetailsOpen(x.LogId);
+                    var deliveryText = SmsSender.GetDeliveryStateMessage(x.DeliveryState);
+                    var deliveryColor = GetDeliveryColor(x.DeliveryState);
+
+                    <div style="border:1px solid #e5e7eb; border-radius:14px; background:#fff; overflow:hidden;">
+                        <div style="padding:10px; background:#f8fafc; cursor:pointer;" @onclick="(() => ToggleDetails(x.LogId))">
+                            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+                                <div style="display:grid; gap:4px; min-width:0;">
+                                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                        <span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-weight:900; font-size:12px; background:rgba(2,132,199,0.08); color:@deliveryColor; border:1px solid rgba(2,132,199,0.15);">
+                                            @deliveryText
+                                        </span>
+                                        @if (x.DeliveryDateTime.HasValue)
+                                        {
+                                            <span style="font-size:11px; opacity:.75; white-space:nowrap;">@FormatJalaliDateTime(x.DeliveryDateTime.Value)</span>
+                                        }
+                                    </div>
+
+                                    <div style="font-weight:950; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@(!string.IsNullOrWhiteSpace(x.HeadFullName) ? x.HeadFullName : (x.RecipientMobile ?? "-"))</div>
+                                    <div style="font-size:11px; opacity:.75; direction:ltr; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                        <span>@((x.HeadMemberId.HasValue && x.HeadMemberId.Value > 0) ? $"#{x.HeadMemberId.Value}" : "-")</span>
+                                        <span style="opacity:.5; padding:0 6px;">|</span>
+                                        <span style="color:#dc2626; font-weight:950;">@((!string.IsNullOrWhiteSpace(x.HeadMobileNumber) ? x.HeadMobileNumber : (x.RecipientMobile ?? "-")))</span>
+                                    </div>
+                                </div>
+
+                                <div style="display:grid; gap:6px; align-items:start; justify-items:end; flex:0 0 auto;">
+                                    <div style="font-weight:900; font-size:12px; white-space:nowrap;">@FormatJalaliDateTime(x.SentAt ?? x.CreatedAt)</div>
+                                    @if (_hasUnknownDelivery && x.DeliveryState is null)
+                                    {
+                                        <button class="btn" style="height:32px; border-radius:10px; border:1px solid #0ea5e9; background:#0ea5e9; color:#fff; font-weight:900; padding:0 10px; font-size:12px;" @onclick:stopPropagation="true" @onclick="(() => RefreshDeliveryAsync(x, showToast: true))" disabled="@IsRowBusy(x.LogId)">
+                                            @(IsRowBusy(x.LogId) ? "..." : "استعلام")
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (isOpen)
+                        {
+                            <div style="padding:10px; border-top:1px solid #e5e7eb; background:#fff;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                                    <div style="font-weight:900; font-size:12px;">متن پیامک</div>
+                                    <div style="font-size:11px; opacity:.75; white-space:nowrap;">@FormatJalaliDateTime(x.SentAt ?? x.CreatedAt)</div>
+                                </div>
+                                <pre style="white-space:pre-wrap; margin:8px 0 0 0; font-family:inherit; font-weight:800; line-height:1.8; font-size:12px;">@x.MessageText</pre>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private bool _loading;
+    private bool _autoRefreshing;
+    private bool _hasUnknownDelivery;
+    private bool _hasNonDelivered;
+    private List<SmsMessageLogReportRow> _items = new();
+
+    private string _fromJalali = string.Empty;
+    private string _toJalali = string.Empty;
+    private string _query = string.Empty;
+    private string _deliveryFilter = string.Empty;
+
+    private CancellationTokenSource? _filterCts;
+
+    private readonly HashSet<long> _openDetails = new();
+    private readonly HashSet<long> _rowBusy = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        SetDefaultJalaliYearRangeIfEmpty();
+        await LoadAsync();
+    }
+
+    private void SetDefaultJalaliYearRangeIfEmpty()
+    {
+        if (!string.IsNullOrWhiteSpace(_fromJalali) || !string.IsNullOrWhiteSpace(_toJalali))
+            return;
+
+        var today = DateTime.Today;
+        var pc = new System.Globalization.PersianCalendar();
+        var y = pc.GetYear(today);
+        var lastDay = pc.GetDaysInMonth(y, 12);
+        _fromJalali = $"{y:0000}/01/01";
+        _toJalali = $"{y:0000}/12/{lastDay:00}";
+    }
+
+    private async Task OnQueryInput(ChangeEventArgs e)
+    {
+        _query = e?.Value?.ToString() ?? string.Empty;
+        await ScheduleFilterLoadAsync(350);
+    }
+
+    private async Task OnDeliveryChanged(ChangeEventArgs e)
+    {
+        _deliveryFilter = e?.Value?.ToString() ?? string.Empty;
+        await ScheduleFilterLoadAsync(0);
+    }
+
+    private async Task ScheduleFilterLoadAsync(int delayMs)
+    {
+        _filterCts?.Cancel();
+        _filterCts = new CancellationTokenSource();
+        var ct = _filterCts.Token;
+
+        try
+        {
+            if (delayMs > 0)
+                await Task.Delay(delayMs, ct);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        if (ct.IsCancellationRequested)
+            return;
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            var (fromUtc, toUtc) = ParseJalaliRangeUtc(_fromJalali, _toJalali);
+            var (deliveryState, deliveryIsNull) = ParseDeliveryFilter(_deliveryFilter);
+
+            _items = (await Repo.SearchReportAsync(
+                fromUtc: fromUtc,
+                toUtc: toUtc,
+                query: _query,
+                deliveryState: deliveryState,
+                deliveryIsNull: deliveryIsNull,
+                take: 200)).ToList();
+
+            _hasUnknownDelivery = _items.Any(x => x.DeliveryState is null);
+
+            _hasNonDelivered = _items.Any(x => x.ProviderMessageId is not null && x.ProviderMessageId.Value > 0 && x.DeliveryState != 1);
+
+            // Auto refresh non-delivered delivery states (including null) on page load / filter apply
+            if (_hasNonDelivered)
+            {
+                await RefreshNonDeliveredAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری گزارش پیامک‌ها: {ex.Message}");
+        }
+        finally
+        {
+            _autoRefreshing = false;
+            _loading = false;
+        }
+    }
+
+    private async Task RefreshNonDeliveredAsync()
+    {
+        if (_autoRefreshing)
+            return;
+
+        try
+        {
+            _autoRefreshing = true;
+            StateHasChanged();
+
+            var toRefresh = _items
+                .Where(x => x.ProviderMessageId is not null && x.ProviderMessageId.Value > 0 && x.DeliveryState != 1)
+                .Take(20)
+                .ToList();
+
+            foreach (var row in toRefresh)
+            {
+                await RefreshDeliveryAsync(row, showToast: false);
+            }
+
+            _hasUnknownDelivery = _items.Any(x => x.DeliveryState is null);
+            _hasNonDelivered = _items.Any(x => x.ProviderMessageId is not null && x.ProviderMessageId.Value > 0 && x.DeliveryState != 1);
+        }
+        catch
+        {
+            // ignore in background refresh
+        }
+        finally
+        {
+            _autoRefreshing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ClearFilters()
+    {
+        _fromJalali = string.Empty;
+        _toJalali = string.Empty;
+        _query = string.Empty;
+        _deliveryFilter = string.Empty;
+        SetDefaultJalaliYearRangeIfEmpty();
+        _openDetails.Clear();
+        _ = ScheduleFilterLoadAsync(0);
+    }
+
+    private async Task RefreshDeliveryAsync(SmsMessageLog row, bool showToast)
+    {
+        if (row.ProviderMessageId is null || row.ProviderMessageId.Value <= 0)
+        {
+            if (showToast)
+                Toasts.Warning("شناسه پیامک موجود نیست.");
+            return;
+        }
+
+        if (_rowBusy.Contains(row.LogId))
+            return;
+
+        try
+        {
+            _rowBusy.Add(row.LogId);
+            StateHasChanged();
+
+            var status = await SmsSender.GetMessageStatusAsync(row.ProviderMessageId.Value);
+            if (status == null)
+            {
+                if (showToast)
+                    Toasts.Error("پاسخ نامعتبر از سرویس وضعیت پیامک.");
+                return;
+            }
+
+            if (status.Status != 1)
+            {
+                if (showToast)
+                    Toasts.Warning($"استعلام ناموفق: {SmsSender.GetApiStatusMessage(status.Status)}");
+            }
+
+            byte? deliveryState = status.Data?.DeliveryState;
+            DateTime? deliveryDt = null;
+            if (status.Data?.DeliveryDateTime is long unix && unix > 0)
+            {
+                deliveryDt = DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime;
+            }
+
+            await Repo.UpdateDeliveryAsync(row.LogId, deliveryState, deliveryDt, status.Status, status.Message);
+
+            // Refresh local row
+            row.DeliveryState = deliveryState;
+            row.DeliveryDateTime = deliveryDt;
+            row.ApiStatus = status.Status;
+            row.ApiMessage = status.Message;
+
+            if (showToast)
+                Toasts.Success("وضعیت دلیوری به‌روزرسانی شد.");
+        }
+        catch (Exception ex)
+        {
+            if (showToast)
+                Toasts.Error($"خطا در استعلام وضعیت: {ex.Message}");
+        }
+        finally
+        {
+            _rowBusy.Remove(row.LogId);
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleDetails(long logId)
+    {
+        // Only one row open at a time
+        if (_openDetails.Contains(logId))
+        {
+            _openDetails.Clear();
+            return;
+        }
+
+        _openDetails.Clear();
+        _openDetails.Add(logId);
+    }
+
+    private bool IsDetailsOpen(long logId) => _openDetails.Contains(logId);
+    private bool IsRowBusy(long logId) => _rowBusy.Contains(logId);
+
+    private static (DateTime? fromUtc, DateTime? toUtc) ParseJalaliRangeUtc(string from, string to)
+    {
+        DateTime? fromUtc = null;
+        DateTime? toUtc = null;
+
+        if (TryParseJalali(from, out var f))
+            fromUtc = f.ToUniversalTime();
+
+        if (TryParseJalali(to, out var t))
+            toUtc = t.Date.ToUniversalTime();
+
+        return (fromUtc, toUtc);
+    }
+
+    private static bool TryParseJalali(string raw, out DateTime dt)
+    {
+        var ok = Components.Extensions.DateTimeExtensions.TryParseJalaliDate(raw, out dt);
+        if (ok) dt = DateTime.SpecifyKind(dt, DateTimeKind.Local);
+        return ok;
+    }
+
+    private static string FormatJalaliDateTime(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var pc = new System.Globalization.PersianCalendar();
+        var y = pc.GetYear(local);
+        var m = pc.GetMonth(local);
+        var d = pc.GetDayOfMonth(local);
+        return $"{y:0000}/{m:00}/{d:00} {local:HH:mm}";
+    }
+
+    private static string GetDeliveryColor(byte? deliveryState)
+    {
+        if (deliveryState is null)
+            return "#64748b"; // unknown
+
+        return deliveryState.Value switch
+        {
+            1 => "#16a34a", // delivered
+            6 => "#dc2626", // failed
+            2 => "#dc2626", // not delivered to handset
+            4 => "#dc2626", // not delivered to telecom
+            7 => "#0f172a", // black list
+            3 => "#0ea5e9", // delivered to telecom
+            5 => "#0ea5e9", // delivered to operator
+            8 => "#64748b", // system unknown
+            _ => "#0ea5e9"
+        };
+    }
+
+    private static string DigitsOnly(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        return new string(raw.Where(char.IsDigit).ToArray());
+    }
+
+    private static string NormalizeDigits(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        var map = new Dictionary<char, char>
+        {
+            ['۰'] = '0', ['۱'] = '1', ['۲'] = '2', ['۳'] = '3', ['۴'] = '4',
+            ['۵'] = '5', ['۶'] = '6', ['۷'] = '7', ['۸'] = '8', ['۹'] = '9',
+            ['٠'] = '0', ['١'] = '1', ['٢'] = '2', ['٣'] = '3', ['٤'] = '4',
+            ['٥'] = '5', ['٦'] = '6', ['٧'] = '7', ['٨'] = '8', ['٩'] = '9'
+        };
+
+        var chars = raw.ToCharArray();
+        for (var i = 0; i < chars.Length; i++)
+        {
+            if (map.TryGetValue(chars[i], out var mapped))
+                chars[i] = mapped;
+        }
+        return new string(chars);
+    }
+
+    private static (byte? deliveryState, bool? deliveryIsNull) ParseDeliveryFilter(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return (null, null);
+        if (string.Equals(raw, "null", StringComparison.OrdinalIgnoreCase)) return (null, true);
+        return byte.TryParse(raw, out var b) ? (b, null) : (null, null);
+    }
+
+}

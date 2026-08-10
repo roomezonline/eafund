@@ -1,0 +1,95 @@
+/* Design System Money Input Styles - aligned with DsInput */
+.ds-field {
+  margin-bottom: var(--ds-space-4);
+  position: relative;
+}
+
+.ds-label {
+  display: block;
+  margin-bottom: var(--ds-space-2);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-bold);
+  color: var(--ds-text-primary);
+  line-height: var(--ds-line-height-tight);
+}
+
+.ds-required {
+  color: var(--ds-danger-500);
+  margin-right: var(--ds-space-1);
+}
+
+.ds-input {
+  width: 100%;
+  padding: var(--ds-space-3);
+  border: 1px solid var(--ds-outline);
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-font-size-md);
+  font-weight: var(--ds-font-weight-normal);
+  line-height: var(--ds-line-height-normal);
+  background: var(--ds-surface);
+  color: var(--ds-text-primary);
+  transition: var(--ds-transition-normal);
+  outline: none;
+}
+
+.ds-input::placeholder {
+  color: var(--ds-text-disabled);
+  opacity: 1;
+}
+
+.ds-input:focus {
+  border-color: var(--ds-primary-500);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.ds-input:hover:not(:disabled):not(:focus) {
+  border-color: var(--ds-gray-300);
+}
+
+.ds-input:disabled {
+  background: var(--ds-gray-50);
+  color: var(--ds-text-disabled);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Error State */
+.ds-field-error .ds-input {
+  border-color: var(--ds-danger-500);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.ds-field-error .ds-input:focus {
+  border-color: var(--ds-danger-500);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.ds-field-error .ds-label {
+  color: var(--ds-danger-600);
+}
+
+/* Helper and Error Messages */
+.ds-error {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  margin-top: var(--ds-space-2);
+  font-size: var(--ds-font-size-sm);
+  color: var(--ds-danger-600);
+  line-height: var(--ds-line-height-tight);
+}
+
+.ds-helper {
+  margin-top: var(--ds-space-2);
+  font-size: var(--ds-font-size-sm);
+  color: var(--ds-text-secondary);
+  line-height: var(--ds-line-height-tight);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .ds-input {
+    font-size: var(--ds-font-size-lg);
+    padding: var(--ds-space-4);
+  }
+}

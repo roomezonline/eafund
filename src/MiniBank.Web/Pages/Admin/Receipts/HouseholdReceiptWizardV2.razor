@@ -1,0 +1,1487 @@
+@page "/admin/receipts/household-wizard-v2"
+@using System.Globalization
+@using MiniBank.Web.Models
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Services
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Components.Extensions
+@using System.Linq
+@using System.Net.Http.Json
+@using System.Text.Json
+@using Microsoft.JSInterop
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject MiniBank.Web.Infrastructure.Repositories.HouseholdReceiptRepository ReceiptRepo
+@inject MiniBank.Web.Infrastructure.Repositories.HouseholdReceiptAllocationRepository AllocationRepo
+@inject MiniBank.Web.Infrastructure.Repositories.MemberRepository MemberRepo
+@inject MiniBank.Web.Infrastructure.Repositories.TransactionRepository TxRepo
+@inject MiniBank.Web.Core.Interfaces.IHouseholdRepository HouseholdRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountRepo
+@inject MiniBank.Web.Services.BankAccountService BankAccountService
+@inject MiniBank.Web.Services.SafeTransactionService SafeTransactionService
+
+<style>
+    .deposit-account-info {
+        margin-top: 0.5rem;
+        padding: 0.75rem;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+    }
+
+    .account-display {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .account-display.active {
+        color: #198754;
+    }
+
+    .account-display.inactive {
+        color: #ffc107;
+    }
+
+    .account-number {
+        font-weight: 500;
+        font-family: 'Courier New', monospace;
+    }
+
+    .account-status {
+        font-size: 0.875rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        background-color: #d1edda;
+        color: #155724;
+    }
+
+    .no-account-text {
+        font-size: 0.875rem;
+        color: #856404;
+    }
+
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="receipt-wizard-container">
+    <DsPageHeader Icon="fa-solid fa-receipt" 
+                  Title="ثبت رسید خانوار" 
+                  Subtitle="سیستم چند مرحله‌ای ثبت و تسهیم دریافت"
+                  ShowBackButton="true"
+                  ShowRefreshButton="false"
+                  ShowAddButton="false" />
+
+    <DsMultiStepForm CurrentStep="@currentStep" 
+                     TotalSteps="3"
+                     StepLabels="@stepLabels"
+                     CanProceedToNext="@CanProceedToNextStep()"
+                     CanSubmit="@CanSubmitForm()"
+                     IsNavigationDisabled="@isBusy"
+                     OnStepChanged="@OnStepChanged"
+                     OnFinalSubmit="@OnFinalSubmit">
+
+        @if (currentStep == 1)
+        {
+            <!-- Step 1: Basic Information -->
+            <div class="step-content-wrapper">
+                @if (pendingReceiptsLoading)
+                {
+                    <div class="form-card">
+                        <div class="loading-state">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            <span>در حال بارگذاری رسیدهای تسهیم نشده...</span>
+                        </div>
+                    </div>
+                }
+                else if (pendingReceipts.Any())
+                {
+                    <div class="pending-receipts-section">
+                        <div class="section-header">
+                            <div class="header-content">
+                                <i class="fa-solid fa-clock-rotate-left header-icon-inline"></i>
+                                <span class="header-count">@pendingReceipts.Count رسید نیاز به تسهیم دارد</span>
+                            </div>
+                        </div>
+                        
+                        <div class="pending-receipts-grid">
+                            @foreach (var pr in pendingReceipts)
+                            {
+                                <div class="pending-receipt-card">
+                                    <div class="card-header">
+                                        <span class="card-title">رسید تسهیم نشده - @GetHouseholdNameById(pr.TargetHouseholdId)</span>
+                                        <button class="delete-btn-card" 
+                                                @onclick="(() => RequestDeletePending(pr.HouseholdReceiptId))" 
+                                                @onclick:stopPropagation="true"
+                                                title="حذف رسید">
+                                            <i class="fa-solid fa-times"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="card-amount">
+                                        <span class="amount-value">@pr.AmountTotal.ToString("N0", CultureInfo.InvariantCulture)</span>
+                                        <span class="amount-unit">ریال</span>
+                                    </div>
+                                    
+                                    <div class="card-description">
+                                        <span class="description-text">تاریخ: @pr.CreatedAt.ToString("yyyy/MM/dd", new CultureInfo("fa-IR"))</span>
+                                        @if (pr.Remaining > 0)
+                                        {
+                                            <span class="remaining-info">باقیمانده: @pr.Remaining.ToString("N0", CultureInfo.InvariantCulture) ریال</span>
+                                        }
+                                    </div>
+                                    
+                                    <div class="card-progress">
+                                        @{
+                                            var progressPercent = pr.AmountTotal > 0 ? ((pr.AmountTotal - pr.Remaining) * 100 / pr.AmountTotal) : 0;
+                                        }
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: @(progressPercent)%"></div>
+                                        </div>
+                                        <span class="progress-text">@(progressPercent.ToString("F0"))% تسهیم شده</span>
+                                    </div>
+                                    
+                                    <div class="card-actions">
+                                        <button class="continue-btn" 
+                                                @onclick="(() => ContinuePending(pr.HouseholdReceiptId))" 
+                                                @onclick:stopPropagation="true" 
+                                                disabled="@(pr.Remaining <= 0)"
+                                                title="ادامه تسهیم">
+                                            <i class="fa-solid fa-play"></i>
+                                            <span>ادامه تسهیم</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- New Receipt Form -->
+                <div class="form-card">
+                    <div class="form-header">
+                        <i class="fa-solid fa-plus"></i>
+                        <h2>ثبت دریافت جدید</h2>
+                    </div>
+                    
+                    <div class="form-body">
+                        <div class="form-field">
+                            <label class="field-label">خانوار مقصد</label>
+                            <DsDropdown @bind-Value="selectedHouseholdIdStr" 
+                                        Items="@householdDropdownItems" 
+                                        Placeholder="انتخاب خانوار..." 
+                                        Searchable="true" 
+                                        SearchPlaceholder="جستجوی خانوار..." />
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">نوع پرداخت‌کننده</label>
+                            <select class="form-select" @bind="payerType">
+                                <option value="1">سرپرست خانوار</option>
+                                <option value="2">یکی از اعضا</option>
+                                <option value="3">شخص ثالث</option>
+                            </select>
+                        </div>
+
+                        @if (payerType == 2)
+                        {
+                            <div class="form-field">
+                                <label class="field-label">عضو پرداخت‌کننده</label>
+                                <select class="form-select" @bind="payerMemberId">
+                                    <option value="">انتخاب عضو...</option>
+                                    @foreach (var m in householdMembers)
+                                    {
+                                        <option value="@m.MemberId">@m.FirstName @m.LastName</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        else if (payerType == 3)
+                        {
+                            <div class="form-field">
+                                <label class="field-label">نام شخص ثالث</label>
+                                <input class="form-input" @bind="payerFullName" placeholder="نام کامل" />
+                            </div>
+                        }
+
+                        <div class="form-row">
+                            <div class="form-field amount-field">
+                                <label class="field-label">مبلغ کل</label>
+                                <DsMoneyInput Value="@AmountTotalString" ValueChanged="@((string v) => AmountTotalString = v)" Placeholder="مبلغ کل دریافت" Class="amount-input" />
+                            </div>
+                            <div class="form-field">
+                                <label class="field-label">کانال پرداخت</label>
+                                <select class="form-select" @bind="payChannel">
+                                    <option value="3">بانک</option>
+                                    <option value="4">بورس</option>
+                                </select>
+                            </div>
+                            @if (payChannel == 3)
+                            {
+                                <div class="form-field">
+                                    <label class="field-label">حساب تفضیلی (نقد و بانک)</label>
+                                    <select class="form-select" @bind="selectedCashBankSubsidiaryId">
+                                        <option value="">— انتخاب حساب تفضیلی نقد و بانک —</option>
+                                        @foreach (var acc in cashBankSubsidiaries)
+                                        {
+                                            <option value="@acc.AccountId">@acc.Code - @acc.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+                            @if (payChannel == 4)
+                            {
+                                <div class="form-field">
+                                    <label class="field-label">حساب تفضیلی (بورس)</label>
+                                    <select class="form-select" @bind="selectedCashBankSubsidiaryId">
+                                        <option value="">— انتخاب حساب تفضیلی بورس —</option>
+                                        @foreach (var acc in stockSubsidiaries)
+                                        {
+                                            <option value="@acc.AccountId">@acc.Name (@acc.Code)</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">توضیحات</label>
+                            <textarea class="form-textarea" @bind="notes" placeholder="توضیحات اختیاری..." rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (currentStep == 2)
+        {
+            <!-- Step 2: Allocation -->
+            <div class="step-content-wrapper">
+                @if (step2Loading)
+                {
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <p>در حال بارگذاری اطلاعات تسهیم...</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <div class="card-icon">
+                                <i class="fa-solid fa-coins"></i>
+                            </div>
+                            <div class="card-content">
+                                <span class="card-label">مبلغ کل</span>
+                                <span class="card-value">@amountTotal.ToString("N0", CultureInfo.InvariantCulture) ریال</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-icon">
+                                <i class="fa-solid fa-chart-pie"></i>
+                            </div>
+                            <div class="card-content">
+                                <span class="card-label">تخصیص یافته</span>
+                                <span class="card-value allocated">@allocations.Sum(a => a.Amount).ToString("N0", CultureInfo.InvariantCulture) ریال</span>
+                            </div>
+                        </div>
+                        <div class="summary-card remaining">
+                            <div class="card-icon">
+                                <i class="fa-solid fa-wallet"></i>
+                            </div>
+                            <div class="card-content">
+                                <span class="card-label">باقیمانده</span>
+                                <span class="card-value remaining">@((amountTotal - allocations.Sum(a => a.Amount)).ToString("N0", CultureInfo.InvariantCulture)) ریال</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="items-grid @(allocations.Count == 1 ? "single-item" : "multi-items")">
+                        @for (int i = 0; i < allocations.Count; i++)
+                        {
+                            var idx = i;
+                            <div class="item-card allocation-item">
+                                <div class="allocation-header">
+                                    <div class="allocation-title-row">
+                                        <h3 class="allocation-title">سطر @(idx + 1)</h3>
+                                        <button class="btn-icon btn-delete" @onclick="(() => RemoveRow(idx))">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    <div class="allocation-amounts-row">
+                                        <span class="amount-allocated">@(string.IsNullOrEmpty(GetAllocMoneyString(idx, nameof(HouseholdReceiptAllocation.Amount))) ? "0" : GetAllocMoneyString(idx, nameof(HouseholdReceiptAllocation.Amount))) ریال</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="item-details">
+                                    <div class="form-field">
+                                        <label class="field-label">عضو</label>
+                                        <select class="form-select" value="@allocations[idx].MemberId" @onchange="(e => OnAllocMemberChanged(idx, e))">
+                                            <option value="0">انتخاب عضو...</option>
+                                            @foreach (var m in householdMembers)
+                                            {
+                                                <option value="@m.MemberId">@m.FirstName @m.LastName</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label class="field-label">الگوی حسابداری</label>
+                                        <select class="form-select" value="@(allocations[idx].PostingTemplateId?.ToString() ?? "")" @onchange="(e => OnPostingTemplateChanged(idx, e))">
+                                            <option value="">انتخاب الگو...</option>
+                                            @foreach (var template in postingTemplates)
+                                            {
+                                                <option value="@template.PostingTemplateId">@template.TemplateName</option>
+                                            }
+                                        </select>
+                                        
+                                        @* Template lines preview *@
+                                        @if (allocations[idx].PostingTemplateId.HasValue)
+                                        {
+                                            var lines = GetTemplateLines(allocations[idx].PostingTemplateId);
+                                            if (lines.Any())
+                                            {
+                                                <div class="mt-2 p-2 bg-light rounded template-lines-preview" style="font-size: 0.8em;">
+                                                    @foreach (var line in lines)
+                                                    {
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <span>@line.LineNo.ToString("D2"): @line.AccountCode - @line.AccountName - <span class="@GetSideClass(line.Side)">@(GetDisplayAmountForLine(idx))</span></span>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                    
+                                    
+                                    <div class="form-field amount-field">
+                                        <label class="field-label">مبلغ</label>
+                                        <div class="remaining-amount-display" @onclick="(() => FillRemainingAmount(idx))">
+                                            <span class="remaining-label">باقیمانده:</span>
+                                            <span class="remaining-value">
+                                                @{
+                                                    var remaining = amountTotal - allocations.Sum(a => a.Amount);
+                                                    var remainingClass = remaining == 0 ? "text-success" : (remaining > 0 ? "text-warning" : "text-danger");
+                                                }
+                                                <span class="remaining-number fw-bold @remainingClass">@remaining.ToString("N0", CultureInfo.InvariantCulture)</span>
+                                                ریال
+                                            </span>
+                                        </div>
+                                        <DsMoneyInput Class="amount-input"
+                                                      Value="@GetAllocMoneyString(idx, nameof(HouseholdReceiptAllocation.Amount))"
+                                                      ValueChanged="(v => OnAllocMoneyChangedWithValidation(idx, v))"
+                                                      Placeholder="مبلغ را وارد کنید"
+                                                      @oninput="@((ChangeEventArgs e) => OnAmountInputRealTime(idx, e))" />
+                                    </div>
+
+                                    <div class="form-field">
+                                        <label class="field-label">بابت</label>
+                                        <input class="form-control" type="text"
+                                               placeholder="مثلاً بابت واریز سپرده / توضیح کوتاه"
+                                               @bind="allocations[idx].Notes" />
+                                    </div>
+                                    
+                                    @if (allocations[idx].PurposeType == 2)
+                                    {
+                                        <div class="info-note">
+                                            <i class="fa-solid fa-info-circle"></i>
+                                            <span>تفکیک اصل/سود/جریمه به صورت خودکار محاسبه می‌شود</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    
+                    <div class="add-row-inline">
+                        <button class="btn btn-primary btn-add-row" @onclick="AddRow" disabled="@step2Loading">
+                            <i class="fa-solid fa-plus me-2"></i>
+                            افزودن سطر
+                        </button>
+                    </div>
+                    
+                    @if (allocations.Any())
+                    {
+                        <div class="allocation-summary-card">
+                            <div class="summary-header">
+                                <i class="fa-solid fa-list-check"></i>
+                                <h3>خلاصه تسهیم واریزی</h3>
+                            </div>
+                            <div class="summary-content">
+                                <!-- Desktop View -->
+                                <div class="allocations-desktop-list">
+                                    @for (int i = 0; i < allocations.Count; i++)
+                                    {
+                                        var a = allocations[i];
+                                        var member = householdMembers.FirstOrDefault(m => m.MemberId == a.MemberId);
+                                        var templateText = GetPostingTemplateText(a.PostingTemplateId);
+                                        <div class="summary-row">
+                                            <span class="row-index">سطر @(i + 1)</span>
+                                            <span class="member-name">@(member?.FirstName) @(member?.LastName)</span>
+                                            <span class="purpose-text">@templateText</span>
+                                            @if (!string.IsNullOrWhiteSpace(a.Notes))
+                                            {
+                                                <span class="note-chip">@a.Notes</span>
+                                            }
+                                            <span class="amount-text">@a.Amount.ToString("N0", CultureInfo.InvariantCulture) ریال</span>
+                                        </div>
+                                    }
+                                </div>
+                                
+                                <!-- Mobile View -->
+                                <div class="allocations-mobile-list">
+                                    @for (int i = 0; i < allocations.Count; i++)
+                                    {
+                                        var a = allocations[i];
+                                        var member = householdMembers.FirstOrDefault(m => m.MemberId == a.MemberId);
+                                        var templateText = GetPostingTemplateText(a.PostingTemplateId);
+                                        <div class="allocation-mobile-item">
+                                            <div class="allocation-mobile-header">
+                                                <div class="member-info-mobile">
+                                                    <span class="member-index">@(i + 1)</span>
+                                                    <span class="member-name-mobile">@(member?.FirstName) @(member?.LastName)</span>
+                                                </div>
+                                                <div class="amount-mobile">@a.Amount.ToString("N0", CultureInfo.InvariantCulture) ریال</div>
+                                            </div>
+                                            <div class="allocation-mobile-details">
+                                                <span class="purpose-mobile">@templateText</span>
+                                                @if (!string.IsNullOrWhiteSpace(a.Notes))
+                                                {
+                                                    <span class="note-mobile">@a.Notes</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        }
+        else if (currentStep == 3)
+        {
+            <!-- Step 3: Final Confirmation -->
+            <div class="step-content-wrapper">
+                <div class="confirmation-card">
+                    <div class="confirmation-header">
+                        <i class="fa-solid fa-check-circle"></i>
+                        <h2>تایید نهایی و ثبت رسید</h2>
+                        <p>لطفاً اطلاعات زیر را بررسی کرده و در صورت صحت، تایید نهایی کنید</p>
+                    </div>
+
+                    <div class="confirmation-summary">
+                        <div class="summary-section">
+                            <h3><i class="fa-solid fa-info-circle"></i> اطلاعات پایه</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="label">خانوار:</span>
+                                    <span class="value">@GetSelectedHouseholdName()</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">مبلغ کل:</span>
+                                    <span class="value amount">@amountTotal.ToString("N0", CultureInfo.InvariantCulture) ریال</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">کانال پرداخت:</span>
+                                    <span class="value">@GetPayChannelText()</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">پرداخت‌کننده:</span>
+                                    <span class="value">@GetPayerText()</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="summary-section">
+                            <h3><i class="fa-solid fa-chart-pie"></i> خلاصه تسهیم واریزی</h3>
+                            <div class="allocations-summary">
+                                @foreach (var allocation in allocations)
+                                {
+                                    var member = householdMembers.FirstOrDefault(m => m.MemberId == allocation.MemberId);
+                                    <div class="allocation-summary-row">
+                                        <div class="member-info">
+                                            <span class="member-name">@member?.FirstName @member?.LastName</span>
+                                            <span class="purpose-badge">@GetPostingTemplateText(allocation.PostingTemplateId)</span>
+                                        </div>
+                                        <div class="amount-info">
+                                            <span class="amount">@allocation.Amount.ToString("N0", CultureInfo.InvariantCulture) ریال</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="balance-check">
+                            @{
+                                var totalAllocated = allocations.Sum(a => a.Amount);
+                                var remaining = amountTotal - totalAllocated;
+                            }
+                            @if (remaining == 0)
+                            {
+                                <div class="balance-success">
+                                    <i class="fa-solid fa-check-circle"></i>
+                                    <span>تسهیم کامل - آماده ثبت</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="balance-warning">
+                                    <i class="fa-solid fa-exclamation-triangle"></i>
+                                    <span>باقیمانده: @remaining.ToString("N0", CultureInfo.InvariantCulture) ریال</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+    </DsMultiStepForm>
+</div>
+
+@* Amount exceeds remaining warning dialog *@
+<DsConfirm
+  Show="@showAmountExceedsWarning"
+  Title="هشدار مبلغ بیش از حد"
+  Variant="warning"
+  ConfirmText="متوجه شدم"
+  CancelText=""
+  StackButtons="false"
+  ShowWarning="true"
+  Message="مبلغ وارد شده از مبلغ باقیمانده بیشتر است. مبلغ پاک شد."
+  OnConfirm="@OnCloseAmountExceedsWarning"
+  OnCancel="@OnCloseAmountExceedsWarning" />
+
+@* Delete receipt confirmation dialog *@
+<DsConfirm
+  Show="@showDeleteConfirmDialog"
+  Title="تایید حذف رسید"
+  Variant="danger"
+  ConfirmText="حذف کن"
+  CancelText="انصراف"
+  StackButtons="false"
+  ShowWarning="true"
+  Message="آیا از حذف این رسید اطمینان دارید؟ این عمل قابل بازگشت نیست."
+  OnConfirm="@ConfirmDeleteReceipt"
+  OnCancel="@CancelDeleteReceipt" />
+
+@code {
+    private int currentStep = 1;
+    private bool isBusy = false;
+    private bool step2Loading = false;
+    private bool pendingReceiptsLoading = true;
+
+    private List<string> stepLabels = new()
+    {
+        "اطلاعات پایه",
+        "تسهیم مبلغ", 
+        "تایید نهایی"
+    };
+
+    // All the existing fields and properties from the original wizard
+    private List<PendingReceiptSummary> pendingReceipts = new();
+    private long? expandedReceiptId = null;
+    private List<DsDropdown.DsDropdownItem> householdDropdownItems = new();
+    private string selectedHouseholdIdStr = "";
+    private int payerType = 1;
+    private long? payerMemberId = null;
+    private string payerFullName = "";
+    private decimal amountTotal = 0;
+    private int payChannel = 3;
+    private long? selectedBankAccountId = null;
+    private string notes = "";
+    private List<Member> householdMembers = new();
+    private List<HouseholdReceiptAllocation> allocations = new();
+    private List<PostingTemplate> postingTemplates = new();
+    private List<BankAccount> bankAccounts = new();
+    private List<Account> cashBankSubsidiaries = new();
+    private List<Account> stockSubsidiaries = new();
+    private long? selectedCashBankSubsidiaryId = null;
+    private long? currentReceiptId = null;
+    private bool isNewlyCreatedReceipt = false;
+    
+    // Warning dialog state
+    private bool showAmountExceedsWarning = false;
+    
+    // Delete confirmation dialog state
+    private bool showDeleteConfirmDialog = false;
+    private long receiptIdToDelete = 0;
+    
+    // Template lines cache for preview
+    private Dictionary<int, List<PostingTemplateLine>> templateLinesCache = new();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialData();
+    }
+
+    private async Task LoadInitialData()
+    {
+        try
+        {
+            Console.WriteLine("=== LoadInitialData Started ===");
+            
+            // Load all initial data including pending receipts
+            Console.WriteLine("Loading pending receipts...");
+            await LoadPendingReceipts();
+            
+            Console.WriteLine("Loading households...");
+            await LoadHouseholds();
+            
+            Console.WriteLine("Loading posting templates...");
+            await LoadPostingTemplates();
+            
+            Console.WriteLine("Loading cash/bank subsidiary accounts (under Moeen 11)...");
+            await LoadCashBankSubsidiaries();
+            
+            Console.WriteLine("Loading stock subsidiary accounts (under Moeen 12)...");
+            await LoadStockSubsidiaries();
+            
+            Console.WriteLine("=== LoadInitialData Completed Successfully ===");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR in LoadInitialData: {ex.Message}");
+            Console.WriteLine($"Exception Type: {ex.GetType().Name}");
+            Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+            Toast.Error($"خطا در بارگذاری اطلاعات: {ex.Message}");
+        }
+        finally
+        {
+            pendingReceiptsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool CanProceedToNextStep()
+    {
+        return currentStep switch
+        {
+            1 => !string.IsNullOrEmpty(selectedHouseholdIdStr) && 
+                 amountTotal > 0 && 
+                 (payerType != 2 || payerMemberId.HasValue) && 
+                 (payerType != 3 || !string.IsNullOrEmpty(payerFullName)) &&
+                 // Require selecting subsidiary account (bank account no longer required at this step)
+                 (selectedCashBankSubsidiaryId.HasValue && selectedCashBankSubsidiaryId.Value > 0),
+            2 => allocations.Any() && 
+                 allocations.All(a => a.Amount > 0 && a.PostingTemplateId.HasValue && a.MemberId > 0),
+            _ => false
+        };
+    }
+
+    private bool CanSubmitForm()
+    {
+        return currentStep == 3 && 
+               allocations.Any() && 
+               allocations.Sum(a => a.Amount) == amountTotal;
+    }
+
+    private async Task OnStepChanged(int newStep)
+    {
+        if (newStep == 2 && currentStep == 1)
+        {
+            // Moving from Step 1 to Step 2
+            // Guard: if a receipt already exists (user went back and forward), do NOT create again
+            if (currentReceiptId.HasValue && currentReceiptId.Value > 0)
+            {
+                currentStep = 2;
+                return;
+            }
+
+            await CreateReceiptAndProceedToStep2();
+        }
+        else if (newStep == 1 && currentStep == 2)
+        {
+            // User is going back from Step 2 to Step 1
+            // If this receipt was newly created in this session (not a continued pending one), delete it
+            if (isNewlyCreatedReceipt && currentReceiptId.HasValue && currentReceiptId.Value > 0)
+            {
+                try
+                {
+                    await ReceiptRepo.DeleteAsync(currentReceiptId.Value);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to delete newly created receipt {currentReceiptId}: {ex.Message}");
+                }
+                finally
+                {
+                    // Reset state so that re-entering Step 2 will create a clean new receipt
+                    currentReceiptId = null;
+                    allocations.Clear();
+                    isNewlyCreatedReceipt = false;
+                }
+            }
+
+            currentStep = 1;
+        }
+        else
+        {
+            currentStep = newStep;
+        }
+    }
+
+    private async Task CreateReceiptAndProceedToStep2()
+    {
+        try
+        {
+            isBusy = true;
+            await CreateReceipt();
+            currentStep = 2;
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"خطا در ثبت رسید: {ex.Message}");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task OnFinalSubmit()
+    {
+        try
+        {
+            isBusy = true;
+            await SaveAndProcessAllocations();
+            Toast.Success("رسید با موفقیت ثبت و پردازش شد");
+            // Navigate back or reset form
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"خطا در ثبت نهایی: {ex.Message}");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private string GetSelectedHouseholdName()
+    {
+        var item = householdDropdownItems.FirstOrDefault(h => h.Value == selectedHouseholdIdStr);
+        return item?.Text ?? "نامشخص";
+    }
+
+    private string GetPayChannelText()
+    {
+        return payChannel switch
+        {
+            3 => "بانک", 
+            4 => "بورس",
+            _ => "نامشخص"
+        };
+    }
+
+    private string GetPayerText()
+    {
+        return payerType switch
+        {
+            1 => "سرپرست خانوار",
+            2 => householdMembers.FirstOrDefault(m => m.MemberId == payerMemberId)?.FirstName + " " + 
+                 householdMembers.FirstOrDefault(m => m.MemberId == payerMemberId)?.LastName ?? "عضو نامشخص",
+            3 => payerFullName ?? "شخص ثالث",
+            _ => "نامشخص"
+        };
+    }
+
+    // Essential methods from original wizard
+    private async Task LoadPendingReceipts()
+    {
+        try
+        {
+            Console.WriteLine("=== LoadPendingReceipts Started ===");
+            var response = await Http.GetAsync("/api/household-receipts/pending");
+            Console.WriteLine($"Pending receipts response status: {response.StatusCode}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Pending receipts raw content: {content}");
+                
+                if (!string.IsNullOrWhiteSpace(content) && content.Trim().StartsWith("["))
+                {
+                    pendingReceipts = await response.Content.ReadFromJsonAsync<List<PendingReceiptSummary>>() ?? new();
+                    Console.WriteLine($"Loaded {pendingReceipts.Count} pending receipts");
+                    
+                    // Log each receipt for debugging
+                    for (int i = 0; i < pendingReceipts.Count; i++)
+                    {
+                        var receipt = pendingReceipts[i];
+                        Console.WriteLine($"Receipt {i}: ID={receipt.HouseholdReceiptId}, Amount={receipt.AmountTotal}, Household={receipt.TargetHouseholdId}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Empty or invalid JSON content for pending receipts");
+                    pendingReceipts = new List<PendingReceiptSummary>();
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Failed to load pending receipts: {response.StatusCode}");
+                pendingReceipts = new List<PendingReceiptSummary>();
+            }
+            
+            Console.WriteLine($"Final pending receipts count: {pendingReceipts.Count}");
+            Console.WriteLine("=== LoadPendingReceipts Finished ===");
+        }
+        catch (Exception ex)
+        {
+            pendingReceipts = new List<PendingReceiptSummary>();
+            Console.WriteLine($"EXCEPTION in LoadPendingReceipts: {ex.Message}");
+            Console.WriteLine($"Exception Stack: {ex.StackTrace}");
+        }
+    }
+
+    private async Task LoadHouseholds()
+    {
+        try
+        {
+            var households = await HouseholdRepo.GetAllAsync();
+            householdDropdownItems = households.Select(h => new DsDropdown.DsDropdownItem
+            {
+                Value = h.HouseholdId.ToString(),
+                Text = $"{h.HouseholdCode} - {h.Name}"
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"خطا در بارگذاری خانوارها: {ex.Message}");
+        }
+    }
+
+    private async Task LoadPostingTemplates()
+    {
+        try
+        {
+            var response = await Http.GetAsync("/api/posting-templates");
+            if (response.IsSuccessStatusCode)
+            {
+                postingTemplates = await response.Content.ReadFromJsonAsync<List<PostingTemplate>>() ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"خطا در بارگذاری الگوهای حسابداری: {ex.Message}");
+        }
+    }
+
+    private async Task LoadBankAccounts()
+    {
+        try
+        {
+            bankAccounts = (await BankAccountService.GetAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"خطا در بارگذاری حساب‌های بانکی: {ex.Message}");
+        }
+    }
+
+    private async Task LoadCashBankSubsidiaries()
+    {
+        try
+        {
+            // Load full hierarchy so we can filter by parent Moeen (Level=3)
+            var accounts = (await AccountRepo.GetAllWithHierarchyAsync()).ToList();
+
+            // Find Moeen accounts that represent Cash/Bank (code starts with "11" only)
+            var moeenCashBank = accounts.Where(a => a.IsActive
+                                                    && (a.Level == 3)
+                                                    && (!string.IsNullOrWhiteSpace(a.Code) && a.Code.Trim().StartsWith("11")))
+                                           .ToList();
+
+            var subs = new List<Account>();
+            foreach (var m in moeenCashBank)
+            {
+                var children = m.Children.Where(c => c.IsActive && (c.Level == 4 || c.Level == 0)).ToList();
+                subs.AddRange(children);
+            }
+
+            cashBankSubsidiaries = subs
+                .GroupBy(x => x.AccountId)
+                .Select(g => g.First())
+                .OrderBy(x => x.Code)
+                .ThenBy(x => x.Name)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR LoadCashBankSubsidiaries: {ex.Message}");
+            Toast.Error($"خطا در بارگذاری حساب‌های تفضیلی نقد و بانک: {ex.Message}");
+            cashBankSubsidiaries = new();
+        }
+    }
+
+    private async Task LoadStockSubsidiaries()
+    {
+        try
+        {
+            // Load full hierarchy so we can filter by parent Moeen (Level=3)
+            var accounts = (await AccountRepo.GetAllWithHierarchyAsync()).ToList();
+
+            // Find Moeen accounts that represent Stock/Securities (code starts with "12" only)
+            var moeenStock = accounts.Where(a => a.IsActive
+                                                && (a.Level == 3)
+                                                && (!string.IsNullOrWhiteSpace(a.Code) && a.Code.Trim().StartsWith("12")))
+                                       .ToList();
+
+            var subs = new List<Account>();
+            foreach (var m in moeenStock)
+            {
+                var children = m.Children.Where(c => c.IsActive && (c.Level == 4 || c.Level == 0)).ToList();
+                subs.AddRange(children);
+            }
+
+            stockSubsidiaries = subs
+                .GroupBy(x => x.AccountId)
+                .Select(g => g.First())
+                .OrderBy(x => x.Code)
+                .ThenBy(x => x.Name)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR LoadStockSubsidiaries: {ex.Message}");
+            Toast.Error($"خطا در بارگذاری حساب‌های تفضیلی بورس: {ex.Message}");
+            stockSubsidiaries = new();
+        }
+    }
+
+    private async Task CreateReceipt()
+    {
+        try
+        {
+            Console.WriteLine("=== CreateReceipt Started ===");
+            
+            if (string.IsNullOrEmpty(selectedHouseholdIdStr) || !long.TryParse(selectedHouseholdIdStr, out var householdId))
+            {
+                Console.WriteLine("ERROR: Invalid household selection");
+                Toast.Error("لطفاً خانوار مقصد را انتخاب کنید");
+                return;
+            }
+
+            if (amountTotal <= 0)
+            {
+                Console.WriteLine($"ERROR: Invalid amount: {amountTotal}");
+                Toast.Error("لطفاً مبلغ معتبر وارد کنید");
+                return;
+            }
+
+            var receipt = new
+            {
+                TargetHouseholdId = householdId,
+                PayerType = payerType,
+                PayerMemberId = payerMemberId,
+                PayerFullName = payerFullName,
+                AmountTotal = amountTotal,
+                PayChannel = payChannel,
+                BankAccountId = selectedBankAccountId,
+                SubsidiaryAccountId = selectedCashBankSubsidiaryId,
+                Notes = notes,
+                OccurredAt = DateTime.Now
+            };
+
+            Console.WriteLine($"Sending receipt data: {System.Text.Json.JsonSerializer.Serialize(receipt)}");
+            
+            var response = await Http.PostAsJsonAsync("/api/receipts/household", receipt);
+            
+            Console.WriteLine($"Response Status: {response.StatusCode}");
+            Console.WriteLine($"Response Headers: {string.Join(", ", response.Headers.Select(h => $"{h.Key}: {string.Join(",", h.Value)}"))}");
+            
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Response Content: {responseContent}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                if (string.IsNullOrWhiteSpace(responseContent))
+                {
+                    Console.WriteLine("ERROR: Empty response from server");
+                    Toast.Error("خطا: پاسخ خالی از سرور");
+                    return;
+                }
+                
+                try
+                {
+                    var result = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(responseContent);
+                    Console.WriteLine($"Parsed JSON: {result}");
+                    
+                    if (result.TryGetProperty("householdReceiptId", out var receiptIdProperty))
+                    {
+                        currentReceiptId = receiptIdProperty.GetInt64();
+                        isNewlyCreatedReceipt = true;
+                        Console.WriteLine($"Receipt created successfully with ID: {currentReceiptId}");
+                        
+                        // Load household members for allocation
+                        await LoadHouseholdMembers(householdId);
+                        
+                        // Initialize with one allocation row
+                        allocations.Clear();
+                        AddRow();
+                        
+                        Toast.Success("رسید با موفقیت ثبت شد");
+                    }
+                    else
+                    {
+                        Console.WriteLine("ERROR: receiptId not found in response");
+                        Toast.Error("خطا: شناسه رسید در پاسخ یافت نشد");
+                    }
+                }
+                catch (Exception jsonEx)
+                {
+                    Console.WriteLine($"ERROR: JSON parsing failed: {jsonEx.Message}");
+                    Console.WriteLine($"JSON Exception Stack: {jsonEx.StackTrace}");
+                    Toast.Error($"خطا در پردازش پاسخ سرور: {jsonEx.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"ERROR: HTTP {response.StatusCode} - {responseContent}");
+                Toast.Error($"خطا در ثبت رسید ({response.StatusCode}): {responseContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FATAL ERROR in CreateReceipt: {ex.Message}");
+            Console.WriteLine($"Exception Type: {ex.GetType().Name}");
+            Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                Console.WriteLine($"Inner Stack: {ex.InnerException.StackTrace}");
+            }
+            Toast.Error($"خطای سیستمی: {ex.Message}");
+        }
+        finally
+        {
+            Console.WriteLine("=== CreateReceipt Finished ===");
+        }
+    }
+
+    private async Task LoadHouseholdMembers(long householdId)
+    {
+        try
+        {
+            householdMembers = (await MemberRepo.GetAllAsync(householdId: householdId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"خطا در بارگذاری اعضای خانوار: {ex.Message}");
+        }
+    }
+
+    private async Task SaveAndProcessAllocations()
+    {
+        if (!currentReceiptId.HasValue || currentReceiptId <= 0)
+        {
+            Toast.Error("شناسه رسید معتبر نیست");
+            return;
+        }
+
+        var sum = allocations.Sum(a => a.Amount);
+        if (sum != amountTotal)
+        {
+            Toast.Error("جمع خلاصه تسهمی واریزی باید دقیقاً برابر مبلغ کل باشد");
+            return;
+        }
+
+        try
+        {
+            // Save allocations
+            var saveResponse = await Http.PostAsJsonAsync($"/api/receipts/{currentReceiptId}/allocations", allocations);
+            if (!saveResponse.IsSuccessStatusCode)
+            {
+                var error = await saveResponse.Content.ReadAsStringAsync();
+                Toast.Error($"خطا در ثبت تسهیم: {error}");
+                return;
+            }
+
+            // Process allocations
+            var processResponse = await Http.PostAsync($"/api/receipts/{currentReceiptId}/process", null);
+            if (processResponse.IsSuccessStatusCode)
+            {
+                Toast.Success("رسید با موفقیت ثبت و پردازش شد");
+                
+                // Reset form
+                currentStep = 1;
+                allocations.Clear();
+                currentReceiptId = null;
+                selectedHouseholdIdStr = "";
+                amountTotal = 0;
+                AmountTotalString = "";
+                notes = "";
+                isNewlyCreatedReceipt = false;
+                
+                await LoadPendingReceipts();
+            }
+            else
+            {
+                var error = await processResponse.Content.ReadAsStringAsync();
+                Toast.Error($"خطا در پردازش تسهیم: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"خطا در ثبت نهایی: {ex.Message}");
+            throw;
+        }
+    }
+
+    // Allocation management methods
+    private void AddRow()
+    {
+        allocations.Add(new HouseholdReceiptAllocation
+        {
+            HouseholdReceiptId = currentReceiptId ?? 0,
+            MemberId = 0,
+            Amount = 0,
+            PurposeType = 0, // no special UI until user picks a template
+            PostingTemplateId = null, // dropdown shows "انتخاب الگو..."
+            Notes = ""
+        });
+    }
+
+    private void RemoveRow(int index)
+    {
+        if (index >= 0 && index < allocations.Count)
+        {
+            allocations.RemoveAt(index);
+        }
+    }
+
+    private string GetAllocMoneyString(int index, string propertyName)
+    {
+        if (index < 0 || index >= allocations.Count) return "";
+        var allocation = allocations[index];
+        var amount = propertyName == nameof(HouseholdReceiptAllocation.Amount) ? allocation.Amount : 0;
+        return amount > 0 ? amount.ToString("N0", CultureInfo.InvariantCulture) : "";
+    }
+
+    private void OnAllocMoneyChangedWithValidation(int index, string value)
+    {
+        if (index < 0 || index >= allocations.Count) return;
+        
+        if (decimal.TryParse(value?.Replace(",", "") ?? "", out var amount))
+        {
+            allocations[index].Amount = amount;
+        }
+        else
+        {
+            allocations[index].Amount = 0;
+        }
+        
+        // Force UI update to refresh remaining amounts
+        StateHasChanged();
+    }
+
+    private void OnAllocMemberChanged(int index, ChangeEventArgs e)
+    {
+        if (index < 0 || index >= allocations.Count) return;
+        
+        if (long.TryParse(e.Value?.ToString(), out var memberId))
+        {
+            allocations[index].MemberId = memberId;
+        }
+    }
+
+    private async Task OnPostingTemplateChanged(int index, ChangeEventArgs e)
+    {
+        if (index < 0 || index >= allocations.Count) return;
+        
+        if (int.TryParse(e.Value?.ToString(), out var templateId))
+        {
+            allocations[index].PostingTemplateId = templateId;
+            
+            // Load template lines for preview if not already cached
+            if (templateId > 0 && !templateLinesCache.ContainsKey(templateId))
+            {
+                await LoadTemplateLines(templateId);
+            }
+            
+            StateHasChanged();
+        }
+    }
+
+    private void OnAllocTemplateChanged(int index, ChangeEventArgs e)
+    {
+        if (index < 0 || index >= allocations.Count) return;
+        
+        if (long.TryParse(e.Value?.ToString(), out var templateId))
+        {
+            allocations[index].PostingTemplateId = (int)templateId;
+            
+            // Set purpose type based on template
+            var template = postingTemplates.FirstOrDefault(t => t.PostingTemplateId == templateId);
+            if (template != null)
+            {
+                allocations[index].PurposeType = template.CategoryCode ?? 0;
+            }
+        }
+    }
+
+    private decimal GetRemainingAmountForRow(int index)
+    {
+        var totalAllocatedOthers = allocations.Where((a, i) => i != index).Sum(a => a.Amount);
+        return amountTotal - totalAllocatedOthers;
+    }
+
+    private void FillRemainingAmount(int index)
+    {
+        if (index >= 0 && index < allocations.Count)
+        {
+            allocations[index].Amount = GetRemainingAmountForRow(index);
+        }
+    }
+
+    private void OnAmountInputRealTime(int index, ChangeEventArgs e)
+    {
+        if (index < 0 || index >= allocations.Count) return;
+        
+        var inputValue = e?.Value?.ToString() ?? string.Empty;
+        var amount = ParseMoney(inputValue);
+        
+        // Calculate remaining amount for this specific row BEFORE updating
+        var totalAllocatedOthers = allocations.Where((a, i) => i != index).Sum(a => a.Amount);
+        var remainingForThisRow = amountTotal - totalAllocatedOthers;
+        
+        // Check if typed amount exceeds remaining amount
+        if (amount > remainingForThisRow)
+        {
+            // Show warning and clear the amount
+            showAmountExceedsWarning = true;
+            allocations[index].Amount = 0;
+        }
+        else
+        {
+            // Update the amount for live calculation
+            allocations[index].Amount = amount;
+        }
+        
+        // Force UI update to show live remaining amounts in all cards and individual rows
+        StateHasChanged();
+    }
+
+    private static decimal ParseMoney(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return 0m;
+        var digits = new string(s.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(digits)) return 0m;
+        if (decimal.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var d))
+            return d;
+        return 0m;
+    }
+
+    private string GetPurposeText(int purposeType)
+    {
+        return purposeType switch
+        {
+            1 => "سپرده",
+            2 => "قسط وام",
+            3 => "سایر",
+            _ => "نامشخص"
+        };
+    }
+
+    private string GetPostingTemplateText(int? postingTemplateId)
+    {
+        if (!postingTemplateId.HasValue)
+            return "الگو انتخاب نشده";
+            
+        var template = postingTemplates.FirstOrDefault(t => t.PostingTemplateId == postingTemplateId.Value);
+        return template?.TemplateName ?? "الگو نامشخص";
+    }
+
+    private Task OnCloseAmountExceedsWarning()
+    {
+        showAmountExceedsWarning = false;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+    
+    private async Task LoadTemplateLines(int templateId)
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<PostingTemplateLine>>($"/api/posting-templates/{templateId}/lines");
+            if (response != null)
+            {
+                templateLinesCache[templateId] = response;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading template lines: {ex.Message}");
+        }
+    }
+    
+    private List<PostingTemplateLine> GetTemplateLines(int? templateId)
+    {
+        if (!templateId.HasValue || !templateLinesCache.ContainsKey(templateId.Value))
+            return new List<PostingTemplateLine>();
+            
+        return templateLinesCache[templateId.Value];
+    }
+    
+    private string GetSideText(byte side)
+    {
+        return side == 1 ? "بدهکار" : "بستانکار";
+    }
+    
+    private string GetSideClass(byte side)
+    {
+        // 1=Debit => use template-side-debit, 2=Credit => template-side-credit (colors are defined in site.css)
+        return side == 1 ? "template-side-debit" : "template-side-credit";
+    }
+
+    // Pending receipts methods
+    private void TogglePending(long receiptId)
+    {
+        expandedReceiptId = expandedReceiptId == receiptId ? null : receiptId;
+    }
+
+    private async Task ContinuePending(long receiptId)
+    {
+        currentReceiptId = receiptId;
+        var receipt = pendingReceipts.FirstOrDefault(r => r.HouseholdReceiptId == receiptId);
+        if (receipt != null)
+        {
+            isNewlyCreatedReceipt = false; // continuing existing receipt, do not delete on back
+            selectedHouseholdIdStr = receipt.TargetHouseholdId.ToString();
+            amountTotal = receipt.AmountTotal;
+            // AmountTotalString = amountTotal.ToString("N0", CultureInfo.InvariantCulture);
+            
+            await LoadHouseholdMembers(receipt.TargetHouseholdId);
+            
+            // Load existing allocations
+            var response = await Http.GetAsync($"/api/receipts/{receiptId}/allocations");
+            if (response.IsSuccessStatusCode)
+            {
+                allocations = await response.Content.ReadFromJsonAsync<List<HouseholdReceiptAllocation>>() ?? new();
+            }
+            
+            currentStep = 2;
+        }
+    }
+
+    private async Task RequestDeletePending(long receiptId)
+    {
+        receiptIdToDelete = receiptId;
+        showDeleteConfirmDialog = true;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDeleteReceipt()
+    {
+        try
+        {
+            showDeleteConfirmDialog = false;
+            isBusy = true;
+            StateHasChanged();
+
+            // Delete the receipt
+            await ReceiptRepo.DeleteAsync(receiptIdToDelete);
+            
+            // Reload pending receipts
+            await LoadPendingReceipts();
+            
+            Toast.Success("رسید با موفقیت حذف شد");
+        }
+        catch (Exception ex)
+        {
+            var userFriendlyMessage = GetUserFriendlyErrorMessage(ex);
+            Toast.Error(userFriendlyMessage);
+        }
+        finally
+        {
+            isBusy = false;
+            receiptIdToDelete = 0;
+            StateHasChanged();
+        }
+    }
+
+    private Task CancelDeleteReceipt()
+    {
+        showDeleteConfirmDialog = false;
+        receiptIdToDelete = 0;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+
+    private string GetHouseholdNameById(long householdId)
+    {
+        var item = householdDropdownItems.FirstOrDefault(h => h.Value == householdId.ToString());
+        return item?.Text ?? "نامشخص";
+    }
+
+    // Property for AmountTotalString binding
+    private string AmountTotalString
+    {
+        get => amountTotal > 0 ? amountTotal.ToString("N0", CultureInfo.InvariantCulture) : "";
+        set
+        {
+            if (decimal.TryParse(value.Replace(",", ""), out var amount))
+            {
+                amountTotal = amount;
+            }
+            else
+            {
+                amountTotal = 0;
+            }
+        }
+    }
+
+    /// <summary>
+    /// تبدیل خطاهای فنی به پیام‌های کاربرپسند
+    /// </summary>
+    private string GetUserFriendlyErrorMessage(Exception ex)
+    {
+        return ex switch
+        {
+            HttpRequestException httpEx when httpEx.Message.Contains("404") => 
+                "اطلاعات مورد نظر یافت نشد. لطفاً صفحه را بازخوانی کنید.",
+            
+            HttpRequestException httpEx when httpEx.Message.Contains("500") => 
+                "خطای داخلی سرور. لطفاً با پشتیبانی تماس بگیرید.",
+            
+            HttpRequestException httpEx when httpEx.Message.Contains("timeout") => 
+                "عملیات بیش از حد طولانی شد. لطفاً دوباره تلاش کنید.",
+            
+            TaskCanceledException => 
+                "عملیات لغو شد یا بیش از حد طولانی شد.",
+            
+            JsonException => 
+                "خطا در پردازش اطلاعات دریافتی از سرور.",
+            
+            ArgumentException => 
+                "اطلاعات وارد شده نامعتبر است. لطفاً مقادیر صحیح وارد کنید.",
+            
+            InvalidOperationException => 
+                "عملیات غیرمجاز. لطفاً مراحل را به ترتیب انجام دهید.",
+            
+            UnauthorizedAccessException => 
+                "شما مجوز انجام این عملیات را ندارید.",
+            
+            _ => "خطای غیرمنتظره رخ داد. لطفاً با پشتیبانی تماس بگیرید."
+        };
+    }
+
+    private string GetDisplayAmountForLine(int allocationIndex)
+    {
+        if (allocationIndex < 0 || allocationIndex >= allocations.Count)
+            return "مبلغ";
+            
+        var allocation = allocations[allocationIndex];
+        if (allocation.Amount <= 0)
+            return "مبلغ";
+            
+        return allocation.Amount.ToString("N0", CultureInfo.InvariantCulture);
+    }
+}

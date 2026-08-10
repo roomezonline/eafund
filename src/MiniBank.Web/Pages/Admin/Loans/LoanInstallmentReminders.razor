@@ -1,0 +1,713 @@
+@page "/admin/loan-installment-reminders"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Models.Sms
+@using MiniBank.Web.Services
+@using System.Globalization
+@using System.Text.Json
+@inject DsToastService Toasts
+@inject LoanInstallmentReminderRepository ReminderRepo
+@inject SmsPanelRepository SmsPanelRepo
+@inject SmsSendService SmsSendService
+@inject SmsSender SmsSender
+@inject SmsMessageLogRepository SmsLogRepo
+
+<PageTitle>یادآوری اقساط</PageTitle>
+
+<DsPageHeader Title="یادآوری اقساط"
+             Icon="fa-solid fa-bell"
+             Subtitle="اقساط نزدیک سررسید یا معوق + ارسال دستی پیامک با تاریخچه"
+             ShowBackButton="true" />
+
+<style>
+  .lir-page{direction:rtl; padding:16px 14px 80px; max-width:1200px; margin:0 auto}
+  .lir-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px; padding:12px}
+  .lir-card-title{font-weight:950; color:#0f172a}
+  .lir-muted{font-size:12px; color:#64748b; font-weight:800}
+  .lir-actions{display:flex; gap:8px; flex-wrap:wrap}
+
+  .lir-filters{display:grid; gap:10px}
+  .lir-grid-2{display:grid; gap:10px; grid-template-columns:1fr 1fr; align-items:end}
+  @@media (max-width: 720px){.lir-grid-2{grid-template-columns:1fr}}
+  .lir-label{font-weight:900; font-size:12px; color:#0f172a}
+  .lir-input{height:40px; border-radius:12px; border:1px solid #cbd5e1; padding:0 12px; font-weight:900; background:#fff; outline:none}
+  .lir-input:focus{border-color:#93c5fd; box-shadow:0 0 0 4px rgba(59,130,246,.12)}
+
+  .lir-btn{height:40px; border-radius:12px; border:1px solid #e2e8f0; background:#fff; color:#0f172a; font-weight:950; padding:0 14px; cursor:pointer; display:inline-flex; align-items:center; gap:8px}
+  .lir-btn.primary{border-color:#0ea5e9; background:#0ea5e9; color:#fff}
+  .lir-btn:disabled{opacity:.6; cursor:not-allowed}
+
+  .lir-list{display:grid; gap:10px; margin-top:10px}
+  .lir-row{border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; background:#fff}
+  .lir-row-head{padding:12px; background:linear-gradient(180deg,#f8fafc,#ffffff); cursor:pointer}
+  .lir-row-grid{display:grid; grid-template-columns:1fr auto; gap:10px; align-items:start}
+  @@media (max-width: 720px){.lir-row-grid{grid-template-columns:1fr}}
+
+  .lir-chips{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .lir-chip{display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-weight:950; font-size:12px; border:1px solid rgba(15,23,42,.10); background:#f8fafc; color:#0f172a}
+  .lir-chip.badge{border-color:rgba(2,132,199,0.15)}
+  .lir-kv{display:flex; gap:10px; flex-wrap:wrap; font-size:12px; color:#475569; font-weight:800}
+  .lir-name{font-weight:950; font-size:14px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .lir-sub{font-size:12px; color:#64748b; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; direction:ltr; text-align:left}
+  .lir-amount{margin-top:6px; display:flex; gap:8px; align-items:center; font-weight:950; color:#0f172a}
+  .lir-amount strong{direction:ltr}
+  .lir-meta{margin-top:8px; font-size:12px; color:#475569; font-weight:800}
+  .lir-meta b{font-weight:950; color:#0f172a}
+
+  .lir-row-action{display:grid; gap:8px; justify-items:end}
+  @@media (max-width: 720px){.lir-row-action{justify-items:stretch}}
+  .lir-send{height:36px; border-radius:12px; border:1px solid #0ea5e9; background:#0ea5e9; color:#fff; font-weight:950; padding:0 12px; font-size:12px; cursor:pointer}
+  .lir-send:disabled{opacity:.6; cursor:not-allowed}
+
+  .lir-details{padding:12px; border-top:1px solid #e5e7eb; background:#fff}
+  .lir-details-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
+  .lir-mini-btn{height:34px; border-radius:12px; border:1px solid #e2e8f0; background:#fff; color:#0f172a; font-weight:950; padding:0 12px; font-size:12px; cursor:pointer}
+  .lir-mini-btn:disabled{opacity:.6; cursor:not-allowed}
+
+  .lir-log{border:1px solid #e5e7eb; border-radius:14px; padding:12px; background:#f8fafc}
+  .lir-log-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
+  .lir-log-meta{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .lir-log-time{font-size:12px; color:#64748b; font-weight:800; white-space:nowrap; direction:ltr}
+  .lir-pre{white-space:pre-wrap; margin:10px 0 0 0; font-family:inherit; font-weight:800; line-height:1.9; font-size:12px; color:#0f172a}
+</style>
+
+<section class="lir-page">
+    <div class="lir-card">
+        <div class="lir-card-title" style="margin-bottom:10px;">فیلترها</div>
+
+        <div class="lir-filters">
+            <div class="lir-grid-2">
+                <div style="display:grid; gap:6px;">
+                    <label class="lir-label">اقساط چند روز مانده به سررسید</label>
+                    <input class="lir-input" style="direction:ltr;" value="@_daysBeforeDueText" @oninput="OnDaysBeforeChanged" placeholder="1" />
+                </div>
+
+                <div style="display:grid; gap:6px;">
+                    <label class="lir-label">اقساط معوق</label>
+                    <select class="lir-input" value="@(_includeOverdue ? 1 : 0)" @onchange="OnIncludeOverdueChanged">
+                        <option value="1">نمایش بده</option>
+                        <option value="0">نمایش نده</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:grid; gap:6px;">
+                <label class="lir-label">جستجو (کد عضو / موبایل / نام / شناسه وام)</label>
+                <input class="lir-input" style="width:100%;" value="@_query" @oninput="OnQueryInput" placeholder="مثلاً 0912... یا 11008 یا محمد حسینی" />
+            </div>
+        </div>
+
+        <div class="lir-actions" style="margin-top:12px;">
+            <button class="lir-btn" @onclick="ClearFilters" disabled="@_loading">
+                پاک کردن
+            </button>
+            <button class="lir-btn primary" @onclick="LoadAsync" disabled="@_loading">
+                <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                بارگذاری
+            </button>
+        </div>
+    </div>
+
+    <div class="lir-card" style="margin-top:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <div class="lir-card-title">نتایج</div>
+            <div class="lir-muted">@_items.Count مورد</div>
+        </div>
+
+        @if (_loading)
+        {
+            <div style="margin-top:10px;">در حال بارگذاری...</div>
+        }
+        else if (_items.Count == 0)
+        {
+            <div style="margin-top:10px; font-size:12px; opacity:.75;">موردی یافت نشد.</div>
+        }
+        else
+        {
+            <div class="lir-list">
+                @foreach (var x in _items)
+                {
+                    var isOpen = IsDetailsOpen(x.InstallmentId);
+                    var isTomorrow = x.DaysToDue == 1;
+                    var isOverdue = x.OverdueDays > 0;
+
+                    var badgeText = isTomorrow ? "فردا سررسید" : (isOverdue ? $"معوق ({x.OverdueDays} روز)" : $"{x.DaysToDue} روز مانده");
+                    var badgeColor = isTomorrow ? "#0ea5e9" : (isOverdue ? "#dc2626" : "#16a34a");
+                    var badgeBg = isOverdue ? "rgba(220,38,38,0.08)" : "rgba(14,165,233,0.08)";
+
+                    _reminderSummary.TryGetValue(x.InstallmentId, out var sum);
+
+                    <div class="lir-row">
+                        <div class="lir-row-head" @onclick="(() => ToggleDetails(x.InstallmentId))">
+                            <div class="lir-row-grid">
+                                <div style="min-width:0;">
+                                    <div class="lir-chips">
+                                        <span class="lir-chip badge" style="background:@badgeBg; color:@badgeColor;">
+                                            @badgeText
+                                        </span>
+                                        <span class="lir-chip">
+                                            <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
+                                            سررسید: @FormatJalaliDate(x.DueDate)
+                                        </span>
+                                        <span class="lir-chip">قسط: @x.InstallmentNo</span>
+                                        <span class="lir-chip" style="direction:ltr;">Loan #@x.LoanId</span>
+                                    </div>
+
+                                    <div class="lir-name" style="margin-top:8px;">@x.MemberFullName</div>
+
+                                    <div class="lir-sub" style="margin-top:4px;">
+                                        <span>@(string.IsNullOrWhiteSpace(x.MemberCode) ? "-" : x.MemberCode)</span>
+                                        <span style="opacity:.45; padding:0 8px;">|</span>
+                                        <span style="color:#dc2626; font-weight:950;">@(string.IsNullOrWhiteSpace(x.MobileNumber) ? "-" : x.MobileNumber)</span>
+                                    </div>
+
+                                    <div class="lir-amount">
+                                        <i class="fa-solid fa-money-bill-wave" style="color:#16a34a" aria-hidden="true"></i>
+                                        <span>مبلغ قسط:</span>
+                                        <strong>@x.EmiAmount.ToString("N0")</strong>
+                                        <span>ریال</span>
+                                    </div>
+
+                                    <div class="lir-meta">
+                                        @if (sum == null || sum.SendCount <= 0)
+                                        {
+                                            <span style="color:#64748b; font-weight:900;">تا حالا پیامک یادآوری ارسال نشده</span>
+                                        }
+                                        else
+                                        {
+                                            <span><b>@sum.SendCount</b> بار ارسال شده</span>
+                                            <span style="opacity:.45; padding:0 8px;">|</span>
+                                            <span>آخرین ارسال: <b>@(sum.LastSentAt.HasValue ? FormatJalaliDateTime(sum.LastSentAt.Value) : "-")</b></span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="lir-row-action">
+                                    <button class="lir-send" @onclick:stopPropagation="true" @onclick="(() => AskSendReminder(x))" disabled="@_sending">
+                                        ارسال یادآوری
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (isOpen)
+                        {
+                            <div class="lir-details">
+                                <div class="lir-details-head">
+                                    <div class="lir-card-title" style="font-size:13px;">تاریخچه پیامک‌های یادآوری</div>
+                                    <button class="lir-mini-btn" @onclick="(() => ReloadHistoryAsync(x.InstallmentId))" disabled="@_sending">
+                                        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                                        به‌روزرسانی
+                                    </button>
+                                </div>
+
+                                @if (_historyLoading.Contains(x.InstallmentId))
+                                {
+                                    <div style="margin-top:8px; font-size:12px; opacity:.75;">در حال بارگذاری تاریخچه...</div>
+                                }
+                                else if (!_history.TryGetValue(x.InstallmentId, out var logs) || logs.Count == 0)
+                                {
+                                    <div style="margin-top:8px; font-size:12px; opacity:.75;">تاریخچه‌ای برای این قسط ثبت نشده است.</div>
+                                }
+                                else
+                                {
+                                    <div style="margin-top:10px; display:grid; gap:10px;">
+                                        @foreach (var l in logs)
+                                        {
+                                            var ok = l.IsSuccess.HasValue ? l.IsSuccess.Value : (l.ApiStatus.HasValue ? l.ApiStatus.Value == 1 : (bool?)null);
+                                            var okText = ok.HasValue ? (ok.Value ? "موفق" : "ناموفق") : "نامشخص";
+                                            var okColor = ok.HasValue ? (ok.Value ? "#16a34a" : "#dc2626") : "#64748b";
+
+                                            <div class="lir-log">
+                                                <div class="lir-log-head">
+                                                    <div class="lir-log-meta">
+                                                        <span class="lir-chip" style="color:@okColor; background:rgba(2,132,199,0.06); border-color:rgba(2,132,199,0.12);">@okText</span>
+                                                        <span class="lir-muted" style="direction:ltr;">Log #@l.LogId</span>
+                                                    </div>
+                                                    <div class="lir-log-time">@(l.SentAt.HasValue ? FormatJalaliDateTime(l.SentAt.Value) : "-")</div>
+                                                </div>
+
+                                                @if (!string.IsNullOrWhiteSpace(l.MessageText))
+                                                {
+                                                    <pre class="lir-pre">@l.MessageText</pre>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+<DsConfirm Show="@_showSendConfirm"
+           Title="ارسال پیامک یادآوری"
+           Message="@_sendConfirmMessage"
+           Variant="info"
+           ShowWarning="false"
+           ConfirmText="ارسال"
+           CancelText="انصراف"
+           OnConfirm="ConfirmSendReminderAsync"
+           OnCancel="CancelSendReminder" />
+
+@code {
+    private const string ReminderFeatureKey = "loan_installment_reminder";
+    private const int ReminderTemplateId = 387302;
+
+    private bool _loading;
+    private bool _sending;
+
+    private string _daysBeforeDueText = "1";
+    private int _daysBeforeDue = 1;
+    private bool _includeOverdue = true;
+    private string _query = string.Empty;
+
+    private List<LoanInstallmentReminderRepository.ReminderRow> _items = new();
+    private Dictionary<long, SmsMessageLogRepository.ReminderSummaryRow> _reminderSummary = new();
+
+    private readonly HashSet<long> _openDetails = new();
+    private readonly Dictionary<long, List<SmsMessageLog>> _history = new();
+    private readonly HashSet<long> _historyLoading = new();
+
+    private bool _showSendConfirm;
+    private LoanInstallmentReminderRepository.ReminderRow? _pendingSend;
+    private string _sendConfirmMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _items = (await ReminderRepo.SearchAsync(
+                daysBeforeDue: _daysBeforeDue,
+                includeOverdue: _includeOverdue,
+                query: _query,
+                take: 200)).ToList();
+
+            var ids = _items.Select(x => x.InstallmentId).Distinct().ToList();
+            var sum = await SmsLogRepo.GetLoanInstallmentReminderSummaryAsync(ids, ReminderFeatureKey);
+            _reminderSummary = sum.ToDictionary(x => x.InstallmentId, x => x);
+
+            // Clear any stale history if list changed
+            var valid = ids.ToHashSet();
+            foreach (var key in _history.Keys.ToList())
+            {
+                if (!valid.Contains(key))
+                    _history.Remove(key);
+            }
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری اقساط: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ReloadHistoryAsync(long installmentId)
+    {
+        if (_historyLoading.Contains(installmentId))
+            return;
+
+        try
+        {
+            _historyLoading.Add(installmentId);
+            StateHasChanged();
+
+            var logs = await SmsLogRepo.GetLoanInstallmentReminderLogsAsync(installmentId, ReminderFeatureKey, take: 50);
+            _history[installmentId] = logs.ToList();
+
+            // Update summary too
+            var sum = await SmsLogRepo.GetLoanInstallmentReminderSummaryAsync(new[] { installmentId }, ReminderFeatureKey);
+            var s = sum.FirstOrDefault();
+            if (s != null)
+                _reminderSummary[installmentId] = s;
+            else
+                _reminderSummary.Remove(installmentId);
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری تاریخچه: {ex.Message}");
+        }
+        finally
+        {
+            _historyLoading.Remove(installmentId);
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleDetails(long installmentId)
+    {
+        if (_openDetails.Contains(installmentId))
+        {
+            _openDetails.Clear();
+            return;
+        }
+
+        _openDetails.Clear();
+        _openDetails.Add(installmentId);
+        _ = ReloadHistoryAsync(installmentId);
+    }
+
+    private bool IsDetailsOpen(long installmentId) => _openDetails.Contains(installmentId);
+
+    private void ClearFilters()
+    {
+        _daysBeforeDueText = "1";
+        _daysBeforeDue = 1;
+        _includeOverdue = true;
+        _query = string.Empty;
+        _openDetails.Clear();
+        _history.Clear();
+        _reminderSummary.Clear();
+    }
+
+    private void OnDaysBeforeChanged(ChangeEventArgs e)
+    {
+        _daysBeforeDueText = e?.Value?.ToString() ?? "";
+        if (int.TryParse(new string((_daysBeforeDueText ?? string.Empty).Where(char.IsDigit).ToArray()), out var n))
+        {
+            if (n < 0) n = 0;
+            if (n > 365) n = 365;
+            _daysBeforeDue = n;
+        }
+    }
+
+    private void OnIncludeOverdueChanged(ChangeEventArgs e)
+    {
+        var v = e?.Value?.ToString() ?? "1";
+        _includeOverdue = string.Equals(v, "1", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void OnQueryInput(ChangeEventArgs e)
+    {
+        _query = e?.Value?.ToString() ?? string.Empty;
+    }
+
+    private void AskSendReminder(LoanInstallmentReminderRepository.ReminderRow row)
+    {
+        _pendingSend = row;
+
+        var due = FormatJalaliDate(row.DueDate);
+        var amount = row.EmiAmount.ToString("N0");
+        var status = row.OverdueDays > 0 ? $"{row.OverdueDays} روز معوق" : $"{row.DaysToDue} روز مانده";
+        var mobileText = string.IsNullOrWhiteSpace(row.MobileNumber) ? "-" : row.MobileNumber;
+
+        var NAME = NormalizeNameForSms(row.MemberFullName);
+        var PRICE = $"{amount} ریال";
+        var DATE = due;
+        var messageText = $"عضومحترم {NAME}\nلطفا نسبت به پرداخت قسط خود به مبلغ {PRICE}\nدر سررسید {DATE} اقدام نمایید.\nصندوق همیاری امام علی (ع)";
+
+        _sendConfirmMessage = BuildReminderSmsConfirmMarkup(
+            NAME,
+            mobileText,
+            row.LoanId,
+            row.InstallmentNo,
+            due,
+            amount,
+            status,
+            messageText);
+
+        _showSendConfirm = true;
+    }
+
+    private void CancelSendReminder()
+    {
+        _showSendConfirm = false;
+        _pendingSend = null;
+        _sendConfirmMessage = string.Empty;
+    }
+
+    private async Task ConfirmSendReminderAsync()
+    {
+        _showSendConfirm = false;
+        StateHasChanged();
+
+        if (_pendingSend == null)
+            return;
+
+        var row = _pendingSend;
+        _pendingSend = null;
+
+        if (string.IsNullOrWhiteSpace(row.MobileNumber))
+        {
+            Toasts.Warning("شماره موبایل عضو موجود نیست.");
+            return;
+        }
+
+        try
+        {
+            _sending = true;
+            StateHasChanged();
+
+            var smsSettings = await SmsPanelRepo.GetSettingsAsync();
+            if (!smsSettings.IsEnabled)
+                throw new InvalidOperationException("پنل پیامک غیرفعال است");
+
+            var features = await SmsPanelRepo.GetFeaturesAsync();
+            var reminderFeature = features.FirstOrDefault(f => string.Equals(f.FeatureKey, ReminderFeatureKey, StringComparison.OrdinalIgnoreCase));
+            if (reminderFeature == null || !reminderFeature.IsEnabled)
+                throw new InvalidOperationException("قابلیت ارسال پیامک یادآوری قسط غیرفعال است");
+
+            var dueJalali = FormatJalaliDate(row.DueDate);
+            var amount = row.EmiAmount.ToString("N0");
+
+            // New template parameters
+            var NAME = NormalizeNameForSms(row.MemberFullName);
+            var PRICE = $"{amount} ریال";
+            var DATE = dueJalali;
+
+            var templateId = ReminderTemplateId;
+
+            var paramsJson = JsonSerializer.Serialize(new
+            {
+                InstallmentId = row.InstallmentId,
+                row.LoanId,
+                row.InstallmentNo,
+                DueDate = row.DueDate.Date,
+                row.MemberId,
+                row.MemberCode,
+                row.MobileNumber,
+                row.EmiAmount,
+                row.DaysToDue,
+                row.OverdueDays,
+                NAME,
+                PRICE,
+                DATE,
+                TemplateId = templateId
+            });
+
+            var messageText = $"عضومحترم {NAME}\nلطفا نسبت به پرداخت قسط خود به مبلغ {PRICE}\nدر سررسید {DATE} اقدام نمایید.\nصندوق همیاری امام علی (ع)";
+
+            var logId = await SmsLogRepo.CreateAsync(
+                featureKey: ReminderFeatureKey,
+                householdId: null,
+                headMemberId: row.MemberId,
+                memberIdsJson: null,
+                recipientMobile: row.MobileNumber,
+                templateId: templateId,
+                paramsJson: paramsJson,
+                messageText: messageText);
+
+            string? rawResponse = null;
+            long? providerMessageId = null;
+            int? apiStatus = null;
+            string? apiMessage = null;
+            try
+            {
+                rawResponse = await SmsSender.SendVerifyWithParametersForFeatureAsync(
+                    ReminderFeatureKey,
+                    row.MobileNumber,
+                    templateId,
+                    new Dictionary<string, string>
+                    {
+                        ["NAME"] = NAME,
+                        ["PRICE"] = PRICE,
+                        ["DATE"] = DATE
+                    });
+
+                try
+                {
+                    using var doc = JsonDocument.Parse(rawResponse);
+                    if (doc.RootElement.TryGetProperty("status", out var s) && s.TryGetInt32(out var st))
+                        apiStatus = st;
+                    if (doc.RootElement.TryGetProperty("message", out var m))
+                        apiMessage = m.GetString();
+                    if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
+                    {
+                        if (data.TryGetProperty("messageId", out var mid) && mid.TryGetInt64(out var midVal))
+                            providerMessageId = midVal;
+                    }
+                }
+                catch
+                {
+                    // ignore parse errors
+                }
+
+                var isSuccess = apiStatus.HasValue ? apiStatus.Value == 1 : true;
+                await SmsLogRepo.MarkResultAsync(logId, isSuccess, rawResponse, providerMessageId, apiStatus, apiMessage, errorMessage: null);
+            }
+            catch (Exception exSend)
+            {
+                await SmsLogRepo.MarkResultAsync(logId, isSuccess: false, rawResponse, providerMessageId, apiStatus, apiMessage, errorMessage: exSend.Message);
+                throw;
+            }
+
+            var parts = EstimateParts(messageText);
+            var creditResult = await SmsSendService.ConsumeCreditAfterSuccessfulSendAsync(parts);
+            if (creditResult.lowCredit)
+                Toasts.Warning($"هشدار: اعتبار پیامک کمتر از {creditResult.thresholdRial:N0} ریال است.");
+
+            Toasts.Success("پیامک یادآوری ارسال شد.");
+
+            await ReloadHistoryAsync(row.InstallmentId);
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ارسال پیامک یادآوری: {ex.Message}");
+        }
+        finally
+        {
+            _sending = false;
+            StateHasChanged();
+        }
+    }
+
+    private static int ParseInt(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return 0;
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        return int.TryParse(digits, out var n) ? n : 0;
+    }
+
+    private static int EstimateParts(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return 1;
+
+        // Conservative estimate for GSM-7/Unicode differences
+        var len = text.Length;
+        if (len <= 70) return 1;
+        return (int)Math.Ceiling(len / 67m);
+    }
+
+    private static string FormatJalaliDate(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var pc = new PersianCalendar();
+        var y = pc.GetYear(local);
+        var m = pc.GetMonth(local);
+        var d = pc.GetDayOfMonth(local);
+        return $"{y:0000}/{m:00}/{d:00}";
+    }
+
+    private static string FormatJalaliDateTime(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var pc = new PersianCalendar();
+        var y = pc.GetYear(local);
+        var m = pc.GetMonth(local);
+        var d = pc.GetDayOfMonth(local);
+        return $"{local:HH:mm} {y:0000}/{m:00}/{d:00}";
+    }
+
+    private static string NormalizeNameForSms(string? fullName)
+    {
+        var name = (fullName ?? string.Empty).Trim();
+        if (name.Length == 0)
+            return string.Empty;
+
+        var starIndex = name.IndexOf('☆');
+        if (starIndex >= 0)
+            name = name.Substring(0, starIndex).Trim();
+
+        return name;
+    }
+
+    private static string BuildReminderSmsConfirmMarkup(
+        string memberName,
+        string mobile,
+        long loanId,
+        int installmentNo,
+        string due,
+        string amount,
+        string status,
+        string messageText)
+    {
+        var safeMsg = (messageText ?? string.Empty)
+            .Replace("&", "&amp;")
+            .Replace("<", "&lt;")
+            .Replace(">", "&gt;")
+            .Replace("\r\n", "\n")
+            .Replace("\r", "\n")
+            .Replace("\n", "<br/>");
+
+        return $@"
+<div style='display:grid; gap:10px; text-align:right;'>
+  <div style='display:flex; gap:10px; align-items:flex-start; border:1px solid #e5e7eb; background:#f8fafc; border-radius:12px; padding:10px;'>
+    <div style='width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:#eff6ff; color:#1d4ed8; flex:0 0 auto;'>
+      <i class='fa-solid fa-user'></i>
+    </div>
+    <div style='display:grid; gap:2px;'>
+      <div style='font-weight:900;'>عضو</div>
+      <div style='font-weight:900;'>{memberName}</div>
+    </div>
+  </div>
+
+  <div style='display:flex; gap:10px; align-items:flex-start; border:1px solid #e5e7eb; background:#f8fafc; border-radius:12px; padding:10px;'>
+    <div style='width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:#eff6ff; color:#1d4ed8; flex:0 0 auto;'>
+      <i class='fa-solid fa-phone'></i>
+    </div>
+    <div style='display:grid; gap:2px;'>
+      <div style='font-weight:900;'>موبایل</div>
+      <div style='font-weight:900; direction:ltr;'>{mobile}</div>
+    </div>
+  </div>
+
+  <div style='display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));'>
+    <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
+      <div style='display:flex; gap:8px; align-items:center;'>
+        <i class='fa-solid fa-tag' style='color:#0f172a;'></i>
+        <div style='font-weight:900;'>بابت</div>
+      </div>
+      <div style='margin-top:6px; font-weight:900;'>یادآوری قسط وام</div>
+    </div>
+
+    <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
+      <div style='display:flex; gap:8px; align-items:center;'>
+        <i class='fa-solid fa-money-bill-wave' style='color:#16a34a;'></i>
+        <div style='font-weight:900;'>مبلغ</div>
+      </div>
+      <div style='margin-top:6px; font-weight:900; direction:ltr;'>{amount} ریال</div>
+    </div>
+
+    <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
+      <div style='display:flex; gap:8px; align-items:center;'>
+        <i class='fa-solid fa-calendar-day' style='color:#0ea5e9;'></i>
+        <div style='font-weight:900;'>سررسید</div>
+      </div>
+      <div style='margin-top:6px; font-weight:900;'>{due}</div>
+    </div>
+  </div>
+
+  <div style='display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));'>
+    <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
+      <div style='display:flex; gap:8px; align-items:center;'>
+        <i class='fa-solid fa-circle-info' style='color:#f59e0b;'></i>
+        <div style='font-weight:900;'>وضعیت</div>
+      </div>
+      <div style='margin-top:6px; font-weight:900;'>{status}</div>
+    </div>
+
+    <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
+      <div style='display:flex; gap:8px; align-items:center;'>
+        <i class='fa-solid fa-hashtag' style='color:#0f172a;'></i>
+        <div style='font-weight:900;'>شماره وام / قسط</div>
+      </div>
+      <div style='margin-top:6px; font-weight:900; direction:ltr;'>#{loanId} | قسط {installmentNo}</div>
+    </div>
+  </div>
+
+  <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
+    <div style='display:flex; gap:8px; align-items:center;'>
+      <i class='fa-solid fa-message' style='color:#0f172a;'></i>
+      <div style='font-weight:900;'>متن پیامک</div>
+    </div>
+    <div style='margin-top:8px; line-height:1.9; font-weight:800;'>{safeMsg}</div>
+  </div>
+
+  <div style='font-size:12px; opacity:.75;'>با تایید شما، پیامک ارسال می‌شود و در تاریخچه این قسط ثبت خواهد شد.</div>
+</div>";
+    }
+}

@@ -1,0 +1,254 @@
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Infrastructure.Repositories.AccountTypeRepository AccountTypeRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+
+<DsSheet Show="IsOpen"
+         Open="IsOpen"
+         Title="@SheetTitle"
+         OnCancel="HandleCancel"
+         OnConfirm="HandleSave"
+         ShowDelete="@(!IsNew)"
+         DeleteText="حذف"
+         OnDelete="HandleDelete"
+         ShowSpinner="@_saving">
+  <div class="account-type-form">
+    <div class="form-section">
+      <DsInput Label="کد گروه *"
+               @bind-Value="_model.Code"
+               Placeholder="مثال: 1, 2, 3, 4, 5"
+               ErrorMessage="@GetFieldError(nameof(_model.Code))"
+               HelperText="کد یک رقمی گروه (1=دارایی، 2=بدهی، 3=حقوق، 4=درآمد، 5=هزینه)" />
+    </div>
+
+    <div class="form-section">
+      <DsInput Label="نام گروه *"
+               @bind-Value="_model.Name"
+               Placeholder="مثال: دارایی"
+               ErrorMessage="@GetFieldError(nameof(_model.Name))"
+               HelperText="نام توصیفی گروه" />
+    </div>
+
+    <div class="form-section">
+      <DsInput Label="توضیحات"
+               Type="textarea"
+               Rows="4"
+               @bind-Value="_model.Description"
+               Placeholder="توضیحات اختیاری..."
+               HelperText="شرح کامل گروه"
+               Class="description-textarea" />
+    </div>
+
+    @if (!IsNew)
+    {
+      <div class="form-section">
+        <DsToggle Label="وضعیت فعال"
+                  @bind-Value="_model.IsActive"
+                  HelperText="گروه‌های غیرفعال در فرم‌ها نمایش داده نمی‌شوند" />
+      </div>
+    }
+  </div>
+</DsSheet>
+
+@code {
+  [Parameter] public (int AccountTypeId, string Code, string Name, string Description) Model { get; set; }
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public bool IsOpen { get; set; }
+  [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _saving = false;
+  private Dictionary<string, string> _errors = new();
+
+  private AccountTypeModel _model = new();
+
+  protected override void OnInitialized()
+  {
+    LoadModelData();
+  }
+
+  protected override void OnParametersSet()
+  {
+    LoadModelData();
+  }
+
+  private void LoadModelData()
+  {
+    _model = new AccountTypeModel
+    {
+      AccountTypeId = Model.AccountTypeId,
+      Code = Model.Code,
+      Name = Model.Name,
+      Description = Model.Description,
+      IsActive = Model.AccountTypeId > 0 ? true : true // For new items, default to true; for existing, we need to load from DB
+    };
+
+    // For existing account types, we need to load the IsActive status from the database
+    if (!IsNew && Model.AccountTypeId > 0)
+    {
+      _ = LoadAccountTypeDetails();
+    }
+  }
+
+  private async Task LoadAccountTypeDetails()
+  {
+    try
+    {
+      var accountType = await AccountTypeRepo.GetByIdAsync(Model.AccountTypeId);
+      if (accountType != null)
+      {
+        _model.IsActive = accountType.IsActive;
+        StateHasChanged();
+      }
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در بارگذاری جزئیات گروه: {ex.Message}");
+    }
+  }
+
+  private string SheetTitle => IsNew ? "گروه جدید" : $"ویرایش گروه: {_model.Name}";
+
+  private bool IsFormValid => 
+    !string.IsNullOrWhiteSpace(_model.Code) &&
+    !string.IsNullOrWhiteSpace(_model.Name) &&
+    _errors.Count == 0;
+
+  private async Task HandleSave()
+  {
+    if (!ValidateForm()) return;
+
+    _saving = true;
+    try
+    {
+      if (IsNew)
+      {
+        await CreateAccountType();
+      }
+      else
+      {
+        await UpdateAccountType();
+      }
+      
+      Toast.Success(IsNew ? "گروه جدید ایجاد شد" : "تغییرات ذخیره شد");
+      await HandleClose(true);
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در {(IsNew ? "ایجاد" : "ویرایش")} گروه: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+
+  private async Task CreateAccountType()
+  {
+    // Check if code is unique
+    var isUnique = await AccountTypeRepo.IsCodeUniqueAsync(_model.Code);
+    if (!isUnique)
+    {
+      _errors[nameof(_model.Code)] = "این کد قبلاً استفاده شده است";
+      return;
+    }
+
+    var accountTypeId = await AccountTypeRepo.CreateAsync(_model.Code, _model.Name, _model.Description);
+    _model.AccountTypeId = accountTypeId;
+  }
+
+  private async Task UpdateAccountType()
+  {
+    // Check if code is unique (excluding current account type)
+    var isUnique = await AccountTypeRepo.IsCodeUniqueAsync(_model.Code, _model.AccountTypeId);
+    if (!isUnique)
+    {
+      _errors[nameof(_model.Code)] = "این کد قبلاً استفاده شده است";
+      return;
+    }
+
+    await AccountTypeRepo.UpdateAsync(_model.AccountTypeId, _model.Code, _model.Name, _model.Description, _model.IsActive);
+  }
+
+  private bool ValidateForm()
+  {
+    _errors.Clear();
+
+    if (string.IsNullOrWhiteSpace(_model.Code))
+      _errors[nameof(_model.Code)] = "کد گروه الزامی است";
+    else if (_model.Code.Length > 10)
+      _errors[nameof(_model.Code)] = "کد گروه نباید بیش از 10 کاراکتر باشد";
+
+    if (string.IsNullOrWhiteSpace(_model.Name))
+      _errors[nameof(_model.Name)] = "نام گروه الزامی است";
+    else if (_model.Name.Length > 100)
+      _errors[nameof(_model.Name)] = "نام گروه نباید بیش از 100 کاراکتر باشد";
+
+    if (!string.IsNullOrWhiteSpace(_model.Description) && _model.Description.Length > 500)
+      _errors[nameof(_model.Description)] = "توضیحات نباید بیش از 500 کاراکتر باشد";
+
+    return _errors.Count == 0;
+  }
+
+  private string? GetFieldError(string fieldName)
+  {
+    return _errors.TryGetValue(fieldName, out var error) ? error : null;
+  }
+
+  private async Task HandleCancel()
+  {
+    await HandleClose(false);
+  }
+
+  private async Task HandleClose(bool hasChanges = false)
+  {
+    await IsOpenChanged.InvokeAsync(false);
+    await OnClose.InvokeAsync(hasChanges);
+  }
+
+  private async Task HandleDelete()
+  {
+    // Only allow delete when editing an existing account type
+    if (IsNew || _model.AccountTypeId <= 0)
+    {
+      await HandleCancel();
+      return;
+    }
+
+    try
+    {
+      // Check usage in accounts first
+      var usageCount = await AccountTypeRepo.CountUsagesAsync(_model.AccountTypeId);
+      if (usageCount > 0)
+      {
+        Toast.Error($"این گروه در {usageCount} حساب استفاده شده است و قابل حذف نیست.");
+        return;
+      }
+
+      var ok = await AccountTypeRepo.DeleteAsync(_model.AccountTypeId);
+      if (ok)
+      {
+        Toast.Success("گروه حذف شد");
+        await HandleClose(true);
+      }
+      else
+      {
+        Toast.Error("حذف گروه ناموفق بود");
+      }
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در حذف گروه: {ex.Message}");
+    }
+  }
+
+  // Internal model for form binding
+  private class AccountTypeModel
+  {
+    public int AccountTypeId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+  }
+}

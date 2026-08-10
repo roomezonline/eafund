@@ -1,0 +1,799 @@
+@page "/admin/members"
+@using MiniBank.Web.Components.Extensions
+@using System.Threading
+@inject MiniBank.Web.Services.MemberService MemberService
+@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject IJSRuntime JS
+@using MiniBank.Web.Components.DesignSystem
+
+<div class="members-duo">
+  <DsPageHeader Icon="fa-solid fa-users" 
+                Title="اعضای خانوار" 
+                Subtitle="@($"تعداد کل: {_items.Count}")"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="عضو جدید"
+                OnRefreshClick="Refresh"
+                OnAddClick="ShowCreate">
+  </DsPageHeader>
+
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="_keyword" 
+                  Placeholder="جستجو در اعضا (نام، نام خانوادگی، کدملی، موبایل)..." />
+    <div class="bulk-actions">
+      <button type="button" class="bulk-subsidiary-btn" disabled="@_bulkCreating" @onclick="CreateMissingSubsidiariesAsync">
+        @(_bulkCreating ? "در حال ساخت کدها..." : "ساخت کد تفضیلی برای اعضای فاقد کد (موقت)")
+      </button>
+      <button type="button" class="bulk-delete-btn" disabled="@_bulkDeleting" @onclick="DeleteAllMemberSubsidiariesAsync">
+        @(_bulkDeleting ? "در حال حذف..." : "حذف تمام کدهای تفضیلی اعضا (M-)")
+      </button>
+    </div>
+    <div class='duo-filters'>
+      <DsPillGroup Mode="filter"
+                   Items="@_filterItems"
+                   ActiveKey="@_activeFilter"
+                   OnFilterChanged="OnFilterChanged" />
+    </div>
+    <div class='duo-sort'>
+      <DsPillGroup Mode="sort"
+                   Items="@_sortItems"
+                   ActiveKey="@_sortKey"
+                   ActiveKeyChanged="@(k => _sortKey = k)"
+                   Desc="@_sortDesc"
+                   DescChanged="@(d => _sortDesc = d)"
+                   OnSortChanged="OnSortChanged" />
+    </div>
+  </div>
+
+  <main class="duo-main">
+    @if (_loading)
+    {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>در حال بارگذاری اعضا...</p>
+      </div>
+    }
+    else if (!_items.Any())
+    {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <i class="fa-solid fa-user-plus"></i>
+        </div>
+        <h3>هیچ عضوی یافت نشد</h3>
+        <p>برای شروع، اولین عضو خانوار را اضافه کنید</p>
+        <button class="btn-primary" @onclick="ShowCreate">
+          <i class="fa-solid fa-plus"></i>
+          افزودن عضو جدید
+        </button>
+      </div>
+    }
+    else
+    {
+      <div class="items-grid">
+        @foreach (var item in _items)
+        {
+          var expanded = _expanded.Contains(item.MemberId);
+          var isHead = item.Household?.OwnerMemberId.HasValue == true && item.Household.OwnerMemberId.Value == item.MemberId;
+          var inactive = !item.IsActive;
+          <div id="member-card-@item.MemberId" class="item-card @(expanded ? "expanded" : null) @(isHead ? "head" : null) @(inactive ? "inactive" : null)" 
+               @onclick="(() => ToggleExpand(item.MemberId))" style="cursor: pointer;">
+            <div class="item-header">
+              <div class="item-info compact">
+                <h3 class="item-title">@item.FullName</h3>
+                <span class="id-chip" title="شناسه عضو">#@item.MemberId</span>
+                <button class="btn-caret" title="نمایش جزئیات" @onclick="(() => ToggleExpand(item.MemberId))" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-chevron-down @(expanded ? "open" : null)"></i>
+                </button>
+              </div>
+              <div class="item-actions">
+                <button class="btn-icon btn-edit" title="ویرایش" @onclick="() => Edit(item)" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-edit"></i>
+                </button>
+                <button class="btn-icon btn-delete" title="حذف" @onclick="() => Delete(item)" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+
+            @if (expanded)
+            {
+              <div class="item-details">
+                <p class="item-subtitle">کد ملی: @item.NationalCode</p>
+                <p class="item-subtitle">نام پدر: @item.FatherName</p>
+                <p class="item-subtitle">موبایل: @item.MobileNumber</p>
+                <p class="item-subtitle">
+                  کد تفضیلی:
+                  @if (_memberSubsidiaries.TryGetValue(item.MemberId, out var acc))
+                  {
+                    <span class="household-chip present" title="کد تفضیلی حسابداری">
+                      @acc.Code
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="household-chip none">تعریف نشده</span>
+                  }
+                </p>
+                <div class="item-subtitle" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                  <span>ایجاد کد تفضیلی:</span>
+                  <div class="subsidiary-toggle" style="display:flex; align-items:center; gap:10px;">
+                    @{
+                      var hasSub = _memberSubsidiaries.TryGetValue(item.MemberId, out var _acc);
+                      var subIsActive = hasSub && _acc.IsActive;
+                    }
+                    <label class="toggle-switch">
+                      <input type="checkbox" 
+                             checked="@_subsidiarySwitchStates.GetValueOrDefault(item.MemberId, false)" 
+                             @onchange="(e) => ToggleSubsidiarySwitch(item, (bool)e.Value!)" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label @(subIsActive ? "on" : "off")">
+                      @(hasSub ? (subIsActive ? "فعال" : "غیرفعال") : "ندارد")
+                    </span>
+                  </div>
+                </div>
+                <p class="item-subtitle">
+                  خانوار:
+                  @if (item.Household is not null)
+                  {
+                    <span class="household-chip present" title="@item.Household.HouseholdCode">
+                      @item.Household.Name (@item.Household.HouseholdCode)
+                    </span>
+                  }
+                  else
+                  {
+                    <span class="household-chip none">نامشخص</span>
+                  }
+                </p>
+                <p class="item-subtitle">تاریخ عضویت: @item.JoinedAt.ToPersianDate()</p>
+
+                <div class="item-toggle">
+                  <label class="toggle-switch">
+                    <input type="checkbox" 
+                           checked="@item.IsActive" 
+                           @onchange="(e) => ToggleSwitch(item, (bool)e.Value!)" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="toggle-label @(item.IsActive ? "on" : "off")">@(item.IsActive ? "فعال" : "غیرفعال")</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </main>
+
+  <DsFab Title="افزودن عضو" Icon="fa-plus" OnClick="ShowCreate" />
+</div>
+
+@if (_showSheet)
+{
+  <MemberIOSSheet Model="_currentModel" IsNew="_isNewSheet" OnClose="OnSheetClose" />
+}
+
+@* Design-system confirmation (responsive): modal on desktop, bottom-sheet on mobile) *@
+<DsConfirm Show="_showDeleteConfirm"
+           Title="@_deleteTitle"
+           Message="@_deleteMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           OnConfirm="ConfirmDeleteMember"
+           OnCancel="CancelDeleteMember" />
+
+@code {
+    private List<MiniBank.Web.Models.Member> _items = new();
+    private List<MiniBank.Web.Models.Member> _allItems = new();
+    private Dictionary<long, MiniBank.Web.Models.Account> _memberSubsidiaries = new();
+    private Dictionary<long, bool> _subsidiarySwitchStates = new(); // وضعیت سوییچ‌های کد تفضیلی
+    private bool _bulkCreating;
+    private bool _bulkDeleting;
+    private bool _loading;
+    private string _kw = string.Empty;
+    private string _keyword
+    {
+        get => _kw;
+        set
+        {
+            _kw = value ?? string.Empty;
+            _ = DebouncedApplyFilterAsync();
+        }
+    }
+
+    private async Task LoadMemberSubsidiariesAsync()
+    {
+        _memberSubsidiaries.Clear();
+        _subsidiarySwitchStates.Clear();
+
+        foreach (var m in _allItems)
+        {
+            try
+            {
+                var acc = await AccountsRepo.GetSubsidiaryByMemberIdAsync(m.MemberId, includeInactive: true);
+                if (acc != null)
+                {
+                    _memberSubsidiaries[m.MemberId] = acc;
+                    _subsidiarySwitchStates[m.MemberId] = acc.IsActive;
+                }
+                else
+                {
+                    _subsidiarySwitchStates[m.MemberId] = false;
+                }
+            }
+            catch
+            {
+                // ignore individual failures
+                _subsidiarySwitchStates[m.MemberId] = false;
+            }
+        }
+    }
+
+    private async Task DeleteAllMemberSubsidiariesAsync()
+    {
+        if (_bulkDeleting)
+            return;
+
+        _bulkDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            var deleted = 0;
+            var failed = 0;
+
+            // Get all member subsidiary accounts
+            var allMemberAccounts = _memberSubsidiaries.Values.ToList();
+            
+            foreach (var account in allMemberAccounts)
+            {
+                try
+                {
+                    await AccountsRepo.DeleteAsync(account.AccountId);
+                    
+                    // Remove from member subsidiaries dictionary
+                    var memberEntry = _memberSubsidiaries.FirstOrDefault(x => x.Value.AccountId == account.AccountId);
+                    if (memberEntry.Key != 0)
+                    {
+                        _memberSubsidiaries.Remove(memberEntry.Key);
+                        _subsidiarySwitchStates.Remove(memberEntry.Key);
+                    }
+                    
+                    deleted++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            StateHasChanged();
+            Toasts.Success($"کدهای تفضیلی حذف شدند: {deleted} | خطا: {failed}");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در حذف کدهای تفضیلی: {ex.Message}");
+        }
+        finally
+        {
+            _bulkDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateMissingSubsidiariesAsync()
+    {
+        if (_bulkCreating)
+            return;
+
+        _bulkCreating = true;
+        StateHasChanged();
+
+        try
+        {
+            var missing = _allItems.Where(m => m != null && !_memberSubsidiaries.ContainsKey(m.MemberId)).ToList();
+            if (missing.Count == 0)
+            {
+                Toasts.Success("همه اعضا کد تفضیلی دارند");
+                return;
+            }
+
+            var created = 0;
+            var failed = 0;
+
+            foreach (var m in missing)
+            {
+                try
+                {
+                    if (m == null)
+                        continue;
+
+                    var code = GetMemberSubsidiaryCode(m);
+                    var displayName = GetMemberDisplayName(m);
+
+                    // Always create new account with new format, don't reactivate old ones
+                    var newAccount = new MiniBank.Web.Models.Account
+                    {
+                        Code = code,
+                        Name = displayName,
+                        AccountType = 1,
+                        MemberId = m.MemberId,
+                        Level = 4,
+                        IsActive = true
+                    };
+
+                    var createdAccountId = await AccountsRepo.CreateAsync(newAccount);
+                    newAccount.AccountId = createdAccountId;
+                    _memberSubsidiaries[m.MemberId] = newAccount;
+                    created++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            StateHasChanged();
+            Toasts.Success($"کد تفضیلی ساخته شد: {created} | خطا: {failed}");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ساخت کدهای تفضیلی: {ex.Message}");
+        }
+        finally
+        {
+            _bulkCreating = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string GetMemberDisplayName(MiniBank.Web.Models.Member m)
+    {
+        var fn = (m.FirstName ?? string.Empty).Trim();
+        var ln = (m.LastName ?? string.Empty).Trim();
+        var full = (fn + " " + ln).Trim();
+        return string.IsNullOrWhiteSpace(full) ? $"#{m.MemberId}" : full;
+    }
+
+    // Sheet state
+    private bool _showSheet;
+    private MiniBank.Web.Models.Member _currentModel = new();
+    private bool _isNewSheet;
+    private HashSet<long> _expanded = new();
+    private double? _savedScrollY;
+    private long? _focusMemberId;
+    private string _activeFilter = "all"; // all|active|inactive
+    private string _sortKey = "id"; // id|fname|lname|active
+    private bool _sortDesc = false; // false: asc, true: desc
+    private CancellationTokenSource? _searchCts;
+
+    // DS Pill items for filters/sorting
+    private List<DsPillGroup.DsPillItem> _filterItems = new()
+    {
+        new() { Key = "all", Text = "همه" },
+        new() { Key = "active", Text = "فعال" },
+        new() { Key = "inactive", Text = "غیرفعال" },
+    };
+    private List<DsPillGroup.DsPillItem> _sortItems = new()
+    {
+        new() { Key = "id", Text = "شناسه" },
+        new() { Key = "fname", Text = "نام" },
+        new() { Key = "lname", Text = "نام خانوادگی" },
+        new() { Key = "active", Text = "فعال‌ها" },
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            StateHasChanged();
+
+            var result = await MemberService.GetAsync(null, null, null, 1000);
+            _allItems = result.ToList();
+            await LoadMemberSubsidiariesAsync();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری اعضا: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        IEnumerable<MiniBank.Web.Models.Member> q = _allItems;
+
+        // status filter
+        if (_activeFilter == "active") q = q.Where(x => x.IsActive);
+        else if (_activeFilter == "inactive") q = q.Where(x => !x.IsActive);
+
+        // keyword filter
+        var key = (_keyword ?? string.Empty).Trim();
+        if (!string.IsNullOrEmpty(key))
+        {
+            var kw = key.ToLowerInvariant();
+            q = q.Where(x =>
+                (x.FirstName ?? string.Empty).ToLowerInvariant().Contains(kw) ||
+                (x.FatherName ?? string.Empty).ToLowerInvariant().Contains(kw) ||
+                (x.LastName ?? string.Empty).ToLowerInvariant().Contains(kw) ||
+                (x.NationalCode ?? string.Empty).ToLowerInvariant().Contains(kw) ||
+                (x.MobileNumber ?? string.Empty).ToLowerInvariant().Contains(kw)
+            );
+        }
+
+        // sorting (bi-directional)
+        q = (_sortKey, _sortDesc) switch
+        {
+            ("fname", false) => q.OrderBy(x => x.FirstName).ThenBy(x => x.LastName),
+            ("fname", true)  => q.OrderByDescending(x => x.FirstName).ThenByDescending(x => x.LastName),
+            ("lname", false) => q.OrderBy(x => x.LastName).ThenBy(x => x.FirstName),
+            ("lname", true)  => q.OrderByDescending(x => x.LastName).ThenByDescending(x => x.FirstName),
+            ("active", false)=> q.OrderBy(x => x.IsActive).ThenBy(x => x.MemberId), // غیرفعال‌ها اول
+            ("active", true) => q.OrderByDescending(x => x.IsActive).ThenBy(x => x.MemberId), // فعال‌ها اول
+            ("id", true)     => q.OrderByDescending(x => x.MemberId),
+            _                 => q.OrderBy(x => x.MemberId)
+        };
+
+        _items = q.ToList();
+        StateHasChanged();
+    }
+
+    private async Task DebouncedApplyFilterAsync(int delayMs = 180)
+    {
+        // Cancel previous pending search
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+        try
+        {
+            await Task.Delay(delayMs, token);
+            if (!token.IsCancellationRequested)
+            {
+                ApplyFilter();
+            }
+        }
+        catch (TaskCanceledException) { /* ignore */ }
+    }
+
+    private void ToggleExpand(long memberId)
+    {
+        if (_expanded.Contains(memberId)) _expanded.Remove(memberId);
+        else _expanded.Add(memberId);
+    }
+
+    private Task ChangeFilter(string filter)
+    {
+        if (_activeFilter == filter) return Task.CompletedTask;
+        _activeFilter = filter;
+        ApplyFilter();
+        return Task.CompletedTask;
+    }
+
+    private bool IsFilter(string f) => string.Equals(_activeFilter, f, StringComparison.Ordinal);
+    private Task ChangeSort(string key)
+    {
+        if (_sortKey == key)
+        {
+            _sortDesc = !_sortDesc; // toggle direction
+        }
+        else
+        {
+            _sortKey = key;
+            _sortDesc = false; // default to asc when switching key
+        }
+        ApplyFilter();
+        return Task.CompletedTask;
+    }
+
+    private bool IsSortKey(string key) => string.Equals(_sortKey, key, StringComparison.Ordinal);
+    private string SortDirIcon(string key)
+    {
+        if (_sortKey != key) return "fa-sort"; // neutral
+        return _sortDesc ? "fa-arrow-down-short-wide" : "fa-arrow-up-short-wide";
+    }
+
+    // DS PillGroup handlers
+    private Task OnSortChanged((string key, bool desc) s)
+    {
+        _sortKey = s.key; _sortDesc = s.desc; ApplyFilter();
+        return Task.CompletedTask;
+    }
+    private Task OnFilterChanged(string key)
+    {
+        if (_activeFilter == key) return Task.CompletedTask;
+        _activeFilter = key; ApplyFilter();
+        return Task.CompletedTask;
+    }
+
+    private async Task ShowCreate()
+    {
+        // Save current scroll to restore after save
+        try { _savedScrollY = await JS.InvokeAsync<double>("appNav.scrollSave"); } catch {}
+
+        _currentModel = new MiniBank.Web.Models.Member 
+        { 
+            IsActive = true,
+            JoinedAt = DateTime.UtcNow
+        };
+        _isNewSheet = true;
+        _showSheet = true;
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    private async Task Edit(MiniBank.Web.Models.Member m)
+    {
+        // Save current scroll to restore after list reload
+        try { _savedScrollY = await JS.InvokeAsync<double>("appNav.scrollSave"); } catch {}
+        _focusMemberId = m.MemberId;
+        _currentModel = new MiniBank.Web.Models.Member
+        {
+            MemberId = m.MemberId,
+            FirstName = m.FirstName,
+            FatherName = m.FatherName,
+            LastName = m.LastName,
+            NationalCode = m.NationalCode,
+            MobileNumber = m.MobileNumber,
+            HouseholdCode = m.HouseholdCode ?? m.Household?.HouseholdCode,
+            IsActive = m.IsActive,
+            JoinedAt = m.JoinedAt,
+            CreatedAt = m.CreatedAt
+        };
+        _isNewSheet = false;
+        _showSheet = true;
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    private async Task OnSheetClose(bool success)
+    {
+        _showSheet = false;
+        StateHasChanged();
+        
+        if (success)
+        {
+            await LoadAsync();
+            Toasts.Success("با موفقیت ذخیره شد");
+
+            // Restore previous scroll position and center edited item if available
+            try
+            {
+                if (_savedScrollY.HasValue)
+                {
+                    await JS.InvokeVoidAsync("appNav.scrollRestore", _savedScrollY.Value);
+                }
+                if (_focusMemberId.HasValue)
+                {
+                    // small delay to ensure DOM has rendered
+                    await Task.Delay(50);
+                    await JS.InvokeVoidAsync("appNav.scrollToId", $"member-card-{_focusMemberId.Value}");
+                }
+            }
+            catch { }
+        }
+    }
+
+    private async Task ToggleSubsidiarySwitch(MiniBank.Web.Models.Member m, bool newValue)
+    {
+        // Optimistic UI: flip immediately
+        var old = _subsidiarySwitchStates.GetValueOrDefault(m.MemberId, false);
+        _subsidiarySwitchStates[m.MemberId] = newValue;
+        StateHasChanged();
+
+        try
+        {
+            if (newValue)
+            {
+                // ایجاد کد تفضیلی برای عضو با فرمت M-{MemberId}
+                var code = GetMemberSubsidiaryCode(m);
+
+                var existingAny = await AccountsRepo.GetSubsidiaryByMemberIdAsync(m.MemberId, includeInactive: true);
+                if (existingAny != null)
+                {
+                    if (!existingAny.IsActive)
+                    {
+                        existingAny.IsActive = true;
+                        existingAny.Name = m.FullName;
+                        existingAny.Code = code;
+                        existingAny.AccountType = 1; // Asset (member subsidiary default)
+                        existingAny.ParentAccountId = null;
+                        existingAny.Level = 4;
+                        existingAny.MemberId = m.MemberId;
+                        await AccountsRepo.UpdateAsync(existingAny.AccountId, existingAny);
+
+                        var refreshed = await AccountsRepo.GetSubsidiaryByMemberIdAsync(m.MemberId, includeInactive: true);
+                        if (refreshed == null)
+                        {
+                            _subsidiarySwitchStates[m.MemberId] = old;
+                            StateHasChanged();
+                            Toasts.Error("عملیات انجام شد اما تفضیلی در بانک اطلاعاتی پیدا نشد");
+                            return;
+                        }
+
+                        _memberSubsidiaries[m.MemberId] = refreshed;
+                        _subsidiarySwitchStates[m.MemberId] = refreshed.IsActive;
+                        Toasts.Success($"کد تفضیلی '{refreshed.Code}' عضو '{m.FullName}' مجدداً فعال شد");
+                        return;
+                    }
+
+                    _memberSubsidiaries[m.MemberId] = existingAny;
+                    Toasts.Info($"کد تفضیلی '{existingAny.Code}' برای این عضو از قبل فعال است");
+                    return;
+                }
+
+                // Always create new account with new format, don't reactivate old ones
+                var newAccount = new MiniBank.Web.Models.Account
+                {
+                    Code = code,
+                    Name = m.FullName,
+                    AccountType = 1, // Asset
+                    MemberId = m.MemberId,
+                    Level = 4, // تفضیلی
+                    IsActive = true
+                };
+
+                var createdAccountId = await AccountsRepo.CreateAsync(newAccount);
+
+                var refreshedCreated = await AccountsRepo.GetSubsidiaryByMemberIdAsync(m.MemberId, includeInactive: true);
+                if (refreshedCreated == null)
+                {
+                    _subsidiarySwitchStates[m.MemberId] = old;
+                    StateHasChanged();
+                    Toasts.Error($"کد تفضیلی ایجاد شد اما در بانک اطلاعاتی پیدا نشد (Id: {createdAccountId})");
+                    return;
+                }
+
+                _memberSubsidiaries[m.MemberId] = refreshedCreated;
+                _subsidiarySwitchStates[m.MemberId] = refreshedCreated.IsActive;
+                Toasts.Success($"کد تفضیلی '{refreshedCreated.Code}' برای عضو '{m.FullName}' ایجاد شد");
+            }
+            else
+            {
+                // غیرفعال کردن کد تفضیلی موجود (فقط اگر سند/تراکنش نداشته باشد)
+                if (_memberSubsidiaries.TryGetValue(m.MemberId, out var account))
+                {
+                    var hasJournals = await AccountsRepo.IsUsedInJournalEntriesAsync(account.AccountId);
+                    if (hasJournals)
+                    {
+                        Toasts.Error("این تفضیلی دارای تراکنش/سند است و امکان غیرفعال سازی ندارد");
+                        _subsidiarySwitchStates[m.MemberId] = old;
+                        StateHasChanged();
+                        return;
+                    }
+
+                    await AccountsRepo.DeleteAsync(account.AccountId);
+                    account.IsActive = false;
+                    _memberSubsidiaries[m.MemberId] = account;
+                    Toasts.Success($"کد تفضیلی '{account.Code}' عضو '{m.FullName}' غیرفعال شد");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Revert on failure
+            _subsidiarySwitchStates[m.MemberId] = old;
+            StateHasChanged();
+            Toasts.Error($"خطا: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleSwitch(MiniBank.Web.Models.Member m, bool newValue)
+    {
+        // Optimistic UI: flip immediately
+        var old = m.IsActive;
+        m.IsActive = newValue;
+        StateHasChanged();
+
+        try
+        {
+            await MemberService.ToggleActiveAsync(m.MemberId, newValue);
+            // Keep UI as-is and re-apply filters to reflect current view
+            ApplyFilter();
+            Toasts.Success($"وضعیت عضو '{m.FullName}' به {(newValue ? "فعال" : "غیرفعال")} تغییر کرد");
+        }
+        catch (Exception ex)
+        {
+            // Revert on failure
+            m.IsActive = old;
+            StateHasChanged();
+            Toasts.Error($"خطا: {ex.Message}");
+        }
+    }
+
+    private static string GetMemberSubsidiaryCode(MiniBank.Web.Models.Member m)
+    {
+        return $"M-{m.MemberId}";
+    }
+
+    private async Task Delete(MiniBank.Web.Models.Member m)
+    {
+        // Prepare DS confirmation content
+        _pendingDelete = m;
+        _deleteTitle = "حذف عضو";
+        _deleteMessage = $"آیا از حذف عضو '<strong>{m.FullName}</strong>' اطمینان دارید؟<br/><small>این عمل قابل بازگشت نیست.</small>";
+        _showDeleteConfirm = true;
+        StateHasChanged();
+    }
+
+    private MiniBank.Web.Models.Member? _pendingDelete;
+    private bool _showDeleteConfirm;
+    private string _deleteTitle = "تأیید حذف";
+    private string _deleteMessage = string.Empty;
+
+    private async Task ConfirmDeleteMember()
+    {
+        var m = _pendingDelete;
+        _showDeleteConfirm = false; StateHasChanged();
+        if (m is null) return;
+        try
+        {
+            Loading.Show("صندوق امام علی (ع)", "در حال حذف...", "fa-solid fa-trash");
+            await MemberService.DeleteAsync(m.MemberId);
+            await LoadAsync();
+            Toasts.Success("عضو با موفقیت حذف شد");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در حذف: {ex.Message}");
+        }
+        finally
+        {
+            Loading.Hide();
+            _pendingDelete = null;
+        }
+    }
+
+    private Task CancelDeleteMember()
+    {
+        _showDeleteConfirm = false; _pendingDelete = null; StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task Refresh()
+    {
+        await LoadAsync();
+    }
+}
+
+@* CSS Styles *@
+<style>
+.bulk-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.bulk-delete-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.bulk-delete-btn:hover:not(:disabled) {
+    background: #c82333;
+}
+
+.bulk-delete-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+</style>

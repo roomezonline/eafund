@@ -1,0 +1,101 @@
+@if (Show)
+{
+    <div class="ds-toast ds-toast-@Type.ToString().ToLower()" @onclick="HandleClick">
+        <div class="ds-toast-content">
+            <div class="ds-toast-icon">
+                @switch (Type)
+                {
+                    case DsToastType.Success:
+                        <i class="fa-solid fa-check"></i>
+                        break;
+                    case DsToastType.Error:
+                        <i class="fa-solid fa-xmark"></i>
+                        break;
+                    case DsToastType.Warning:
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        break;
+                    case DsToastType.Info:
+                        <i class="fa-solid fa-info"></i>
+                        break;
+                }
+            </div>
+            <div class="ds-toast-message">@Message</div>
+            @if (ShowCloseButton)
+            {
+                <button class="ds-toast-close" @onclick="Close" @onclick:stopPropagation="true">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            }
+        </div>
+        @if (ShowProgressBar)
+        {
+            <div class="ds-toast-progress">
+                <div class="ds-toast-progress-bar" style="animation-duration: @(Duration)ms;"></div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public DsToastType Type { get; set; } = DsToastType.Success;
+    [Parameter] public int Duration { get; set; } = 5000;
+    [Parameter] public bool ShowProgressBar { get; set; } = true;
+    [Parameter] public bool ShowCloseButton { get; set; } = true;
+    [Parameter] public bool AutoClose { get; set; } = true;
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private Timer? _timer;
+    private bool _timerStarted;
+
+    protected override void OnParametersSet()
+    {
+        // Start the auto-close timer only once when the toast becomes visible.
+        // Avoid restarting the timer on subsequent re-renders (e.g., when new toasts are added),
+        // which previously caused all toasts to dismiss together.
+        if (Show && AutoClose && !_timerStarted)
+        {
+            StartAutoCloseTimer();
+            _timerStarted = true;
+        }
+        else if (!Show && _timerStarted)
+        {
+            _timer?.Dispose();
+            _timerStarted = false;
+        }
+    }
+
+    private void StartAutoCloseTimer()
+    {
+        _timer?.Dispose();
+        _timer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await Close();
+                StateHasChanged();
+            });
+        }, null, Duration, Timeout.Infinite);
+    }
+
+    private async Task Close()
+    {
+        _timer?.Dispose();
+        _timerStarted = false;
+        Show = false;
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleClick()
+    {
+        await OnClick.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+        _timerStarted = false;
+    }
+}

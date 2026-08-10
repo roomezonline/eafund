@@ -1,0 +1,235 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="fab-navigation @(IsOpen ? "open" : "")">
+  <!-- Navigation Menu Items -->
+  @if (IsOpen)
+  {
+    <div class="fab-menu">
+            <div class="fab-item" @onclick="@(() => NavigateTo("/admin/account-types"))">
+        <div class="fab-button secondary">
+          <i class="fa-solid fa-layer-group"></i>
+        </div>
+        <span class="fab-label">گروه‌ها</span>
+      </div>
+      
+     
+      
+      <div class="fab-item" @onclick="@(() => NavigateTo("/admin/kol"))">
+        <div class="fab-button secondary">
+          <i class="fa-solid fa-boxes-stacked"></i>
+        </div>
+        <span class="fab-label">کل‌ها</span>
+      </div>
+      
+      <div class="fab-item" @onclick="@(() => NavigateTo("/admin/moeen"))">
+        <div class="fab-button secondary">
+          <i class="fa-solid fa-sitemap"></i>
+        </div>
+        <span class="fab-label">معین‌ها</span>
+      </div>
+      
+      <div class="fab-item" @onclick="@(() => NavigateTo("/admin/subsidiary"))">
+        <div class="fab-button secondary">
+          <i class="fa-solid fa-list-ul"></i>
+        </div>
+        <span class="fab-label">تفضیلی‌ها</span>
+      </div>
+      
+      <div class="fab-item" @onclick="@(() => NavigateTo("/admin/posting-templates"))">
+        <div class="fab-button secondary">
+          <i class="fa-solid fa-file-invoice"></i>
+        </div>
+        <span class="fab-label">الگوهای حسابداری</span>
+      </div>
+    </div>
+  }
+  
+  <!-- Main FAB Button -->
+  <div class="fab-main" @onclick="ToggleMenu">
+    <div class="fab-button primary @(IsOpen ? "rotated" : "")">
+      <i class="fa-solid @(IsOpen ? "fa-times" : "fa-bars")"></i>
+    </div>
+  </div>
+</div>
+
+@code {
+  [Parameter] public bool IsOpen { get; set; } = false;
+  [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+  [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+  private async Task ToggleMenu()
+  {
+    IsOpen = !IsOpen;
+    await IsOpenChanged.InvokeAsync(IsOpen);
+  }
+
+  private async Task NavigateTo(string url)
+  {
+    IsOpen = false;
+    await IsOpenChanged.InvokeAsync(IsOpen);
+    Navigation.NavigateTo(url);
+  }
+}
+
+<style>
+.fab-navigation {
+  position: fixed;
+  bottom: 190px;
+  left: 30px;
+  z-index: 100;
+  direction: ltr;
+}
+
+.fab-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.fab-navigation.open .fab-menu {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fab-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.fab-item:nth-child(1) { animation-delay: 0.1s; }
+.fab-item:nth-child(2) { animation-delay: 0.15s; }
+.fab-item:nth-child(3) { animation-delay: 0.2s; }
+.fab-item:nth-child(4) { animation-delay: 0.25s; }
+.fab-item:nth-child(5) { animation-delay: 0.3s; }
+
+.fab-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.fab-button.primary {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  width: 56px;
+  height: 56px;
+}
+
+.fab-button.secondary {
+  background: white;
+  color: #4f46e5;
+  border: 2px solid #e5e7eb;
+}
+
+.fab-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.fab-button.primary:hover {
+  background: linear-gradient(135deg, #3730a3, #6d28d9);
+}
+
+.fab-button.secondary:hover {
+  background: #f8fafc;
+  border-color: #4f46e5;
+}
+
+.fab-button.rotated {
+  transform: rotate(45deg);
+}
+
+.fab-label {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  direction: rtl;
+  opacity: 0;
+  animation: fadeIn 0.3s ease-out 0.2s forwards;
+}
+
+@@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Mobile Responsive */
+@@media (max-width: 768px) {
+  .fab-navigation {
+    bottom: 186px;
+    left: 16px;
+  }
+  
+  .fab-button.primary {
+    width: 52px;
+    height: 52px;
+  }
+  
+  .fab-button.secondary {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .fab-label {
+    font-size: 13px;
+    padding: 5px 10px;
+  }
+}
+
+/* RTL Support */
+[dir="rtl"] .fab-navigation {
+  left: auto;
+  right: 24px;
+  bottom: 190px;
+}
+
+[dir="rtl"] .fab-item {
+  flex-direction: row-reverse;
+}
+
+@@media (max-width: 768px) and (orientation: portrait) {
+  [dir="rtl"] .fab-navigation {
+    right: 24px;
+    bottom: 186px;
+  }
+}
+</style>

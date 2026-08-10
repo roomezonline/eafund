@@ -1,0 +1,28 @@
+@using MiniBank.Web.Infrastructure.Repositories
+
+@if (!_displayText.Equals(""))
+{
+    <div class="fy-row"><span class="fiscal-year-badge">@_displayText</span></div>
+}
+
+@code {
+    [Inject] private FiscalYearRepository Repo { get; set; } = null!;
+
+    private string _displayText = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var fy = await Repo.GetOpenYearForDateAsync(DateTime.Now);
+            if (fy != null)
+            {
+                _displayText = fy.Title;
+            }
+        }
+        catch
+        {
+            _displayText = "";
+        }
+    }
+}

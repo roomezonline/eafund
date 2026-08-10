@@ -1,0 +1,350 @@
+@page "/admin/moeen"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject MiniBank.Web.Infrastructure.Repositories.AccountTypeRepository AccountTypeRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+@inject NavigationManager Navigation
+
+<div class="moeen-duo">
+  <!-- Header -->
+  <DsPageHeader Icon="fa-solid fa-sitemap" 
+                Title="معین‌های حسابداری" 
+                Subtitle="مدیریت معین‌ها (سطح 3) - G.KK.MMSS"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="معین جدید"
+                OnRefreshClick="LoadMoeenAccounts"
+                OnAddClick="Add">
+    <ChildContent>
+    </ChildContent>
+  </DsPageHeader>
+
+  <!-- Controls -->
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="searchTerm" 
+                  Placeholder="جستجو در معین‌ها..." />
+  </div>
+  
+  <div class="duo-filters">
+    <DsPillGroup Mode="filter" 
+                 Items="@filterItems" 
+                 @bind-ActiveKey="activeFilter" 
+                 OnFilterChanged="OnFilterChanged" />
+  </div>
+
+  <div class="duo-sort">
+    <DsPillGroup Mode="sort" 
+                 Items="@sortItems" 
+                 @bind-ActiveKey="activeSortKey" 
+                 @bind-Desc="sortDesc"
+                 OnSortChanged="OnSortChanged" />
+  </div>
+
+  <!-- Main -->
+  <div class="duo-main">
+    @if (loading)
+    {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <div>در حال بارگذاری...</div>
+      </div>
+    }
+    else if (!filteredMoeenAccounts.Any())
+    {
+      <div class="empty-state">
+        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.7;">🏦</div>
+        <div>هیچ معینی یافت نشد</div>
+        <div style="margin-top: 8px; opacity: 0.7;">ابتدا کل‌های حسابداری را تعریف کنید</div>
+      </div>
+    }
+    else
+    {
+      <div class="items-grid">
+        @foreach (var moeen in filteredMoeenAccounts)
+        {
+          <div class="item-card @(moeen.IsActive ? "" : "inactive")" @onclick="() => Edit(moeen)">
+            <div class="item-header">
+              <div class="item-info compact">
+                <div class="item-title">@moeen.Name</div>
+                <div class="id-chip">کد: @moeen.Code</div>
+              </div>
+              <div class="item-status">
+                <div class="status-chip @(moeen.IsActive ? "active" : "inactive")">
+                  @(moeen.IsActive ? "فعال" : "غیرفعال")
+                </div>
+                <div class="parent-kol-badge type-@moeen.AccountType">
+                  @GetParentKolName(moeen.ParentAccountId)
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- FAB -->
+  <DsFab Title="معین جدید" Icon="fa-plus" OnClick="Add" />
+</div>
+
+<!-- FAB Navigation -->
+<DsFabNavigation @bind-IsOpen="fabMenuOpen" />
+
+<!-- Edit Sheet -->
+@if (showEditSheet)
+{
+  <MoeenIOSSheet Model="selectedMoeen" 
+                 IsNew="@(selectedMoeen.AccountId == 0)"
+                 @bind-IsOpen="showEditSheet"
+                 OnClose="HandleSheetClose"
+                 OnDeleteRequest="@HandleDeleteRequest" />
+}
+
+<!-- Delete Confirmation Dialog -->
+<DsConfirm Show="@_showDeleteConfirm"
+           Title="حذف معین"
+           Message="@_deleteConfirmMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           Loading="@_deleting"
+           OnConfirm="ConfirmDelete"
+           OnCancel="CancelDelete" />
+
+@code {
+  private List<Account> moeenAccounts = new();
+  private List<Account> filteredMoeenAccounts = new();
+  private Dictionary<long, string> parentKolNames = new();
+  private bool loading = true;
+  private string searchTerm = string.Empty;
+  private string activeFilter = "all";
+  private string activeSortKey = "code";
+  private bool sortDesc = false;
+  
+  private bool showEditSheet = false;
+  private (long AccountId, string Code, string Name, long? ParentAccountId, byte AccountType, bool IsActive) selectedMoeen = default;
+
+
+  private readonly List<DsPillGroup.DsPillItem> filterItems = new()
+  {
+    new() { Key = "all", Text = "همه", Icon = "fa-list" },
+    new() { Key = "active", Text = "فعال", Icon = "fa-check-circle" },
+    new() { Key = "inactive", Text = "غیرفعال", Icon = "fa-times-circle" },
+    new() { Key = "asset", Text = "دارایی", Icon = "fa-coins" },
+    new() { Key = "liability", Text = "بدهی", Icon = "fa-credit-card" },
+    new() { Key = "equity", Text = "حقوق", Icon = "fa-balance-scale" },
+    new() { Key = "income", Text = "درآمد", Icon = "fa-arrow-up" },
+    new() { Key = "expense", Text = "هزینه", Icon = "fa-arrow-down" }
+  };
+
+  private readonly List<DsPillGroup.DsPillItem> sortItems = new()
+  {
+    new() { Key = "code", Text = "کد", Icon = "fa-hashtag" },
+    new() { Key = "name", Text = "نام", Icon = "fa-font" },
+    new() { Key = "kol", Text = "کل", Icon = "fa-chart-tree-map" },
+    new() { Key = "type", Text = "نوع", Icon = "fa-tag" }
+  };
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadParentKols();
+    await LoadMoeenAccounts();
+  }
+
+  private async Task LoadParentKols()
+  {
+    try
+    {
+      // Build parent kol names dictionary
+      parentKolNames.Clear();
+      var kolAccounts = await AccountsRepo.SearchAsync("", 2, true); // Level 2 = Kol
+      foreach (var kol in kolAccounts)
+      {
+        parentKolNames[kol.AccountId] = kol.Name;
+      }
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در دریافت کل‌ها: {ex.Message}");
+    }
+  }
+
+  private async Task LoadMoeenAccounts()
+  {
+    loading = true;
+    try
+    {
+      // Load Level 3 accounts (Moeen)
+      moeenAccounts = (await AccountsRepo.SearchAsync("", 3, true)).ToList();
+      ApplyFiltersAndSort();
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در دریافت معین‌ها: {ex.Message}");
+    }
+    finally
+    {
+      loading = false;
+    }
+  }
+
+  private void OnFilterChanged(string filterKey)
+  {
+    activeFilter = filterKey;
+    ApplyFiltersAndSort();
+  }
+
+  private void OnSortChanged((string key, bool desc) sort)
+  {
+    activeSortKey = sort.key;
+    sortDesc = sort.desc;
+    ApplyFiltersAndSort();
+  }
+
+  private void ApplyFiltersAndSort()
+  {
+    var filtered = moeenAccounts.AsEnumerable();
+
+    // Apply search
+    if (!string.IsNullOrWhiteSpace(searchTerm))
+    {
+      filtered = filtered.Where(m => 
+        m.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+        m.Code.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Apply filter
+    filtered = activeFilter switch
+    {
+      "active" => filtered.Where(m => m.IsActive),
+      "inactive" => filtered.Where(m => !m.IsActive),
+      "asset" => filtered.Where(m => m.AccountType == 1),
+      "liability" => filtered.Where(m => m.AccountType == 2),
+      "equity" => filtered.Where(m => m.AccountType == 3),
+      "income" => filtered.Where(m => m.AccountType == 4),
+      "expense" => filtered.Where(m => m.AccountType == 5),
+      _ => filtered
+    };
+
+    // Apply sort
+    filtered = activeSortKey switch
+    {
+      "name" => sortDesc ? filtered.OrderByDescending(m => m.Name) : filtered.OrderBy(m => m.Name),
+      "kol" => sortDesc ? filtered.OrderByDescending(m => GetParentKolName(m.ParentAccountId)) : filtered.OrderBy(m => GetParentKolName(m.ParentAccountId)),
+      "type" => sortDesc ? filtered.OrderByDescending(m => m.AccountType) : filtered.OrderBy(m => m.AccountType),
+      _ => sortDesc ? filtered.OrderByDescending(m => m.Code) : filtered.OrderBy(m => m.Code)
+    };
+
+    filteredMoeenAccounts = filtered.ToList();
+    StateHasChanged();
+  }
+
+  private string GetParentKolName(long? parentAccountId)
+  {
+    if (parentAccountId.HasValue && parentKolNames.ContainsKey(parentAccountId.Value))
+    {
+      return parentKolNames[parentAccountId.Value];
+    }
+    return "نامشخص";
+  }
+
+  private string GetAccountTypeName(byte accountType)
+  {
+    return accountType switch
+    {
+      1 => "دارایی",
+      2 => "بدهی", 
+      3 => "حقوق",
+      4 => "درآمد",
+      5 => "هزینه",
+      _ => "نامشخص"
+    };
+  }
+
+  private void Add()
+  {
+    selectedMoeen = (0, string.Empty, string.Empty, null, 1, true);
+    showEditSheet = true;
+  }
+
+  private void Edit(Account moeen)
+  {
+    selectedMoeen = (moeen.AccountId, moeen.Code, moeen.Name, moeen.ParentAccountId, moeen.AccountType, moeen.IsActive);
+    showEditSheet = true;
+  }
+
+  private async Task HandleSheetClose(bool hasChanges)
+  {
+    showEditSheet = false;
+    if (hasChanges)
+    {
+      await LoadMoeenAccounts();
+    }
+  }
+
+  // Navigation methods
+  private void NavigateToAccounts()
+  {
+    Navigation.NavigateTo("/admin/accounts");
+  }
+
+  private void NavigateToKol()
+  {
+    Navigation.NavigateTo("/admin/kol");
+  }
+
+  private void NavigateToSubsidiary()
+  {
+    Navigation.NavigateTo("/admin/subsidiary");
+  }
+
+  private void NavigateToPostingTemplates()
+  {
+    Navigation.NavigateTo("/admin/posting-templates");
+  }
+
+  // Delete confirmation
+  private bool _showDeleteConfirm = false;
+  private string _deleteConfirmMessage = string.Empty;
+  private bool _deleting = false;
+  private long _accountToDeleteId;
+
+  // Delete handling methods
+  private async Task HandleDeleteRequest((long AccountId, string Code, string Name, string Message) args)
+  {
+    _accountToDeleteId = args.AccountId;
+    _deleteConfirmMessage = args.Message;
+    _showDeleteConfirm = true;
+  }
+
+  private async Task ConfirmDelete()
+  {
+    _showDeleteConfirm = false;
+    _deleting = true;
+    
+    try
+    {
+      await AccountsRepo.DeleteAsync(_accountToDeleteId);
+      Toast.Success("معین با موفقیت حذف شد");
+      await LoadMoeenAccounts();
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در حذف معین: {ex.Message}");
+    }
+    finally
+    {
+      _deleting = false;
+    }
+  }
+
+  private void CancelDelete()
+  {
+    _showDeleteConfirm = false;
+  }
+
+  // FAB Navigation
+  private bool fabMenuOpen = false;
+}

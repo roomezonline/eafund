@@ -1,0 +1,338 @@
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject MiniBank.Web.Infrastructure.Repositories.AccountTypeRepository AccountTypeRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+@inject MiniBank.Web.Infrastructure.Repositories.PostingTemplateRepository PTRepo
+@inject IJSRuntime JS
+
+@if (_isVisible)
+{
+  <div class="ios-sheet-overlay visible" @onclick="HandleOverlayClick">
+    <div class="ios-sheet open" @onclick:stopPropagation="true">
+      <!-- Handle Bar -->
+      <div class="ios-handle"></div>
+      
+      <!-- Header -->
+      <div class="ios-header">
+        <button class="ios-cancel" @onclick="HandleCancel">لغو</button>
+        <h2 class="ios-title">@SheetTitle</h2>
+        <button class="ios-done" @onclick="HandleSave" disabled="@(!IsFormValid || _saving)">
+          @if (_saving)
+          {
+            <div class="ios-spinner"></div>
+          }
+          else
+          {
+            <span>تایید</span>
+          }
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="ios-content">
+        <div class="ios-form-section">
+          <div class="ios-form-header">
+            <i class="fa-solid fa-calculator"></i>
+            <span>اطلاعات حساب</span>
+          </div>
+          
+          <div class="ios-form-group">
+            <div class="ios-field">
+              <label class="field-label">کد حساب *</label>
+              <input type="text" 
+                     @bind="_model.Code" 
+                     placeholder="مثال: 1100"
+                     class="ios-input center-text @(GetFieldError(nameof(_model.Code)) != null ? "error" : "")"
+                     maxlength="50" />
+              @if (GetFieldError(nameof(_model.Code)) != null)
+              {
+                <div class="field-error">@GetFieldError(nameof(_model.Code))</div>
+              }
+              <div class="field-helper">کد منحصربه‌فرد حساب</div>
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">نام حساب *</label>
+              <input type="text" 
+                     @bind="_model.Name" 
+                     placeholder="مثال: حساب‌های دریافتنی"
+                     class="ios-input center-text @(GetFieldError(nameof(_model.Name)) != null ? "error" : "")"
+                     maxlength="200" />
+              @if (GetFieldError(nameof(_model.Name)) != null)
+              {
+                <div class="field-error">@GetFieldError(nameof(_model.Name))</div>
+              }
+              <div class="field-helper">نام توصیفی حساب</div>
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">نوع حساب *</label>
+              <select @onchange="HandleAccountTypeChange" 
+                      class="ios-input @(GetFieldError(nameof(_model.AccountType)) != null ? "error" : "")">
+                <option value="0">نوع حساب را انتخاب کنید</option>
+                @foreach (var item in accountTypeItems)
+                {
+                  <option value="@item.Value" selected="@(_model.AccountType.ToString() == item.Value)">@item.Text</option>
+                }
+              </select>
+              @if (GetFieldError(nameof(_model.AccountType)) != null)
+              {
+                <div class="field-error">@GetFieldError(nameof(_model.AccountType))</div>
+              }
+              <div class="field-helper">دسته‌بندی حساب در ترازنامه</div>
+            </div>
+
+            @if (!IsNew)
+            {
+              <div class="ios-field">
+                <div class="ios-toggle-field">
+                  <label class="field-label">وضعیت فعال</label>
+                  <label class="ios-toggle">
+                    <input type="checkbox" @bind="_model.IsActive" />
+                    <span class="ios-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="field-helper">حساب‌های غیرفعال در گزارش‌ها نمایش داده نمی‌شوند</div>
+              </div>
+            }
+          </div>
+        </div>
+
+        @if (!IsNew)
+        {
+          <div class="ios-form-section">
+            <div class="ios-form-header danger">
+              <i class="fa-solid fa-trash"></i>
+              <span>حذف حساب</span>
+            </div>
+            
+            <div class="ios-form-group">
+              <div class="ios-field">
+                <button type="button" class="ios-danger-button" @onclick="HandleDelete">
+                  <i class="fa-solid fa-trash"></i>
+                  حذف حساب
+                </button>
+                <div class="field-helper">این عمل قابل بازگشت نیست</div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+  [Parameter] public (long AccountId, string Code, string Name, byte AccountType) Model { get; set; }
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _isVisible = true;
+  private bool _saving = false;
+  private Dictionary<string, string> _errors = new();
+
+  private AccountModel _model = new();
+
+  private List<DsDropdown.DsDropdownItem> accountTypeItems = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    _model = new AccountModel
+    {
+      AccountId = Model.AccountId,
+      Code = Model.Code,
+      Name = Model.Name,
+      AccountType = Model.AccountType,
+      IsActive = true
+    };
+
+    await LoadAccountTypes();
+  }
+
+  private async Task LoadAccountTypes()
+  {
+    try
+    {
+      var accountTypes = await AccountTypeRepo.GetAllAsync(true);
+      accountTypeItems = accountTypes.Select(at => new DsDropdown.DsDropdownItem
+      {
+        Value = at.AccountTypeId.ToString(),
+        Text = $"{at.Name} ({at.Code})"
+      }).ToList();
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در دریافت انواع حساب: {ex.Message}");
+      // Fallback to hardcoded values
+      accountTypeItems = new List<DsDropdown.DsDropdownItem>
+      {
+        new() { Value = "1", Text = "دارایی (1)" },
+        new() { Value = "2", Text = "بدهی (2)" },
+        new() { Value = "3", Text = "حقوق صاحبان (3)" },
+        new() { Value = "4", Text = "درآمد (4)" },
+        new() { Value = "5", Text = "هزینه (5)" }
+      };
+    }
+  }
+
+  private string SheetTitle => IsNew ? "حساب جدید" : $"ویرایش حساب: {_model.Name}";
+
+  private bool IsFormValid => 
+    !string.IsNullOrWhiteSpace(_model.Code) &&
+    !string.IsNullOrWhiteSpace(_model.Name) &&
+    _model.AccountType > 0 &&
+    _errors.Count == 0;
+
+  private void HandleAccountTypeChange(ChangeEventArgs e)
+  {
+    if (byte.TryParse(e?.Value?.ToString(), out var accountType))
+    {
+      _model.AccountType = accountType;
+    }
+  }
+
+  private async Task HandleSave()
+  {
+    if (!ValidateForm()) return;
+
+    _saving = true;
+    try
+    {
+      if (IsNew)
+      {
+        await CreateAccount();
+      }
+      else
+      {
+        await UpdateAccount();
+      }
+      
+      Toast.Success(IsNew ? "حساب جدید ایجاد شد" : "تغییرات ذخیره شد");
+      await HandleClose(true);
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در {(IsNew ? "ایجاد" : "ویرایش")} حساب: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+
+  private async Task CreateAccount()
+  {
+    // Check if code is unique
+    var isUnique = await AccountsRepo.IsCodeUniqueAsync(_model.Code);
+    if (!isUnique)
+    {
+      _errors[nameof(_model.Code)] = "این کد قبلاً استفاده شده است";
+      return;
+    }
+
+    var accountId = await AccountsRepo.CreateAsync(_model.Code, _model.Name, _model.AccountType);
+    _model.AccountId = accountId;
+  }
+
+  private async Task UpdateAccount()
+  {
+    // Check if code is unique (excluding current account)
+    var isUnique = await AccountsRepo.IsCodeUniqueAsync(_model.Code, _model.AccountId);
+    if (!isUnique)
+    {
+      _errors[nameof(_model.Code)] = "این کد قبلاً استفاده شده است";
+      return;
+    }
+
+    await AccountsRepo.UpdateAsync(_model.AccountId, _model.Code, _model.Name, _model.AccountType, _model.IsActive);
+  }
+
+  private bool ValidateForm()
+  {
+    _errors.Clear();
+
+    if (string.IsNullOrWhiteSpace(_model.Code))
+      _errors[nameof(_model.Code)] = "کد حساب الزامی است";
+    else if (_model.Code.Length > 50)
+      _errors[nameof(_model.Code)] = "کد حساب نباید بیش از 50 کاراکتر باشد";
+
+    if (string.IsNullOrWhiteSpace(_model.Name))
+      _errors[nameof(_model.Name)] = "نام حساب الزامی است";
+    else if (_model.Name.Length > 200)
+      _errors[nameof(_model.Name)] = "نام حساب نباید بیش از 200 کاراکتر باشد";
+
+    if (_model.AccountType == 0)
+      _errors[nameof(_model.AccountType)] = "نوع حساب الزامی است";
+
+    return _errors.Count == 0;
+  }
+
+  private string? GetFieldError(string fieldName)
+  {
+    return _errors.TryGetValue(fieldName, out var error) ? error : null;
+  }
+
+  private async Task HandleCancel()
+  {
+    await HandleClose(false);
+  }
+
+  private async Task HandleClose(bool hasChanges = false)
+  {
+    _isVisible = false;
+    await OnClose.InvokeAsync(hasChanges);
+  }
+
+  private void HandleOverlayClick()
+  {
+    // Close sheet when clicking overlay
+    _ = HandleCancel();
+  }
+
+  private async Task HandleDelete()
+  {
+    // Only allow delete when editing an existing account
+    if (IsNew || _model.AccountId <= 0)
+    {
+      await HandleCancel();
+      return;
+    }
+
+    try
+    {
+      // Check usage in posting templates first
+      var usageCount = await PTRepo.CountAccountUsagesAsync(_model.AccountId);
+      if (usageCount > 0)
+      {
+        Toast.Error($"این حساب در {usageCount} خط الگوی حسابداری استفاده شده است و قابل حذف نیست.");
+        return;
+      }
+
+      var ok = await AccountsRepo.DeleteAsync(_model.AccountId);
+      if (ok)
+      {
+        Toast.Success("حساب حذف شد");
+        await HandleClose(true);
+      }
+      else
+      {
+        Toast.Error("حذف حساب ناموفق بود");
+      }
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در حذف حساب: {ex.Message}");
+    }
+  }
+
+  // Internal model for form binding
+  private class AccountModel
+  {
+    public long AccountId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public byte AccountType { get; set; }
+    public bool IsActive { get; set; } = true;
+  }
+}

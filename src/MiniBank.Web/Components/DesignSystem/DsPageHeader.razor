@@ -1,0 +1,61 @@
+@using Microsoft.AspNetCore.Components
+@inject IJSRuntime JS
+
+<header class="ds-page-header">
+  <div class="brand">
+    <div class="icon">
+      <i class="@Icon"></i>
+    </div>
+    <div class="text">
+      <div class="title">@Title</div>
+      <div class="subtitle">@Subtitle</div>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    @ChildContent
+    @if (ShowAddButton)
+    {
+      <button class="icon-btn" title="@AddButtonTitle" @onclick="OnAddClick">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    }
+    @if (ShowRefreshButton)
+    {
+      <button class="icon-btn" title="بروز رسانی" @onclick="OnRefreshClick">
+        <i class="fa-solid fa-rotate"></i>
+      </button>
+    }
+    @if (ShowBackButton)
+    {
+      <button class="icon-btn" title="بازگشت" @onclick="GoBack">
+        <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    }
+  </div>
+</header>
+
+@code {
+  [Parameter] public string Icon { get; set; } = "fa-solid fa-circle";
+  [Parameter] public string Title { get; set; } = "";
+  [Parameter] public string Subtitle { get; set; } = "";
+  [Parameter] public bool ShowBackButton { get; set; } = false;
+  [Parameter] public bool ShowRefreshButton { get; set; } = false;
+  [Parameter] public bool ShowAddButton { get; set; } = false;
+  [Parameter] public string AddButtonTitle { get; set; } = "افزودن";
+  [Parameter] public EventCallback OnRefreshClick { get; set; }
+  [Parameter] public EventCallback OnAddClick { get; set; }
+  [Parameter] public EventCallback OnBackClicked { get; set; }
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+
+  private async Task GoBack()
+  {
+    if (OnBackClicked.HasDelegate)
+    {
+      await OnBackClicked.InvokeAsync();
+    }
+    else
+    {
+      await JS.InvokeVoidAsync("history.back");
+    }
+  }
+}

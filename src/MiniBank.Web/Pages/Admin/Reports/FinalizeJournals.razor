@@ -1,0 +1,549 @@
+@page "/admin/reports/finalize-journals"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Components.Extensions
+@using Dapper
+@using System.Data
+@inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Infrastructure.IDbConnectionFactory DbConnectionFactory
+@inject DsToastService Toast
+@inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+
+<DsPageHeader Title="تبدیل قطعی اسناد"
+              Icon="fa-solid fa-check-double"
+              ShowBackButton="true" />
+
+<div class="fz-wrap">
+    <!-- کارت فیلترها -->
+    <div class="fz-filter-card">
+        <div class="fz-filter-hdr">
+            <h3><i class="fas fa-filter"></i> بازه زمانی</h3>
+        </div>
+        <div class="fz-filter-body">
+            <div class="fz-filter-grid">
+                <DsJalaliDatePicker Label="از تاریخ" @bind-Value="fromDateString" Placeholder="1404/01/01" />
+                <DsJalaliDatePicker Label="تا تاریخ" @bind-Value="toDateString" Placeholder="1404/12/29" />
+                <button class="fz-btn fz-btn-primary" @onclick="LoadJournals">
+                    <i class="fas fa-search"></i> نمایش
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="fz-loading">
+            <div class="fz-spinner"></div>
+            <span>در حال بارگذاری اسناد...</span>
+        </div>
+    }
+
+    @if (!_loading && journals.Count > 0)
+    {
+        <!-- کارت نتایج -->
+        <div class="fz-result-card">
+            <div class="fz-result-hdr">
+                <span class="fz-count">@journals.Count سند دائمی</span>
+                <button class="fz-btn fz-btn-success" disabled="@(!selectedIds.Any() || _finalizing)" @onclick="ConfirmFinalize">
+                    @if (_finalizing)
+                    {
+                        <span class="fz-spinner-sm"></span>
+                    }
+                    <i class="fas fa-check-double"></i> تبدیل @selectedIds.Count سند
+                </button>
+            </div>
+
+            <div class="fz-search-bar">
+                <i class="fas fa-search fz-search-icon"></i>
+                <input type="text" class="fz-search-input" placeholder="جستجوی دقیق بر اساس شماره سند..." value="@_searchTerm" @oninput="OnSearchInput" />
+                @if (!string.IsNullOrEmpty(_searchTerm))
+                {
+                    <button class="fz-search-clear" @onclick="ClearSearch">✕</button>
+                }
+            </div>
+
+            @if (filteredJournals.Count == 0)
+            {
+                <div class="fz-empty">نتیجه‌ای یافت نشد</div>
+            }
+            else
+            {
+                <div class="fz-tbl-wrap">
+                    <table class="fz-tbl">
+                        <thead>
+                            <tr>
+                                <th class="fz-chk-col"><input type="checkbox" @onchange="ToggleSelectAll" checked="@(filteredJournals.Count > 0 && filteredJournals.All(j => selectedIds.Contains(j.JournalId)))" /></th>
+                                <th class="fz-id-col">شماره سند</th>
+                                <th class="fz-date-col">تاریخ</th>
+                                <th class="fz-type-col">نوع سند</th>
+                                <th class="fz-tran-col">نوع تراکنش</th>
+                                <th class="fz-ch-col">کانال</th>
+                                <th class="fz-amt-col">مبلغ</th>
+                                <th>شرح</th>
+                                <th class="fz-st-col">وضعیت</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var j in filteredJournals)
+                            {
+                                <tr class="@(selectedIds.Contains(j.JournalId) ? "fz-sel" : "")">
+                                    <td><input type="checkbox" checked="@selectedIds.Contains(j.JournalId)" @onchange="() => ToggleSelection(j.JournalId)" /></td>
+                                    <td><span class="fz-id-val">@(j.DocumentNumber?.ToString() ?? $"P-{j.JournalId}")</span></td>
+                                    <td>@j.OccurredAt.ToString("yyyy/MM/dd")</td>
+                                    <td>@j.DocumentTypeName</td>
+                                    <td>@j.TransactionTypeName</td>
+                                    <td>@j.ChannelName</td>
+                                    <td class="fz-amt-cell">@j.Amount.ToString("N0")</td>
+                                    <td class="fz-notes-cell">@j.Notes</td>
+                                    <td><span class="fz-badge fz-badge-perm">دائمی</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="fz-mob-header">
+                    <label class="fz-mob-selall">
+                        <input type="checkbox" @onchange="ToggleSelectAll" checked="@(filteredJournals.Count > 0 && filteredJournals.All(j => selectedIds.Contains(j.JournalId)))" />
+                        انتخاب همه
+                    </label>
+                </div>
+                <div class="fz-mob-list">
+                    @foreach (var j in filteredJournals)
+                    {
+                        <div class="fz-mob-row @(selectedIds.Contains(j.JournalId) ? "fz-mob-sel" : "")" @onclick="() => ToggleSelection(j.JournalId)">
+                            <div class="fz-mob-top">
+                                <span class="fz-mob-id">#@(j.DocumentNumber?.ToString() ?? $"P-{j.JournalId}")</span>
+                                <span class="fz-mob-date">@j.OccurredAt.ToString("yyyy/MM/dd")</span>
+                                <span class="fz-mob-chk"><input type="checkbox" checked="@selectedIds.Contains(j.JournalId)" @onclick:stopPropagation="true" @onchange="() => ToggleSelection(j.JournalId)" /></span>
+                            </div>
+                            <div class="fz-mob-info">
+                                <span class="fz-mob-tag">@j.DocumentTypeName</span>
+                                <span class="fz-mob-tag">@j.TransactionTypeName</span>
+                                <span class="fz-mob-tag">@j.ChannelName</span>
+                            </div>
+                            <div class="fz-mob-amt-row">
+                                <span class="fz-mob-amt-label">مبلغ:</span>
+                                <span class="fz-mob-amt-val">ریال @j.Amount.ToString("N0")</span>
+                            </div>
+                            <div class="fz-mob-notes">@j.Notes</div>
+                            <div class="fz-mob-bottom">
+                                <span class="fz-badge fz-badge-perm">دائمی</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    @if (!_loading && !string.IsNullOrEmpty(Message))
+    {
+        <div class="fz-msg">@Message</div>
+    }
+
+    @if (showConfirm)
+    {
+        <div class="fz-overlay" @onclick="CancelFinalize">
+            <div class="fz-modal" @onclick:stopPropagation="true">
+                <h4>تأیید تبدیل قطعی</h4>
+                <p>آیا از تبدیل <strong>@selectedIds.Count</strong> سند به وضعیت قطعی اطمینان دارید؟</p>
+                <p class="fz-modal-note">پس از تبدیل، اسناد قابل ویرایش و حذف نخواهند بود.</p>
+                <div class="fz-modal-actions">
+                    <button class="fz-btn fz-btn-success" @onclick="ExecuteFinalize" disabled="@_finalizing">
+                        @if (_finalizing)
+                        {
+                            <span class="fz-spinner-sm"></span>
+                        }
+                        <i class="fas fa-check"></i> بله، تبدیل شود
+                    </button>
+                    <button class="fz-btn fz-btn-secondary" @onclick="CancelFinalize">انصراف</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .fz-wrap { max-width:1100px; margin:16px auto; display:flex; flex-direction:column; gap:16px; padding:0 12px; }
+
+    /* لودینگ */
+    .fz-loading { display:flex; flex-direction:column; align-items:center; gap:14px; padding:56px 16px; background:#fff; border-radius:16px; border:1px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+    .fz-loading span { color:#64748b; font-size:14px; font-weight:600; }
+    .fz-spinner { width:44px; height:44px; border:3.5px solid #e2e8f0; border-top-color:#3b82f6; border-radius:50%; animation:fz-spin .7s linear infinite; }
+    @@keyframes fz-spin { to { transform:rotate(360deg); } }
+    .fz-spinner-sm { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:fz-spin .6s linear infinite; vertical-align:middle; }
+
+    /* کارت فیلتر */
+    .fz-filter-card { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04); border:1px solid #e9edf2; }
+    .fz-filter-hdr { background:linear-gradient(135deg,#2563eb,#1d4ed8); padding:14px 20px; }
+    .fz-filter-hdr h3 { margin:0; font-size:14px; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px; letter-spacing:.3px; }
+    .fz-filter-hdr h3 i { font-size:13px; }
+    .fz-filter-body { padding:20px; }
+    .fz-filter-grid { display:grid; grid-template-columns:1fr 1fr auto; gap:14px; align-items:end; }
+
+    /* دکمه اصلی نمایش */
+    .fz-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:0 24px; height:42px; border:none; border-radius:10px; cursor:pointer; font-weight:700; font-size:13px; white-space:nowrap; transition:all .2s; letter-spacing:.2px; }
+    .fz-btn-primary { background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; box-shadow:0 4px 12px rgba(37,99,235,.25); }
+    .fz-btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,99,235,.35); }
+    .fz-btn-primary:active { transform:translateY(0); }
+    .fz-btn-success { background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; box-shadow:0 4px 12px rgba(22,163,74,.25); }
+    .fz-btn-success:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 20px rgba(22,163,74,.35); }
+    .fz-btn-success:active:not(:disabled) { transform:translateY(0); }
+    .fz-btn-secondary { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+    .fz-btn-secondary:hover { background:#e2e8f0; }
+    .fz-btn:disabled { opacity:.45; cursor:default; box-shadow:none; }
+
+    /* کارت نتایج */
+    .fz-result-card { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04); border:1px solid #e9edf2; }
+    .fz-result-hdr { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; background:#f8fafc; border-bottom:1px solid #e9edf2; flex-wrap:wrap; gap:10px; }
+    .fz-count { font-weight:700; font-size:14px; color:#0f172a; }
+    .fz-count i { margin-left:6px; color:#3b82f6; }
+
+    /* جستجو */
+    .fz-search-bar { display:flex; align-items:center; gap:8px; padding:12px 20px; border-bottom:1px solid #e9edf2; background:#fff; }
+    .fz-search-icon { color:#94a3b8; font-size:14px; flex-shrink:0; }
+    .fz-search-input { flex:1; border:1px solid #e2e8f0; border-radius:8px; padding:9px 12px; font-size:13px; outline:none; background:#f8fafc; transition:all .2s; min-width:0; }
+    .fz-search-input:focus { border-color:#3b82f6; background:#fff; box-shadow:0 0 0 3px rgba(59,130,246,.12); }
+    .fz-search-clear { background:none; border:none; color:#94a3b8; cursor:pointer; font-size:16px; padding:2px; flex-shrink:0; line-height:1; border-radius:4px; transition:all .15s; }
+    .fz-search-clear:hover { color:#ef4444; background:#fef2f2; }
+    .fz-empty { padding:40px 16px; text-align:center; color:#94a3b8; font-size:14px; font-weight:500; }
+
+    /* جدول مدرن */
+    .fz-tbl-wrap { overflow-x:auto; padding:0; }
+    .fz-tbl { width:100%; border-collapse:separate; border-spacing:0; font-size:12px; min-width:760px; }
+    .fz-tbl thead th { background:#f1f5f9; color:#334155; padding:10px 12px; font-weight:700; text-align:center; white-space:nowrap; border-bottom:2px solid #e2e8f0; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+    .fz-tbl thead th:first-child { border-radius:8px 0 0 0; }
+    .fz-tbl thead th:last-child { border-radius:0 8px 0 0; }
+    .fz-tbl tbody td { padding:10px 12px; border-bottom:1px solid #f1f5f9; text-align:center; background:#fff; transition:background .15s; }
+    .fz-tbl tbody tr:last-child td:first-child { border-radius:0 0 0 8px; }
+    .fz-tbl tbody tr:last-child td:last-child { border-radius:0 0 8px 0; }
+    .fz-tbl tbody tr:hover td { background:#f8fafc; }
+    .fz-tbl tbody tr.fz-sel td { background:#f0fdf4; }
+    .fz-tbl tbody tr.fz-sel:hover td { background:#ecfdf5; }
+    .fz-chk-col { width:36px; text-align:center; }
+    .fz-chk-col input { width:16px; height:16px; accent-color:#3b82f6; cursor:pointer; }
+    .fz-id-col { width:70px; }
+    .fz-date-col { width:84px; }
+    .fz-type-col { width:68px; }
+    .fz-tran-col { width:82px; }
+    .fz-ch-col { width:62px; }
+    .fz-amt-col { width:100px; }
+    .fz-st-col { width:54px; }
+    .fz-id-val { font-weight:800; color:#3b82f6; font-size:13px; }
+    .fz-notes-cell { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#475569; }
+    .fz-amt-cell { direction:ltr; font-weight:700; font-family:'Roboto Mono',Consolas,monospace; font-size:13px; color:#0f172a; }
+
+    /* موبایل */
+    .fz-mob-list { display:none; flex-direction:column; gap:10px; padding:0 14px 14px; }
+    .fz-mob-header { display:none; padding:12px 14px 0; }
+    .fz-mob-selall { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:#1e293b; cursor:pointer; user-select:none; }
+    .fz-mob-selall input { width:18px; height:18px; accent-color:#16a34a; cursor:pointer; }
+    .fz-mob-row { background:#fff; border-radius:12px; padding:12px 14px; cursor:pointer; border:1.5px solid #e5e7eb; transition:all .15s; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+    .fz-mob-row:active { transform:scale(.985); }
+    .fz-mob-sel { border-color:#16a34a; background:#f0fdf4; box-shadow:0 0 0 1px rgba(22,163,74,.15); }
+    .fz-mob-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .fz-mob-id { font-weight:800; font-size:14px; color:#2563eb; }
+    .fz-mob-date { font-size:12px; color:#6b7280; }
+    .fz-mob-chk { margin-right:auto; }
+    .fz-mob-chk input { width:18px; height:18px; accent-color:#16a34a; cursor:pointer; }
+    .fz-mob-info { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+    .fz-mob-tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; background:#f3f4f6; color:#374151; }
+    .fz-mob-amt-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:13px; }
+    .fz-mob-amt-label { color:#6b7280; font-weight:600; }
+    .fz-mob-amt-val { direction:ltr; font-weight:800; color:#111827; font-family:monospace; }
+    .fz-mob-notes { font-size:13px; color:#374151; line-height:1.55; margin-bottom:8px; word-break:break-word; white-space:pre-wrap; }
+    .fz-mob-bottom { display:flex; align-items:center; }
+    .fz-mob-bottom .fz-badge { margin-right:auto; }
+
+    /* بج */
+    .fz-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.2px; }
+    .fz-badge-perm { background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe; }
+
+    /* پیام */
+    .fz-msg { padding:12px 18px; border-radius:10px; background:#e0f2fe; font-size:13px; text-align:center; border:1px solid #bae6fd; color:#0c4a6e; font-weight:600; }
+
+    /* مودال */
+    .fz-overlay { position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); }
+    .fz-modal { background:#fff; border-radius:20px; padding:32px 28px; max-width:420px; width:92%; box-shadow:0 25px 60px rgba(0,0,0,.25); }
+    .fz-modal h4 { margin:0 0 12px; font-size:17px; color:#0f172a; }
+    .fz-modal p { margin:0 0 6px; font-size:14px; color:#334155; }
+    .fz-modal-note { font-size:13px; color:#64748b; }
+    .fz-modal-actions { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+
+    @@media (max-width:640px) {
+        .fz-filter-grid { grid-template-columns:1fr 1fr; }
+        .fz-filter-grid .fz-btn-primary { grid-column:1/-1; width:100%; justify-content:center; padding:11px; }
+        .fz-tbl-wrap { display:none; }
+        .fz-mob-list { display:flex; }
+        .fz-mob-header { display:flex; }
+    }
+</style>
+
+@code {
+    private string fromDateString = "";
+    private string toDateString = "";
+    private List<FinalizeJournalItem> journals = new();
+    private HashSet<long> selectedIds = new();
+    private bool showConfirm;
+    private string? Message;
+    private bool _loading;
+    private bool _finalizing;
+
+    // جستجو
+    private string _searchTerm = "";
+
+    private List<FinalizeJournalItem> filteredJournals
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_searchTerm)) return journals;
+            var term = _searchTerm.Trim();
+            if (!long.TryParse(term, out var docNum)) return new();
+            return journals.Where(j => j.DocumentNumber.HasValue && j.DocumentNumber.Value == docNum).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(fromDateString) || string.IsNullOrEmpty(toDateString))
+        {
+            try
+            {
+                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
+                if (fy != null)
+                {
+                    if (string.IsNullOrEmpty(fromDateString))
+                        fromDateString = fy.StartDate.ToPersianDate();
+                    if (string.IsNullOrEmpty(toDateString))
+                        toDateString = fy.EndDate.ToPersianDate();
+                }
+            }
+            catch { }
+            if (string.IsNullOrEmpty(fromDateString) || string.IsNullOrEmpty(toDateString))
+            {
+                var r = MiniBank.Web.Components.Extensions.DateTimeExtensions.CurrentJalaliYearRange();
+                if (string.IsNullOrEmpty(fromDateString))
+                    fromDateString = r.From;
+                if (string.IsNullOrEmpty(toDateString))
+                    toDateString = r.To;
+            }
+        }
+        await LoadJournals();
+    }
+
+    private DateTime? ToGeorgian(string jalali)
+    {
+        if (string.IsNullOrWhiteSpace(jalali)) return null;
+        var parts = jalali.Split('/');
+        if (parts.Length == 3 &&
+            int.TryParse(parts[0], out var y) &&
+            int.TryParse(parts[1], out var m) &&
+            int.TryParse(parts[2], out var d))
+        {
+            var pc = new System.Globalization.PersianCalendar();
+            return pc.ToDateTime(y, m, d, 0, 0, 0, 0);
+        }
+        return null;
+    }
+
+    private async Task LoadJournals()
+    {
+        Message = null;
+        selectedIds.Clear();
+        _searchTerm = "";
+        _loading = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var from = ToGeorgian(fromDateString);
+            var to = ToGeorgian(toDateString);
+
+            using var connection = await DbConnectionFactory.CreateConnectionAsync();
+
+            var sql = @"
+SELECT
+    j.JournalId,
+    j.DocumentNumber,
+    CAST(j.OccurredAt AS DATE) as OccurredAt,
+    ISNULL(j.Notes, '') as Notes,
+    j.Status,
+    j.FiscalYearId,
+    COALESCE(hr1.DocumentType, hr2.DocumentType, 0) as DocumentType,
+    COALESCE(hr1.TransactionType, hr2.TransactionType, '') as TransactionType,
+    COALESCE(hr1.PayChannel, hr2.PayChannel, 0) as PayChannel,
+    ISNULL(COALESCE(hr1.CounterpartyName, hr2.CounterpartyName, '-'), '-') as CounterpartyName,
+    ISNULL(COALESCE(t.AmountTotal, hr1.AmountTotal, hr2.AmountTotal, jl.AmountFromLines), 0) as Amount
+FROM dbo.Journals j
+LEFT JOIN dbo.Transactions t ON t.TransactionId = j.TransactionId
+LEFT JOIN dbo.HouseholdReceipts hr1 ON hr1.HouseholdReceiptId = t.ParentReceiptId
+LEFT JOIN dbo.HouseholdReceipts hr2 ON hr2.ExternalRef = CONCAT('J:', j.JournalId)
+OUTER APPLY (
+    SELECT
+        CASE
+            WHEN SUM(ISNULL(jl.Debit, 0)) >= SUM(ISNULL(jl.Credit, 0)) THEN SUM(ISNULL(jl.Debit, 0))
+            ELSE SUM(ISNULL(jl.Credit, 0))
+        END AS AmountFromLines
+    FROM dbo.JournalLines jl
+    WHERE jl.JournalId = j.JournalId
+) jl
+WHERE j.Status = 2 AND j.IsDeleted = 0";
+
+            if (from.HasValue)
+                sql += " AND j.OccurredAt >= @from";
+            if (to.HasValue)
+                sql += " AND j.OccurredAt < DATEADD(DAY, 1, @to)";
+            sql += " ORDER BY j.OccurredAt ASC, j.JournalId ASC";
+
+            var rows = (await connection.QueryAsync<FinalizeJournalItem>(sql, new { from = from, to = to })).ToList();
+
+            // Populate display names
+            foreach (var row in rows)
+            {
+                row.DocumentTypeName = row.DocumentType switch
+                {
+                    1 => "دریافت",
+                    2 => "پرداخت",
+                    _ => "-"
+                };
+                row.TransactionTypeName = row.TransactionType switch
+                {
+                    "1" => "وجه نقد",
+                    "2" => "صندوق",
+                    "3" => "بانک",
+                    "4" => "تسهیلات",
+                    "5" => "مدیریت تسهیلات",
+                    "6" => "سود سپرده",
+                    "7" => "پیش پرداخت",
+                    "8" => "تسهیلات معوق",
+                    _ => "-"
+                };
+                row.ChannelName = row.PayChannel switch
+                {
+                    1 => "نقدی",
+                    2 => "دستگاه",
+                    3 => "کارت به کارت",
+                    _ => "-"
+                };
+            }
+
+            journals = rows;
+            if (journals.Count == 0)
+                Message = "هیچ سند دائمی در بازه انتخابی یافت نشد.";
+        }
+        catch (Exception ex)
+        {
+            Message = $"خطا در بارگذاری: {ex.Message}";
+            journals = new();
+        }
+        finally
+        {
+            _loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        _searchTerm = e.Value?.ToString() ?? "";
+        StateHasChanged();
+    }
+
+    private void ClearSearch()
+    {
+        _searchTerm = "";
+        StateHasChanged();
+    }
+
+    private void ToggleSelection(long id)
+    {
+        if (!selectedIds.Remove(id))
+            selectedIds.Add(id);
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        if ((bool)(e.Value ?? false))
+            selectedIds = new HashSet<long>(filteredJournals.Select(j => j.JournalId));
+        else
+            selectedIds.Clear();
+    }
+
+    private void ConfirmFinalize()
+    {
+        if (selectedIds.Any())
+            showConfirm = true;
+    }
+
+    private void CancelFinalize()
+    {
+        showConfirm = false;
+    }
+
+    private async Task ExecuteFinalize()
+    {
+        _finalizing = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var selected = journals.Where(j => selectedIds.Contains(j.JournalId))
+                                   .OrderBy(j => j.OccurredAt).ThenBy(j => j.JournalId).ToList();
+            if (selected.Count == 0) return;
+
+            using var connection = await DbConnectionFactory.CreateConnectionAsync();
+            using var tx = connection.BeginTransaction();
+
+            foreach (var fyGroup in selected.GroupBy(j => j.FiscalYearId))
+            {
+                var maxSerial = await connection.QuerySingleAsync<int>(
+                    "SELECT ISNULL(MAX(SerialNumber), 0) FROM dbo.Journals WHERE FiscalYearId = @fyId AND [Status] = 3 AND SerialNumber IS NOT NULL",
+                    new { fyId = fyGroup.Key }, transaction: tx);
+
+                var serial = maxSerial;
+                foreach (var j in fyGroup.OrderBy(j => j.OccurredAt).ThenBy(j => j.JournalId))
+                {
+                    serial++;
+                    await connection.ExecuteAsync(
+                        "UPDATE dbo.Journals SET [Status] = @status, SerialNumber = @serial WHERE JournalId = @journalId",
+                        new { journalId = j.JournalId, status = 3, serial },
+                        transaction: tx);
+                }
+            }
+            tx.Commit();
+
+            showConfirm = false;
+            await LoadJournals();
+            await Toast.SuccessAsync($"{selected.Count} سند با موفقیت به وضعیت قطعی تبدیل شدند.");
+        }
+        catch (Exception ex)
+        {
+            showConfirm = false;
+            Message = $"خطا: {ex.Message}";
+        }
+        finally
+        {
+            _finalizing = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public class FinalizeJournalItem
+    {
+        public long JournalId { get; set; }
+        public int? DocumentNumber { get; set; }
+        public DateTime OccurredAt { get; set; }
+        public string Notes { get; set; } = "";
+        public byte Status { get; set; }
+        public byte DocumentType { get; set; }
+        public string TransactionType { get; set; } = "";
+        public byte PayChannel { get; set; }
+        public string CounterpartyName { get; set; } = "";
+        public decimal Amount { get; set; }
+        public string DocumentTypeName { get; set; } = "";
+        public string TransactionTypeName { get; set; } = "";
+        public string ChannelName { get; set; } = "";
+        public int FiscalYearId { get; set; }
+    }
+}

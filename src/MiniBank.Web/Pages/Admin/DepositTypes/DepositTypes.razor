@@ -1,0 +1,443 @@
+@page "/admin/deposit-types"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@inject MiniBank.Web.Services.DepositRateService DepositRateService
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@using MiniBank.Web.Components.DesignSystem
+
+<div class="members-duo">
+  <DsPageHeader Icon="fa-solid fa-piggy-bank" 
+                Title="نرخ سود سپرده" 
+                Subtitle="@($"تعداد کل: {_items.Count}")"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="افزودن نرخ سود"
+                OnRefreshClick="Refresh"
+                OnAddClick="ShowCreate">
+  </DsPageHeader>
+
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="_keyword" 
+                  Placeholder="جستجو در نرخ سود..." />
+  </div>
+  
+  <div class='duo-filters'>
+    <DsPillGroup Mode="filter"
+                 Items="@_filterItems"
+                 ActiveKey="@_filter"
+                 OnFilterChanged="OnFilterChanged" />
+  </div>
+  <div class='duo-sort'>
+    <DsPillGroup Mode="sort"
+                 Items="@_sortItems"
+                 ActiveKey="@_sortKey"
+                 ActiveKeyChanged="@(k => _sortKey = k)"
+                 Desc="@_sortDesc"
+                 DescChanged="@(d => _sortDesc = d)"
+                 OnSortChanged="OnSortChanged" />
+  </div>
+
+  <main class="duo-main">
+    @if (_loading)
+    {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>در حال بارگذاری نرخ‌ها...</p>
+      </div>
+    }
+    else if (!_items.Any())
+    {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <i class="fa-solid fa-piggy-bank"></i>
+        </div>
+        <h3>هیچ نرخی ثبت نشده</h3>
+        <p>برای شروع، اولین نرخ سود را اضافه کنید</p>
+        <button class="btn-primary" @onclick="ShowCreate">
+          <i class="fa-solid fa-plus"></i>
+          افزودن نرخ سود جدید
+        </button>
+      </div>
+    }
+    else
+    {
+      <div class="items-grid">
+        @foreach (var item in _items)
+        {
+          var expanded = _expanded.Contains(item.PlanId);
+          var inactive = !item.IsActive;
+          <div id="deposit-rate-plan-@item.PlanId" class="item-card @(expanded ? "expanded" : null) @(inactive ? "inactive" : null)" @onclick="(() => ToggleExpand(item.PlanId))" style="cursor: pointer;">
+            <div class="item-header">
+              <div class="item-info compact">
+                <button class="btn-caret" title="نمایش جزئیات" @onclick="(() => ToggleExpand(item.PlanId))" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-chevron-down @(expanded ? "open" : null)"></i>
+                </button>
+                <span class="id-chip" title="شناسه">#@item.PlanId</span>
+                <div class="title-stack">
+                  <h3 class="item-title">@GetPlanTitle(item)</h3>
+                  <span class="item-subtitle">@ToDateRangeText(item)</span>
+                </div>
+              </div>
+              <div class="item-actions">
+                <button class="btn-icon btn-edit" title="ویرایش" @onclick="() => Edit(item)" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-edit"></i>
+                </button>
+                <button class="btn-icon btn-delete" title="حذف" @onclick="() => Delete(item)" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+
+            @if (expanded)
+            {
+              <div class="item-details">
+                <div class="details-section">
+                  <div class="section-title">
+                    <i class="fa-solid fa-tag"></i>
+                    <span>جزئیات نرخ</span>
+                  </div>
+                  <div class="details-grid">
+                    <div class="detail">
+                      <div class="label">نوع نرخ</div>
+                      <div class="value chip chip-blue">@(item.Mode == DepositRateMode.Single ? "تک‌نرخی" : "پلکانی")</div>
+                    </div>
+
+                    <div class="detail">
+                      <div class="label">بازه اعتبار</div>
+                      <div class="value chip chip-blue">@ToDateRangeText(item)</div>
+                    </div>
+
+                    @if (item.Mode == DepositRateMode.Single)
+                    {
+                      <div class="detail">
+                        <div class="label">نرخ</div>
+                        <div class="value chip chip-blue">@ToPercentText(item.SingleRatePercent)</div>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                @if (item.Mode == DepositRateMode.Tiered)
+                {
+                  <div class="details-section">
+                    <div class="section-title">
+                      <i class="fa-solid fa-layer-group"></i>
+                      <span>پله‌های نرخ</span>
+                    </div>
+                    @if (_tiers.TryGetValue(item.PlanId, out var tiers) && tiers.Any())
+                    {
+                      <div class="rates-vertical-container">
+                        @foreach (var t in tiers.OrderBy(x => x.OrderNo))
+                        {
+                          <div class="tier-chip-row">
+                            <span class="tier-chip tier-chip-rate">@t.RatePercent.ToString("0.##")%</span>
+                            <span class="tier-chip tier-chip-range">
+                              <span class="tier-kw">از</span>
+                              <span class="tier-num">@t.FromAmount.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)</span>
+                              @if (t.ToAmount.HasValue)
+                              {
+                                <span class="tier-kw">تا</span>
+                                <span class="tier-num">@t.ToAmount.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)</span>
+                              }
+                              else
+                              {
+                                <span class="tier-kw">تا</span>
+                                <span class="tier-num">∞</span>
+                              }
+                            </span>
+                          </div>
+                        }
+                      </div>
+                    }
+                    else
+                    {
+                      <div class="no-rates">
+                        <p>هیچ پله‌ای تعریف نشده</p>
+                      </div>
+                    }
+                  </div>
+                }
+
+                <div class="details-footer">
+                  <div class="item-toggle toggle-left">
+                    <label class="toggle-switch">
+                      <input type="checkbox" checked="@item.IsActive" @onchange="(e) => ToggleActive(item, (bool)e.Value!)" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label @(item.IsActive ? "on" : "off")">@(item.IsActive ? "فعال" : "غیرفعال")</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </main>
+
+  <DsFab Title="افزودن" Icon="fa-plus" OnClick="ShowCreate" />
+</div>
+
+@* Design-system confirmation (responsive): modal on desktop, bottom-sheet on mobile *@
+<DsConfirm Show="_showDeleteConfirm"
+           Title="@_deleteConfirmTitle"
+           Message="@_deleteConfirmMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           OnConfirm="ConfirmDelete"
+           OnCancel="CancelDelete" />
+
+@if (_showSheet)
+{
+  <DepositRatePlanIOSSheet Model="_current" Tiers="_currentTiers" IsNew="_isNew" OnClose="OnSheetClose" />
+}
+
+@code {
+  private List<DepositRatePlan> _items = new();
+  private List<DepositRatePlan> _all = new();
+  private readonly Dictionary<long, List<DepositRateTier>> _tiers = new();
+  private bool _loading;
+  private string _kw = string.Empty;
+  private string _keyword
+  {
+    get => _kw;
+    set { _kw = value ?? string.Empty; _ = DebouncedApplyFilterAsync(); }
+  }
+
+  private bool _showSheet;
+  private DepositRatePlan _current = new();
+  private List<DepositRateTier> _currentTiers = new();
+  private bool _isNew;
+  private string _filter = "all"; // all|active|inactive
+  private string _sortKey = "from"; // from|active
+  private bool _sortDesc = false;
+  private CancellationTokenSource? _searchCts;
+  private HashSet<long> _expanded = new();
+  private List<DsPillGroup.DsPillItem> _filterItems = new()
+  {
+    new() { Key = "all", Text = "همه" },
+    new() { Key = "active", Text = "فعال" },
+    new() { Key = "inactive", Text = "غیرفعال" },
+  };
+  private List<DsPillGroup.DsPillItem> _sortItems = new()
+  {
+    new() { Key = "from", Text = "تاریخ شروع" },
+    new() { Key = "active", Text = "فعال‌ها" },
+  };
+
+  // Design-system confirm dialog helpers
+  private bool _showDeleteConfirm;
+  private string _deleteConfirmTitle = "تأیید حذف";
+  private string _deleteConfirmMessage = string.Empty;
+  private DepositRatePlan? _pendingDelete;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAsync();
+  }
+
+  private async Task LoadAsync()
+  {
+    _loading = true;
+    StateHasChanged();
+
+    try
+    {
+      _all = (await DepositRateService.GetPlansAsync()).ToList();
+      _tiers.Clear();
+      ApplyFilter();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+      StateHasChanged();
+    }
+  }
+
+  private void ApplyFilter()
+  {
+    IEnumerable<DepositRatePlan> q = _all;
+
+    if (_filter == "active") q = q.Where(x => x.IsActive);
+    else if (_filter == "inactive") q = q.Where(x => !x.IsActive);
+
+    var key = (_keyword ?? string.Empty).Trim();
+    if (!string.IsNullOrEmpty(key))
+    {
+      var kw = key.ToLowerInvariant();
+      q = q.Where(x =>
+        ToDateRangeText(x).ToLowerInvariant().Contains(kw) ||
+        (x.Notes ?? string.Empty).ToLowerInvariant().Contains(kw) ||
+        (x.Mode == DepositRateMode.Single ? "single" : "tiered").Contains(kw)
+      );
+    }
+
+    q = (_sortKey, _sortDesc) switch
+    {
+      ("active", false)=> q.OrderBy(x => x.IsActive).ThenByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.PlanId),
+      ("active", true) => q.OrderByDescending(x => x.IsActive).ThenByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.PlanId),
+      ("from", true) => q.OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.PlanId),
+      _ => q.OrderBy(x => x.EffectiveFrom).ThenBy(x => x.PlanId)
+    };
+
+    _items = q.ToList();
+    StateHasChanged();
+  }
+
+  private async Task DebouncedApplyFilterAsync(int delayMs = 180)
+  {
+    _searchCts?.Cancel();
+    _searchCts = new CancellationTokenSource();
+    var token = _searchCts.Token;
+    try
+    {
+      await Task.Delay(delayMs, token);
+      if (!token.IsCancellationRequested) ApplyFilter();
+    }
+    catch (TaskCanceledException) { }
+  }
+
+  private async Task OnFilterChanged(string key)
+  { if (_filter == key) return; _filter = key; ApplyFilter(); await Task.CompletedTask; }
+  private Task OnSortChanged((string key, bool desc) s)
+  { _sortKey = s.key; _sortDesc = s.desc; ApplyFilter(); return Task.CompletedTask; }
+
+  private async Task ShowCreate()
+  {
+    _current = new DepositRatePlan { IsActive = false, Mode = DepositRateMode.Single, EffectiveFrom = DateTime.Today };
+    _currentTiers = new();
+    _isNew = true; _showSheet = true; StateHasChanged(); await Task.CompletedTask;
+  }
+
+  private async Task Edit(DepositRatePlan m)
+  {
+    var (plan, tiers) = await DepositRateService.GetPlanWithTiersAsync(m.PlanId);
+    _current = plan ?? m;
+    _currentTiers = tiers;
+    _isNew = false; _showSheet = true; StateHasChanged(); await Task.CompletedTask;
+  }
+
+  private async Task OnSheetClose(bool success)
+  {
+    _showSheet = false; StateHasChanged();
+    if (success)
+    {
+      await LoadAsync();
+      Toasts.Success("با موفقیت ذخیره شد");
+    }
+  }
+
+  private async Task ToggleActive(DepositRatePlan m, bool newValue)
+  {
+    // Optimistic UI
+    var old = m.IsActive;
+    m.IsActive = newValue;
+    StateHasChanged();
+
+    try
+    {
+      IEnumerable<DepositRateTier>? tiers = null;
+      if (m.Mode == DepositRateMode.Tiered && _tiers.TryGetValue(m.PlanId, out var t))
+        tiers = t;
+
+      await DepositRateService.SaveAsync(m, tiers);
+      ApplyFilter();
+      Toasts.Success($"وضعیت نرخ #{m.PlanId} به {(newValue ? "فعال" : "غیرفعال")} تغییر کرد");
+    }
+    catch (Exception ex)
+    {
+      m.IsActive = old;
+      StateHasChanged();
+      Toasts.Error($"خطا: {ex.Message}");
+    }
+  }
+
+  private async Task Delete(DepositRatePlan m)
+  {
+    // Prepare DS confirmation content
+    _pendingDelete = m;
+    _deleteConfirmTitle = "حذف نرخ سود";
+    _deleteConfirmMessage = $"آیا از حذف نرخ سود '<strong>#{m.PlanId}</strong>' اطمینان دارید؟<br/><small>این عمل قابل بازگشت نیست.</small>";
+    _showDeleteConfirm = true;
+    StateHasChanged();
+  }
+
+  private async void ToggleExpand(long id)
+  {
+    if (_expanded.Contains(id))
+    {
+      _expanded.Remove(id);
+      StateHasChanged();
+      return;
+    }
+
+    _expanded.Add(id);
+    if (!_tiers.ContainsKey(id))
+    {
+      try
+      {
+        var (_, tiers) = await DepositRateService.GetPlanWithTiersAsync(id);
+        _tiers[id] = tiers;
+      }
+      catch (Exception ex)
+      {
+        Toasts.Error($"خطا در بارگذاری پله‌ها: {ex.Message}");
+        _tiers[id] = new List<DepositRateTier>();
+      }
+    }
+    StateHasChanged();
+  }
+
+  private async Task Refresh() => await LoadAsync();
+
+  private async Task ConfirmDelete()
+  {
+    var m = _pendingDelete;
+    _showDeleteConfirm = false; StateHasChanged();
+    if (m is null) return;
+    try
+    {
+      await DepositRateService.DeleteAsync(m.PlanId);
+      _tiers.Remove(m.PlanId);
+      _expanded.Remove(m.PlanId);
+      await LoadAsync();
+      Toasts.Success("نرخ سود با موفقیت حذف شد");
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در حذف: {ex.Message}");
+    }
+    finally
+    {
+      _pendingDelete = null;
+    }
+  }
+
+  private Task CancelDelete()
+  {
+    _showDeleteConfirm = false; _pendingDelete = null; StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private static string ToPercentText(decimal? p) => p.HasValue ? p.Value.ToString("0.##") + "%" : "—";
+
+  private static string ToDateRangeText(DepositRatePlan p)
+  {
+    var from = p.EffectiveFrom == default ? "—" : p.EffectiveFrom.ToPersianDate();
+    var to = p.EffectiveTo.HasValue ? p.EffectiveTo.Value.ToPersianDate() : "∞";
+    return $"{from} تا {to}";
+  }
+
+  private static string GetPlanTitle(DepositRatePlan p)
+  {
+    if (p.Mode == DepositRateMode.Single)
+      return $"تک‌نرخی ({ToPercentText(p.SingleRatePercent)})";
+    return "پلکانی";
+  }
+}

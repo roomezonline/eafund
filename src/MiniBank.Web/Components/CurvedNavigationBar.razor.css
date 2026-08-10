@@ -1,0 +1,235 @@
+/* Curved Navigation Container */
+.curved-navigation-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+/* Curved Label Area - Where active item label appears */
+.curved-label-area {
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 50px;
+    background: white;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1001;
+}
+
+.active-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #ff8a00;
+    font-family: 'Vazir', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+/* Main Navigation Bar */
+.curved-navigation {
+    background: white;
+    height: 80px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    padding: 0 20px 12px 20px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+/* Create curved notch effect */
+.curved-navigation::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70px;
+    height: 70px;
+    background: white;
+    border-radius: 50%;
+    z-index: -1;
+}
+
+/* Navigation Items */
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    max-width: 80px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+/* Navigation Icons */
+.nav-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 18px;
+    transition: all 0.3s ease;
+}
+
+/* Navigation Labels - Hidden by default, shown only for non-center items when active */
+.nav-label {
+    font-size: 10px;
+    color: #6c757d;
+    font-weight: 500;
+    font-family: 'Vazir', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: all 0.3s ease;
+    position: absolute;
+    bottom: -18px;
+    white-space: nowrap;
+}
+
+.nav-label.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Center Item Styling */
+.nav-item.center-item {
+    position: relative;
+    margin-top: -30px;
+}
+
+.nav-item.center-item .nav-icon.center-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #ff8a00, #ff6b00);
+    color: white;
+    font-size: 24px;
+    box-shadow: 0 4px 16px rgba(255, 138, 0, 0.3);
+    border: 4px solid white;
+}
+
+/* Active States */
+.nav-item.active:not(.center-item) .nav-icon {
+    background: #e3f2fd;
+    color: #1976d2;
+    transform: scale(1.1);
+}
+
+.nav-item.active:not(.center-item) .nav-label {
+    color: #1976d2;
+}
+
+.nav-item.active.center-item .nav-icon.center-icon {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(255, 138, 0, 0.4);
+}
+
+/* Hover Effects */
+.nav-item:hover:not(.active):not(.center-item) .nav-icon {
+    background: #e9ecef;
+    color: #495057;
+    transform: scale(1.05);
+}
+
+.nav-item:hover.center-item .nav-icon.center-icon {
+    transform: scale(1.08);
+}
+
+/* Animation for label area */
+.curved-label-area {
+    animation: labelSlideIn 0.3s ease-out;
+}
+
+@keyframes labelSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+    .curved-navigation {
+        padding: 0 12px 10px 12px;
+        height: 75px;
+    }
+    
+    .curved-label-area {
+        width: 100px;
+        height: 45px;
+        top: -22px;
+    }
+    
+    .active-label {
+        font-size: 11px;
+    }
+    
+    .nav-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    
+    .nav-item.center-item .nav-icon.center-icon {
+        width: 56px;
+        height: 56px;
+        font-size: 22px;
+    }
+    
+    .nav-label {
+        font-size: 9px;
+        bottom: -16px;
+    }
+}
+
+/* Tablet Responsive */
+@media (min-width: 481px) and (max-width: 768px) {
+    .curved-navigation {
+        padding: 0 16px 12px 16px;
+    }
+    
+    .curved-label-area {
+        width: 110px;
+        height: 48px;
+        top: -24px;
+    }
+}
+
+/* Desktop Responsive */
+@media (min-width: 769px) {
+    .curved-navigation {
+        max-width: 600px;
+        margin: 0 auto;
+        border-radius: 25px 25px 0 0;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+    }
+    
+    .curved-label-area {
+        width: 130px;
+        height: 52px;
+        top: -26px;
+    }
+    
+    .active-label {
+        font-size: 13px;
+    }
+}

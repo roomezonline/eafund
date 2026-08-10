@@ -1,0 +1,1562 @@
+.loan-mje2-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 5px;
+  direction: rtl;
+  overflow-x: hidden;
+}
+
+.header-blue-bar {
+  background: #0056b3;
+  color: white;
+  padding: 15px 20px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 0;
+}
+
+.header-yellow-bar-1 {
+  background: #f3f4f6;
+  color: #111827;
+  padding: 12px 20px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  border-bottom: 2px solid #0056b3;
+}
+
+.form-section {
+  background: white;
+  border: 2px solid #0056b3;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 15px;
+  overflow-x: hidden;
+}
+
+.form-table {
+  width: 100%;
+  direction: rtl;
+  border-collapse: collapse;
+  border: 2px solid #000;
+  table-layout: fixed;
+}
+
+.form-row td {
+  padding: 8px 15px;
+  border-bottom: 2px solid #000;
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+.form-row td:first-child {
+  border-left: 2px solid #000;
+  width: 150px;
+  font-weight: bold;
+  color: #01080fff;
+  text-align: right;
+}
+
+/* DsDropdown compact overrides inside this wizard */
+.ds-dropdown-button {
+  min-height: 42px;
+}
+
+.ds-dropdown-value {
+  font-weight: 800;
+}
+
+.ds-dropdown-button {
+  overflow: hidden;
+}
+
+.ds-dropdown-value {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.ds-dropdown-value::-webkit-scrollbar {
+  display: none;
+}
+
+.form-row:last-child td {
+  border-bottom: none;
+}
+
+.form-row:nth-child(odd) td { background-color: #fff !important; }
+.form-row:nth-child(even) td { background-color: #f8fafc !important; }
+
+.form-input {
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 0;
+  font-size: 16px;
+  font-weight: bold;
+  background: transparent !important;
+  transition: all 0.3s ease;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  max-width: 100%;
+}
+
+.center-text { text-align: center; }
+
+.field-error {
+  margin-top: 6px;
+  color: #b91c1c;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.action-buttons-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.action-buttons-top > button {
+  flex: 1;
+}
+
+.action-buttons-top > button:only-child {
+  width: 100%;
+}
+
+.btn-delete {
+  width: 100%;
+}
+
+.btn-delete,
+.btn-edit,
+.btn-cancel,
+.btn-next {
+  min-height: 44px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.10);
+}
+
+.btn-delete {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-edit {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-cancel {
+  background: #6b7280;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.btn-next {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.btn-next:hover { background: #0056b3; }
+
+.loading-container,
+.empty-container {
+  padding: 12px;
+  text-align: center;
+  color: #475569;
+}
+
+.journal-history-container {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.journal-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.journal-history-header h2 {
+  color: #1e293b;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.journals-table-container {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.journals-table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.journals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 0;
+  table-layout: auto;
+}
+
+.journals-table thead th {
+  background: #fde047;
+  color: #111827;
+  padding: 3px 6px;
+  border: 1px solid #111827;
+  font-weight: bold;
+  text-align: center;
+}
+
+.journals-table tbody td {
+  padding: 3px 6px;
+  border: 1px solid #111827;
+  white-space: nowrap;
+  text-align: center;
+  background: #ffffff;
+}
+
+/* Let name column take remaining width and wrap */
+.journals-table th:nth-child(2),
+.journals-table td:nth-child(2) {
+  width: auto;
+  white-space: normal;
+  text-align: right;
+}
+
+/* Keep subsidiary + amounts compact */
+.journals-table th:nth-child(1),
+.journals-table td:nth-child(1),
+.journals-table th:nth-child(3),
+.journals-table td:nth-child(3),
+.journals-table th:nth-child(4),
+.journals-table td:nth-child(4),
+.journals-table th:nth-child(5),
+.journals-table td:nth-child(5) {
+  width: 1%;
+}
+
+.journals-table tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.journals-table tr.household-total-row td {
+  background: #e0f2fe !important;
+  font-weight: 900;
+}
+
+.amount-td {
+  text-align: right !important;
+  direction: ltr !important;
+  white-space: nowrap;
+  font-weight: 900;
+}
+
+.active-loans-container {
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.active-loans-header {
+  border-bottom: 1px dashed #fecaca;
+  background: #fff1f2;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.active-loans-header h2 {
+  color: #b91c1c;
+}
+
+.active-loans-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.active-loans-table-scroll {
+  text-align: right;
+}
+
+.active-loans-table {
+  width: max-content;
+  min-width: 0;
+  display: inline-table;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 12px;
+}
+
+/* Guaranteed-loans dialog: give the table enough intrinsic width and allow scroll */
+.guaranteed-loans-sheet {
+  padding-bottom: 24px;
+}
+
+.guaranteed-loans-sheet .active-loans-table-container {
+  margin-bottom: 16px;
+}
+
+.guaranteed-loans-sheet .active-loans-table {
+  min-width: 720px;
+  table-layout: auto;
+}
+
+.guaranteed-loans-sheet .active-loans-table thead th:nth-child(2),
+.guaranteed-loans-sheet .active-loans-table tbody td:nth-child(2) {
+  min-width: 260px;
+  white-space: nowrap;
+}
+
+.active-loans-table thead th {
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 4px 6px;
+  border: 1px solid #e2e8f0;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.active-loans-table tbody td {
+  padding: 8px 6px;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Amount columns: align digits (units under units) */
+.active-loans-table td.amount-td,
+.household-risk-table td.amount-td,
+.journals-table td.amount-td {
+  text-align: right !important;
+  direction: ltr !important;
+}
+
+.active-loans-table tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.loan-outstanding-td {
+  color: #7c2d12;
+  background: #fffbeb;
+}
+
+/* Simple Household Risk Table */
+.household-risk-container {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin: 16px 0;
+  background: white;
+  overflow: hidden;
+}
+
+.household-risk-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.household-risk-header h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.household-risk-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.household-risk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 600px;
+  table-layout: auto;
+}
+
+.household-risk-table thead th {
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 600;
+  padding: 10px 8px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.household-risk-table tbody td {
+  padding: 10px 8px;
+  border: 1px solid #f1f5f9;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Column 1: Member Code - Strict Width */
+.household-risk-table tbody td:first-child,
+.household-risk-table thead th:first-child {
+  text-align: right !important;
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+  padding-right: 8px !important;
+  box-sizing: border-box !important;
+  flex: 0 0 80px !important;
+}
+
+/* Column 2: Member Name - Strict Width */
+.household-risk-table tbody td:nth-child(2),
+.household-risk-table thead th:nth-child(2) {
+  text-align: right !important;
+  width: 250px !important;
+  min-width: 250px !important;
+  max-width: 250px !important;
+  padding-right: 16px !important;
+  box-sizing: border-box !important;
+  flex: 0 0 250px !important;
+}
+
+/* Column 3: Active Loan - Strict Width */
+.household-risk-table tbody td:nth-child(3),
+.household-risk-table thead th:nth-child(3) {
+  text-align: center !important;
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+  box-sizing: border-box !important;
+  flex: 0 0 80px !important;
+}
+
+/* Column 4: Guarantor - Strict Width */
+.household-risk-table tbody td:nth-child(4),
+.household-risk-table thead th:nth-child(4) {
+  text-align: center !important;
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
+  box-sizing: border-box !important;
+  flex: 0 0 100px !important;
+}
+
+/* Zebra striping */
+.household-risk-table tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+/* Hover effect */
+.household-risk-table tbody tr:hover td {
+  background: #f1f5f9;
+}
+
+/* Applicant row highlight */
+.household-risk-table tbody tr.household-risk-applicant td {
+  background: #ecfeff !important;
+  font-weight: 800;
+}
+
+.risk-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 11px;
+}
+
+.risk-badge-clickable {
+  border: none;
+  cursor: pointer;
+  background: inherit;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-decoration: none;
+}
+
+.risk-badge-clickable:hover {
+  filter: brightness(0.98);
+  transform: translateY(-1px);
+}
+
+.risk-badge-clickable:active {
+  transform: translateY(0);
+}
+
+.risk-badge-clickable:focus-visible {
+  outline: 2px solid rgba(0, 86, 179, 0.35);
+  outline-offset: 2px;
+}
+
+.risk-badge-danger { background: #fee2e2; color: #991b1b; }
+.risk-badge-success { background: #dcfce7; color: #166534; }
+.risk-badge-warning { background: #fef3c7; color: #92400e; }
+.risk-badge-muted { background: #e5e7eb; color: #374151; }
+
+.risk-cell-button {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.risk-cell-button:hover {
+  background: rgba(245, 158, 11, 0.10);
+}
+
+.risk-cell-button:active {
+  background: rgba(245, 158, 11, 0.16);
+}
+
+.risk-cell-button:focus-visible {
+  outline: 2px solid rgba(0, 86, 179, 0.35);
+  outline-offset: 2px;
+}
+
+/* Unified message styles (step 1) */
+.ds-msg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-weight: 900;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+
+.ds-msg-icon {
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.ds-msg-danger {
+  background: #fff1f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.ds-msg-warn {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.ds-msg-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.ds-msg-info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
+
+/* Step 2 (approve amount) */
+.step2-card {
+  margin-top: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.step2-card-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.step2-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.step2-card-title i {
+  color: #0ea5e9;
+}
+
+.step2-card-subtitle {
+  margin-top: 6px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.step2-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.step2-field {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.step2-field-wide {
+  grid-column: 1 / -1;
+}
+
+.step2-label {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.step2-input {
+  border: 1px solid #d1d5db !important;
+  border-radius: 12px !important;
+  background: #f8fafc !important;
+}
+
+.step2-readonly {
+  background: #eef2ff !important;
+  border: 1px solid #c7d2fe !important;
+  border-radius: 12px !important;
+  color: #1e3a8a;
+}
+
+.step2-loan-number {
+  background: #f0fdf4 !important;
+  border: 1px solid #86efac !important;
+  border-radius: 12px !important;
+  color: #166534 !important;
+  font-weight: 1000;
+}
+
+.step2-card .ds-input.center-text,
+.step2-card .ds-input.step2-readonly,
+.step2-card .ds-input.step2-input {
+  text-align: center !important;
+}
+
+.step2-schedule {
+  padding: 0 12px 12px;
+}
+
+.step2-schedule .journals-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  display: block;
+}
+
+.step2-schedule .journals-table {
+  table-layout: fixed;
+  width: max-content;
+  min-width: 780px;
+}
+
+.step2-schedule .journals-table thead th,
+.step2-schedule .journals-table tbody td {
+  width: 110px !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
+  padding: 8px 6px;
+}
+
+.step2-schedule .journals-table thead th:first-child,
+.step2-schedule .journals-table tbody td:first-child {
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+}
+
+.step2-schedule .journals-table thead th:nth-child(2),
+.step2-schedule .journals-table tbody td:nth-child(2) {
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+}
+
+@media (max-width: 640px) {
+  .step2-grid { grid-template-columns: 1fr; }
+}
+
+.step1-block-message {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+ .loan-factor-card {
+   margin-top: 12px;
+   border: 1px solid #dbeafe;
+   border-radius: 12px;
+   background: linear-gradient(180deg, #f8fafc 0%, #ffffff 65%, #ffffff 100%);
+   padding: 10px;
+   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+ }
+
+ .loan-factor-title {
+   font-weight: 900;
+   font-size: 13px;
+   color: #0f172a;
+   margin-bottom: 8px;
+ }
+
+ .loan-factor-grid {
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   gap: 10px;
+   margin-bottom: 10px;
+ }
+
+ .loan-factor-item {
+   border: 1px solid #e2e8f0;
+   border-radius: 12px;
+   padding: 8px;
+   background: #ffffff;
+ }
+
+ .loan-factor-item:nth-child(1) {
+   background: #eff6ff;
+   border-color: #bfdbfe;
+ }
+
+ .loan-factor-item:nth-child(2) {
+   background: #f0fdf4;
+   border-color: #bbf7d0;
+ }
+
+ .loan-factor-label {
+   font-size: 11px;
+   color: #64748b;
+   font-weight: 800;
+   margin-bottom: 4px;
+   text-align: center;
+ }
+
+ .loan-factor-value {
+   text-align: center;
+ }
+
+ .loan-factor-value.amount-td {
+   text-align: center !important;
+   direction: ltr !important;
+   font-weight: 900;
+   font-size: 14px;
+   color: #0f172a;
+ }
+
+ .loan-factor-item:nth-child(1) .loan-factor-value.amount-td { color: #1d4ed8; }
+ .loan-factor-item:nth-child(2) .loan-factor-value.amount-td { color: #166534; }
+
+ .loan-factor-input-row {
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   gap: 10px;
+ }
+
+ .loan-factor-input-row .form-input {
+   height: 36px;
+   border-radius: 12px;
+   border: 1px solid #d1d5db;
+   background: #f8fafc;
+   font-weight: 900;
+ }
+
+ .loan-factor-input-row .loan-factor-textbox {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+ }
+
+ .loan-factor-input-row .loan-factor-textbox:focus {
+  outline: none !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18) !important;
+ }
+
+ .loan-factor-input-row .form-input:focus {
+   outline: none;
+   border-color: #2563eb;
+   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+   background: #ffffff;
+ }
+
+ .loan-factor-input-row .form-input[disabled] {
+   background: #eef2f7;
+   color: #0f172a;
+   opacity: 1;
+ }
+
+ .applicant-capital-warning {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-right: 4px solid #ef4444;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  text-align: center;
+  font-weight: 700;
+  color: #b91c1c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.applicant-capital-warning::before {
+  content: "⚠️";
+  font-size: 1.2em;
+}
+
+ @media (max-width: 640px) {
+   .loan-factor-grid,
+   .loan-factor-input-row {
+     grid-template-columns: 1fr;
+   }
+   
+   .active-loans-table tbody td,
+   .household-risk-table tbody td {
+     padding: 10px 6px !important;
+     line-height: 1.4 !important;
+   }
+   
+   .active-loans-table thead th,
+   .household-risk-table thead th {
+     padding: 10px 8px !important;
+   }
+   
+   .active-loans-table,
+   .household-risk-table {
+     font-size: 13px !important;
+   }
+ }
+
+ .guarantors-wrap {
+   display: grid;
+   gap: 12px;
+ }
+
+ .guarantor-add-card,
+ .guarantors-list-card {
+   border: 1px solid #e5e7eb;
+   border-radius: 12px;
+   background: #ffffff;
+   padding: 10px;
+   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+ }
+
+ .guarantor-add-title,
+ .guarantors-list-title {
+   font-weight: 900;
+   font-size: 13px;
+   color: #0f172a;
+   margin-bottom: 8px;
+ }
+
+ .guarantor-add-selector {
+   margin-bottom: 10px;
+ }
+
+ .guarantor-summary {
+   border: 1px solid #eef2f7;
+   border-radius: 12px;
+   overflow: hidden;
+   background: #ffffff;
+ }
+
+ .guarantor-meta {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 6px;
+   margin-top: 6px;
+ }
+
+ .guarantor-summary-table,
+ .guarantors-table {
+   width: 100%;
+   border-collapse: collapse;
+ }
+
+ .guarantor-summary-table {
+   font-size: 12px;
+ }
+
+ .guarantors-table {
+   font-size: 12px;
+ }
+
+ .guarantor-summary-table th,
+ .guarantor-summary-table td,
+ .guarantors-table th,
+ .guarantors-table td {
+   border: 1px solid #eef2f7;
+   padding: 4px 6px;
+   text-align: center;
+   white-space: nowrap;
+ }
+
+ .guarantor-summary-table thead th {
+   background: #f8fafc;
+   color: #0f172a;
+ }
+
+ .guarantor-summary-table tbody td {
+   background: #ffffff;
+ }
+
+ .guarantor-summary-table tbody td.amount-td {
+   text-align: center !important;
+   direction: ltr !important;
+   font-weight: 900;
+ }
+
+ .guarantor-summary-table tbody td:nth-child(1) {
+   color: #1e40af;
+ }
+
+ .guarantor-summary-table tbody td:nth-child(2) {
+   color: #7c2d12;
+ }
+
+ .guarantor-summary-table tbody td:nth-child(3) {
+   color: #166534;
+ }
+
+ .guarantor-summary-table thead th:nth-child(1) { background: #eff6ff; color: #1d4ed8; }
+ .guarantor-summary-table thead th:nth-child(2) { background: #fff7ed; color: #9a3412; }
+ .guarantor-summary-table thead th:nth-child(3) { background: #f0fdf4; color: #166534; }
+
+ .guarantor-summary-table thead th,
+ .guarantors-table thead th {
+   background: #f8fafc;
+   font-weight: 900;
+ }
+
+ .guarantor-summary-table thead th,
+ .guarantors-table thead th {
+   font-size: 11px;
+   color: #334155;
+ }
+
+ .guarantor-summary-table .amount-td {
+   font-size: 11px;
+   font-weight: 700;
+ }
+
+ .guarantors-table tbody td {
+   background: #ffffff;
+ }
+
+ .guarantors-table tbody tr:nth-child(even) td {
+   background: #fafafa;
+ }
+
+ .guarantor-add-row {
+   margin-top: 10px;
+   display: grid;
+   grid-template-columns: 110px minmax(0, 1fr) auto;
+   gap: 10px;
+   align-items: flex-start;
+ }
+
+ .guarantor-add-row .percent-input-wrap {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 6px;
+   height: 36px;
+   background: #fff;
+   border: 1px solid #d1d5db;
+   border-radius: 10px;
+   padding: 2px 10px;
+   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+ }
+
+ .guarantor-add-row .percent-input-wrap:focus-within {
+   border-color: #2563eb;
+   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+ }
+
+ .guarantor-add-row .guarantor-percent-input {
+   text-align: center;
+   direction: ltr;
+   font-weight: 900;
+   background: transparent;
+   border: none;
+   border-radius: 8px;
+   height: 32px;
+   padding: 6px 8px;
+   width: 54px;
+   min-width: 54px;
+ }
+
+ .guarantor-add-row .guarantor-percent-input:focus {
+   outline: none;
+ }
+
+ .guarantor-add-row .percent-suffix {
+   font-weight: 900;
+   color: #334155;
+   user-select: none;
+ }
+
+ .guarantor-add-field {
+   min-width: 0;
+ }
+
+ .guarantor-add-actions {
+   display: flex;
+   align-items: end;
+ }
+
+ .guarantors-table-scroll {
+   width: 100%;
+   max-width: 100%;
+   overflow-x: auto;
+   overflow-y: hidden;
+   -webkit-overflow-scrolling: touch;
+   touch-action: pan-x;
+   overscroll-behavior-x: contain;
+   display: block;
+   direction: rtl;
+   padding-bottom: 6px;
+   scrollbar-gutter: stable;
+   text-align: right;
+ }
+
+ .guarantors-table {
+   width: max-content;
+   min-width: 100%;
+   table-layout: auto;
+   direction: rtl;
+   display: inline-table;
+   white-space: nowrap;
+   min-width: 820px;
+   margin-left: auto;
+ }
+
+ .guarantors-list-card {
+   overflow: hidden;
+ }
+
+ .guarantors-total {
+   margin-top: 12px;
+   padding: 10px 12px;
+   border: 1px solid #dbeafe;
+   border-radius: 12px;
+   background: linear-gradient(90deg, #eff6ff 0%, #ffffff 55%, #ffffff 100%);
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+ }
+
+ .guarantors-total > div:first-child {
+   color: #1e3a8a;
+   font-weight: 900;
+   font-size: 12px;
+ }
+
+ .guarantors-total > .amount-td {
+   background: #1d4ed8;
+   color: #ffffff;
+   border-radius: 999px;
+   padding: 6px 10px;
+   font-weight: 900;
+   font-size: 12px;
+   box-shadow: 0 6px 16px rgba(29, 78, 216, 0.18);
+ }
+
+ @media (max-width: 768px) {
+   .guarantor-add-row {
+     grid-template-columns: 110px minmax(0, 1fr);
+     grid-template-areas:
+       "pct amt"
+       "btn btn";
+     align-items: end;
+   }
+
+   .guarantor-add-row .guarantor-add-field:nth-child(1) { grid-area: pct; }
+   .guarantor-add-row .guarantor-add-field:nth-child(2) { grid-area: amt; }
+   .guarantor-add-row .guarantor-add-actions { grid-area: btn; }
+
+   .guarantor-add-actions {
+     justify-content: flex-end;
+   }
+ }
+
+ .guarantor-chip {
+   display: inline-flex;
+   align-items: center;
+   border-radius: 999px;
+   padding: 2px 8px;
+   font-size: 11px;
+   font-weight: 800;
+   background: #f1f5f9;
+   color: #0f172a;
+   white-space: nowrap;
+ }
+
+ .guarantor-chip.chip-ok {
+   background: #dcfce7;
+   color: #166534;
+ }
+
+ .guarantor-chip.chip-warn {
+   background: #ffedd5;
+   color: #9a3412;
+ }
+
+ .guarantor-field-label {
+   font-size: 11px;
+   color: #64748b;
+   font-weight: 800;
+   margin-bottom: 3px;
+   text-align: center;
+ }
+
+ 
+ .guarantor-input-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.guarantor-input-col {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .guarantor-input-row {
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
+/* Force equal height for percent and amount inputs */
+.guarantor-input-row .percent-input-wrap,
+.guarantor-input-row .ds-field {
+  height: 36px;
+}
+
+.guarantor-input-row .ds-field {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.guarantor-input-row .ds-field .ds-input {
+  flex: 1;
+  height: 36px;
+  padding: 6px 10px;
+}
+
+.guarantor-input-row .ds-field .ds-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 800;
+  margin-bottom: 3px;
+  text-align: center;
+}
+
+.guarantor-input-row .percent-input-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 2px 8px;
+  height: 36px !important;
+}
+
+.guarantor-input-row .percent-input-wrap:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.guarantor-input-row .guarantor-percent-input {
+  text-align: center;
+  direction: ltr;
+  font-weight: 900;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  height: 32px;
+  padding: 6px 8px;
+  width: 54px;
+  min-width: 54px;
+}
+
+.guarantor-input-row .percent-suffix {
+  font-weight: 900;
+  color: #334155;
+  user-select: none;
+}
+
+.guarantor-input-row .guarantor-percent-input:focus {
+  outline: none;
+}
+
+ .history-delete-btn {
+   border: 1px solid #fecaca;
+   background: #fff1f2;
+   color: #b91c1c;
+   border-radius: 10px;
+   padding: 6px 10px;
+   font-weight: 900;
+   font-size: 12px;
+ }
+
+ .history-delete-btn:hover {
+   background: #ffe4e6;
+ }
+
+.pending-item.guarantor-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "title title"
+    "inputs inputs"
+    "actions actions";
+  gap: 10px;
+  align-items: start;
+}
+
+.pending-item.guarantor-item .pending-item-title {
+  grid-area: title;
+}
+
+.pending-item.guarantor-item .guarantor-input-row {
+  grid-area: inputs;
+}
+
+.pending-item.guarantor-item .pending-item-actions {
+  grid-area: actions;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .pending-item.guarantor-item {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "inputs"
+      "actions";
+    gap: 8px;
+  }
+
+  .pending-item.guarantor-item .pending-item-actions {
+    justify-content: flex-end;
+  }
+}
+
+/* Base table styles */
+.journals-table {
+  border-collapse: collapse;
+  width: auto;
+  table-layout: auto;
+  white-space: nowrap;
+  margin: 0;
+  padding: 0;
+}
+
+/* Table headers and cells */
+.journals-table th,
+.journals-table td {
+  padding: 4px 8px;
+  text-align: right;
+  border: 1px solid #e2e8f0;
+  line-height: 1.2;
+}
+
+/* Make all columns fit their content */
+.journals-table th:first-child,
+.journals-table td:first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* Cap name column width (all viewports) */
+.journals-table thead th:nth-child(2),
+.journals-table tbody td:nth-child(2) {
+  width: 200px;
+  max-width: 200px;
+  white-space: normal;
+  word-break: break-word;
+  text-align: right;
+}
+
+/* Numeric columns - right aligned */
+.journals-table td.amount-td {
+  text-align: right !important;
+  direction: ltr !important;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+/* Ensure numeric cells keep tabular digit alignment and LTR */
+.amount-td,
+.loan-outstanding-td,
+.active-loans-table tbody td,
+.household-risk-table tbody td {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Household total row */
+.household-total-row {
+  background-color: #e0f2fe;
+  font-weight: 900;
+}
+
+@media (min-width: 769px) {
+  .journals-table {
+    min-width: 980px;
+  }
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  .loan-mje2-container {
+    padding: 0 12px;
+  }
+
+  /* Align all digits (tabular numerals) within loan form */
+  .loan-mje2-container,
+  .loan-mje2-container input,
+  .loan-mje2-container .form-input,
+  .loan-mje2-container .ds-input,
+  .loan-mje2-container .ds-dropdown-value,
+  .loan-mje2-container .guarantor-chip {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .header-blue-bar { padding: 10px 4px; border-radius: 8px 8px 0 0; }
+  .header-yellow-bar-1 { padding: 8px 4px; }
+  .form-section { padding: 8px 2px; }
+  .action-buttons-top { flex-direction: row; }
+  .form-row td:first-child { width: 60px; min-width: 60px; font-size: 0.7em; padding: 2px 4px; }
+  .form-row td { padding: 4px; }
+  .form-input { padding: 6px 8px; font-size: 12px; }
+  .journal-history-container { padding: 4px; }
+
+  .form-table {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    table-layout: fixed;
+  }
+
+  .form-row td {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 8px 10px;
+  }
+
+  .form-row td:first-child {
+    border-left: 1px solid #e5e7eb;
+    color: #334155;
+    font-weight: 800;
+  }
+
+  .active-loans-container { padding: 6px; border-radius: 8px; }
+  .active-loans-table { font-size: 10.5px; }
+  .active-loans-table thead th,
+  .active-loans-table tbody td { padding: 2px 4px; line-height: 1.15; }
+
+  .household-risk-container { padding: 6px; border-radius: 8px; }
+  .household-risk-table { font-size: 10.5px; }
+  .household-risk-table thead th,
+  .household-risk-table tbody td { padding: 2px 4px; line-height: 1.15; }
+  .risk-badge { font-size: 10px; padding: 1px 5px; }
+
+  
+  .household-risk-table {
+    width: 100%;
+    min-width: 0;
+    display: table;
+    table-layout: fixed;
+  }
+
+  .household-risk-table thead th:nth-child(2),
+  .household-risk-table tbody td:nth-child(2) {
+    white-space: normal;
+    word-break: break-word;
+    text-align: right;
+  }
+
+  .active-loans-table {
+    width: 100%;
+    min-width: 0;
+    display: table;
+    table-layout: fixed;
+    font-size: 10.5px;
+  }
+
+  /* Guaranteed-loans dialog should stay scrollable on mobile (avoid fixed layout crunch) */
+  .guaranteed-loans-sheet .active-loans-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .guaranteed-loans-sheet .active-loans-table {
+    width: max-content;
+    min-width: 720px;
+    display: inline-table;
+    table-layout: auto;
+  }
+
+  .guaranteed-loans-sheet .active-loans-table thead th:nth-child(2),
+  .guaranteed-loans-sheet .active-loans-table tbody td:nth-child(2) {
+    min-width: 240px;
+    white-space: nowrap;
+  }
+
+  .active-loans-table thead th,
+  .active-loans-table tbody td {
+    padding: 2px 4px;
+    line-height: 1.15;
+  }
+
+  .active-loans-table thead th,
+  .active-loans-table tbody td {
+    white-space: nowrap;
+  }
+
+  /* Optimized table for mobile */
+  .journals-table {
+    font-size: 11px;
+    display: table;
+    width: max-content;
+    min-width: max-content;
+    table-layout: fixed;
+  }
+
+  .journals-table th,
+  .journals-table td {
+    padding: 1px 3px;
+    width: 1%;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .journals-table thead th:nth-child(2),
+  .journals-table tbody td:nth-child(2) {
+    width: 200px;
+    max-width: 200px;
+    white-space: normal;
+    word-break: break-word;
+    text-align: right;
+  }
+
+  /* Table container */
+  .journals-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .journals-table-scroll {
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .btn-cancel,
+  .btn-next,
+  .btn-edit {
+    flex: 1;
+  }
+
+  .ds-dropdown-button {
+    padding: 8px 10px;
+    min-height: 38px;
+  }
+
+  .ds-dropdown-value {
+    font-size: 12.5px;
+    text-align: right;
+  }
+
+  .dropdown-clear {
+    width: 28px;
+    height: 28px;
+  }
+}

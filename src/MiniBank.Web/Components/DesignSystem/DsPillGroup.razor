@@ -1,0 +1,77 @@
+@namespace MiniBank.Web.Components.DesignSystem
+@using Microsoft.AspNetCore.Components
+
+<div class="ds-pill-group @(Mode)">
+  @if (Mode == "filter")
+  {
+    <div class="pill-row">
+      @foreach (var item in Items)
+      {
+        var active = string.Equals(item.Key, ActiveKey, StringComparison.Ordinal);
+        <button type="button" class="pill @(active ? "active" : null)" @onclick="(() => SelectFilter(item.Key))">
+          @if (!string.IsNullOrWhiteSpace(item.Icon)) { <i class="fa-solid @item.Icon"></i> }
+          <span>@item.Text</span>
+        </button>
+      }
+    </div>
+  }
+  else if (Mode == "sort")
+  {
+    <div class="pill-row">
+      @foreach (var item in Items)
+      {
+        var active = string.Equals(item.Key, ActiveKey, StringComparison.Ordinal);
+        var dirIcon = active ? (Desc ? "fa-arrow-down-short-wide" : "fa-arrow-up-short-wide") : "fa-sort";
+        <button type="button" class="pill @(active ? "active" : null)" @onclick="(() => ToggleSort(item.Key))">
+          <span>@item.Text</span>
+          <i class="fa-solid @dirIcon"></i>
+        </button>
+      }
+    </div>
+  }
+</div>
+
+@code {
+  [Parameter] public string Mode { get; set; } = "filter"; // filter | sort
+  [Parameter] public List<DsPillItem> Items { get; set; } = new();
+  [Parameter] public string? ActiveKey { get; set; }
+  [Parameter] public EventCallback<string> ActiveKeyChanged { get; set; }
+
+  // Only for sort mode
+  [Parameter] public bool Desc { get; set; }
+  [Parameter] public EventCallback<bool> DescChanged { get; set; }
+  [Parameter] public EventCallback<(string key, bool desc)> OnSortChanged { get; set; }
+  [Parameter] public EventCallback<string> OnFilterChanged { get; set; }
+
+  private async Task SelectFilter(string key)
+  {
+    ActiveKey = key;
+    if (ActiveKeyChanged.HasDelegate) await ActiveKeyChanged.InvokeAsync(key);
+    if (OnFilterChanged.HasDelegate) await OnFilterChanged.InvokeAsync(key);
+    StateHasChanged();
+  }
+
+  private async Task ToggleSort(string key)
+  {
+    if (!string.Equals(ActiveKey, key, StringComparison.Ordinal))
+    {
+      ActiveKey = key; Desc = false; // default ascending first
+      if (ActiveKeyChanged.HasDelegate) await ActiveKeyChanged.InvokeAsync(key);
+      if (DescChanged.HasDelegate) await DescChanged.InvokeAsync(Desc);
+    }
+    else
+    {
+      Desc = !Desc;
+      if (DescChanged.HasDelegate) await DescChanged.InvokeAsync(Desc);
+    }
+    if (OnSortChanged.HasDelegate) await OnSortChanged.InvokeAsync((ActiveKey!, Desc));
+    StateHasChanged();
+  }
+
+  public class DsPillItem
+  {
+    public string Key { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+    public string? Icon { get; set; }
+  }
+}

@@ -1,0 +1,58 @@
+@using System.Globalization
+@using MiniBank.Web.Utilities
+@using MudBlazor
+
+<MudDatePicker Date="@Value" DateChanged="@ValueChanged"
+               Culture="@_culture"
+               DateFormat="@DateFormat"
+               Label="@Label"
+               Class="@Class"
+               Disabled="@Disabled"
+               ReadOnly="@ReadOnly"
+               Required="@Required"
+               DisableToolbar="@DisableToolbar"
+               PickerVariant="@PickerVariant"
+               OpenTo="@OpenTo"
+               CloseToSelection="@CloseToSelection"
+               AdornmentIcon="@AdornmentIcon"
+               Adornment="@Adornment"
+               Dense="@Dense"
+               FullWidth="@FullWidth"
+               Immediate="@Immediate"
+               Clearable="@Clearable"
+               MaxDate="@MaxDate"
+               MinDate="@MinDate"
+               @attributes="UserAttributes" />
+
+@code {
+    private CultureInfo _culture = DateExtensions.GetPersianCulture();
+
+    [Parameter] public DateTime? Value { get; set; }
+    [Parameter] public EventCallback<DateTime?> ValueChanged { get; set; }
+
+    [Parameter] public string DateFormat { get; set; } = "yyyy/MM/dd";
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool Required { get; set; }
+
+    [Parameter] public bool DisableToolbar { get; set; } = true;
+    [Parameter] public PickerVariant PickerVariant { get; set; } = PickerVariant.Inline;
+    [Parameter] public OpenTo OpenTo { get; set; } = OpenTo.Date;
+    [Parameter] public bool CloseToSelection { get; set; } = true;
+
+    [Parameter] public string? AdornmentIcon { get; set; } = Icons.Material.Filled.DateRange;
+    [Parameter] public Adornment Adornment { get; set; } = Adornment.Start;
+
+    [Parameter] public bool Dense { get; set; } = true;
+    [Parameter] public bool FullWidth { get; set; } = true;
+    [Parameter] public bool Immediate { get; set; }
+    [Parameter] public bool Clearable { get; set; }
+
+    [Parameter] public DateTime? MaxDate { get; set; }
+    [Parameter] public DateTime? MinDate { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? UserAttributes { get; set; }
+}

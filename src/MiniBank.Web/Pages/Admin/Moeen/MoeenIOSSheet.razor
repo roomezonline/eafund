@@ -1,0 +1,270 @@
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+
+<DsSheet Show="IsOpen"
+         Open="IsOpen"
+         Title="@SheetTitle"
+         OnCancel="HandleCancel"
+         OnConfirm="HandleSave"
+         ShowDelete="@(!IsNew)"
+         DeleteText="حذف"
+         OnDelete="HandleDelete"
+         ShowSpinner="@_saving">
+  <div class="moeen-form">
+    <div class="form-section">
+      <DsInput Label="کل والد *"
+               Type="select"
+               @bind-Value="_model.ParentAccountIdStr"
+               ErrorMessage="@GetFieldError(nameof(_model.ParentAccountId))"
+               HelperText="انتخاب کل مربوطه">
+        <option value="">انتخاب کل...</option>
+        @foreach (var kol in _parentKols)
+        {
+          <option value="@kol.AccountId">@kol.Code - @kol.Name</option>
+        }
+      </DsInput>
+    </div>
+
+    <div class="form-section">
+      <DsInput Label="کد معین *"
+               @bind-Value="_model.Code"
+               Placeholder="مثال: 0001 یا 1.0001 یا 1.10.0001"
+               ErrorMessage="@GetFieldError(nameof(_model.Code))"
+               HelperText="کد معین را دقیقاً همان‌طور که می‌خواهید وارد کنید. بدون تغییر ذخیره می‌شود" />
+    </div>
+
+    <div class="form-section">
+      <DsInput Label="نام معین *"
+               @bind-Value="_model.Name"
+               Placeholder="مثال: صندوق، حساب جاری بانک"
+               ErrorMessage="@GetFieldError(nameof(_model.Name))"
+               HelperText="نام توصیفی معین" />
+    </div>
+
+    @if (!IsNew)
+    {
+      <div class="form-section">
+        <DsToggle Label="وضعیت فعال"
+                  @bind-Value="_model.IsActive"
+                  HelperText="معین‌های غیرفعال در فرم‌ها نمایش داده نمی‌شوند" />
+      </div>
+    }
+  </div>
+</DsSheet>
+
+@code {
+  [Parameter] public (long AccountId, string Code, string Name, long? ParentAccountId, byte AccountType, bool IsActive) Model { get; set; }
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public bool IsOpen { get; set; }
+  [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+  [Parameter] public EventCallback<(long AccountId, string Code, string Name, string Message)> OnDeleteRequest { get; set; }
+
+  private bool _saving = false;
+  private List<Account> _parentKols = new();
+  private Dictionary<string, string> _errors = new();
+
+  private MoeenFormModel _model = new();
+
+  private string SheetTitle => IsNew ? "معین جدید" : "ویرایش معین";
+
+  public class MoeenFormModel
+  {
+    public long AccountId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public long? ParentAccountId { get; set; }
+    public string ParentAccountIdStr 
+    { 
+      get => ParentAccountId?.ToString() ?? string.Empty;
+      set => ParentAccountId = string.IsNullOrEmpty(value) ? null : long.Parse(value);
+    }
+    public byte AccountType { get; set; } = 1;
+    public bool IsActive { get; set; } = true;
+  }
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (IsOpen)
+    {
+      await LoadParentKols();
+      _model = new MoeenFormModel
+      {
+        AccountId = Model.AccountId,
+        Code = Model.Code,
+        Name = Model.Name,
+        ParentAccountId = Model.ParentAccountId,
+        AccountType = Model.AccountType,
+        IsActive = Model.IsActive
+      };
+      _errors.Clear();
+    }
+  }
+
+  private async Task LoadParentKols()
+  {
+    try
+    {
+      // Load Level 2 accounts (Kol) as parent options
+      var parentKols = (await AccountsRepo.SearchAsync("", 2, true)).ToList();
+      _parentKols = parentKols;
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در دریافت کل‌ها: {ex.Message}");
+    }
+  }
+
+  private bool ValidateForm()
+  {
+    _errors.Clear();
+
+    if (string.IsNullOrWhiteSpace(_model.Code))
+      _errors[nameof(_model.Code)] = "کد معین الزامی است";
+    else if (_model.Code.Contains("///"))
+      _errors[nameof(_model.Code)] = "کد معین نمی‌تواند شامل /// باشد";
+
+    if (string.IsNullOrWhiteSpace(_model.Name))
+      _errors[nameof(_model.Name)] = "نام معین الزامی است";
+
+    if (!_model.ParentAccountId.HasValue)
+      _errors[nameof(_model.ParentAccountId)] = "انتخاب کل والد الزامی است";
+
+    return !_errors.Any();
+  }
+
+
+  private string GetFieldError(string fieldName)
+  {
+    return _errors.ContainsKey(fieldName) ? _errors[fieldName] : string.Empty;
+  }
+
+  private async Task HandleSave()
+  {
+    if (!ValidateForm()) return;
+
+    _saving = true;
+    try
+    {
+      // Use code as-is without normalization
+      var codeToSave = _model.Code.Trim();
+
+      // Check if inactive record exists with same code
+      var inactiveRecord = await AccountsRepo.FindInactiveByCodeAsync(codeToSave);
+      if (inactiveRecord != null && IsNew)
+      {
+        // Reactivate existing inactive record instead of creating new one
+        await AccountsRepo.UpdateAsync(inactiveRecord.AccountId, new Account
+        {
+          AccountId = inactiveRecord.AccountId,
+          Code = codeToSave,
+          Name = _model.Name,
+          AccountType = GetAccountTypeFromParent(_model.ParentAccountId!.Value),
+          ParentAccountId = _model.ParentAccountId,
+          Level = 3, // Moeen level
+          IsActive = true
+        });
+        Toast.Success("معین غیرفعال مجدداً فعال شد");
+        await OnClose.InvokeAsync(true);
+        return;
+      }
+
+      // Pre-check: unique code among active records (skip check if code hasn't changed)
+      if (IsNew || codeToSave != Model.Code)
+      {
+        // Debug: Check what codes exist in database
+        var allCodes = await AccountsRepo.SearchAsync("", 3, true); // Get all Moeen codes
+        var existingCodes = allCodes.Where(a => a.Code == codeToSave && a.AccountId != _model.AccountId).ToList();
+        
+        if (existingCodes.Any())
+        {
+          _errors[nameof(_model.Code)] = $"این کد قبلاً ثبت شده است (AccountId: {existingCodes.First().AccountId})";
+          Toast.Error("کد معین تکراری است. لطفاً کد دیگری وارد کنید");
+          return;
+        }
+      }
+
+      if (IsNew)
+      {
+        await AccountsRepo.CreateAsync(new Account
+        {
+          Code = codeToSave,
+          Name = _model.Name,
+          AccountType = GetAccountTypeFromParent(_model.ParentAccountId!.Value),
+          ParentAccountId = _model.ParentAccountId,
+          Level = 3, // Moeen level
+          IsActive = true
+        });
+        Toast.Success("معین جدید با موفقیت ایجاد شد");
+      }
+      else
+      {
+        try
+        {
+          await AccountsRepo.UpdateAsync(_model.AccountId, new Account
+          {
+            AccountId = _model.AccountId,
+            Code = codeToSave,
+            Name = _model.Name,
+            AccountType = GetAccountTypeFromParent(_model.ParentAccountId!.Value),
+            ParentAccountId = _model.ParentAccountId,
+            Level = 3, // Moeen level
+            IsActive = _model.IsActive
+          });
+          Toast.Success("معین با موفقیت به‌روزرسانی شد");
+        }
+        catch (Exception updateEx) when (updateEx.Message.Contains("IX_Accounts_Code_Active") || updateEx.Message.Contains("CK_Accounts_CodePattern"))
+        {
+          _errors[nameof(_model.Code)] = "این کد قبلاً ثبت شده است یا فرمت آن صحیح نیست";
+          Toast.Error("خطا در به‌روزرسانی: کد تکراری یا نامعتبر است");
+          return;
+        }
+      }
+
+      await OnClose.InvokeAsync(true);
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در ذخیره معین: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+
+  private byte GetAccountTypeFromParent(long parentKolId)
+  {
+    var parent = _parentKols.FirstOrDefault(x => x.AccountId == parentKolId);
+    return parent?.AccountType ?? 1;
+  }
+
+  private async Task HandleDelete()
+  {
+    // Check dependencies before deletion
+    var dependencyInfo = await AccountsRepo.GetDependencyInfoAsync(_model.AccountId);
+    
+    if (!dependencyInfo.CanDelete)
+    {
+      var message = dependencyInfo.GetDependencyMessage();
+      Toast.Error($"امکان حذف وجود ندارد: {message}");
+      return;
+    }
+
+    // Close the sheet first, then request delete confirmation from parent
+    await OnClose.InvokeAsync(false);
+    await Task.Delay(300); // Wait for sheet close animation
+    
+    // Request delete confirmation from parent page
+    var deleteMessage = $"آیا از حذف معین <strong>'{_model.Name}'</strong> اطمینان دارید؟<br><br>کد: <code>{_model.Code}</code>";
+    await OnDeleteRequest.InvokeAsync((_model.AccountId, _model.Code, _model.Name, deleteMessage));
+  }
+
+
+  private async Task HandleCancel()
+  {
+    await OnClose.InvokeAsync(false);
+  }
+}

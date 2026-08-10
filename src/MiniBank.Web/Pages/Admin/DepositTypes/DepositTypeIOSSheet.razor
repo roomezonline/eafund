@@ -1,0 +1,493 @@
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@using Microsoft.Extensions.Configuration
+@using Microsoft.AspNetCore.Components.Forms
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+@inject MiniBank.Web.Services.DepositTypeService DepositTypeService
+@inject IConfiguration Config
+
+@if (_isVisible)
+{
+  <DsSheet Show="_isVisible"
+           Title="@(IsNew ? "نوع سپرده جدید" : "ویرایش نوع سپرده")"
+           ConfirmText="تایید"
+           CancelText="لغو"
+           OnConfirm="OnConfirm"
+           OnCancel="Cancel"
+           Open="true"
+           ShowSpinner="_isSaving">
+    <div class="ios-form-section">
+      <div class="ios-form-header">
+        <i class="fa-solid fa-piggy-bank"></i>
+        <span>مشخصات نوع سپرده</span>
+      </div>
+
+      <div class="ios-form-group">
+        <DsInput @bind-Value="Model.Title" 
+                 Label="عنوان" 
+                 Placeholder="مثال: کوتاه مدت، بلند مدت، ویژه ..."
+                 Required="true"
+                 ErrorMessage="@(_titleError ? "عنوان الزامی است" : null)" />
+
+        <DsInput @bind-Value="Model.Category" 
+                 Label="دسته‌بندی" 
+                 Placeholder="مثال: عادی، ویژه، پس‌انداز ..." />
+
+        <DsToggle Value="@Model.HasInterest"
+                  ValueChanged="OnHasInterestToggle"
+                  Label="حساب سودده"
+                  Description="در صورت غیرفعال بودن، این نوع سپرده بدون سود ثبت می‌شود"
+                  Icon="fa-solid fa-percent" />
+
+        <!-- دوره محاسبه سود با AccrualBasis یکپارچه شد -->
+
+        <!-- استانداردسازی رفتار سپرده -->
+        @if (Model.HasInterest && Config.GetValue<bool>("Features:UseStandardizedDepositBehavior"))
+        {
+        <div class="ios-form-grid pair-sep-red">
+          <div class="ios-form-col">
+            <div class="dd-sep">
+              <DsDropdown Label="مبنای محاسبه سود"
+                          Placeholder="-- انتخاب کنید --"
+                          Items="@_itemsAccrual"
+                          Value="@_accrualStr"
+                          ValueChanged="@(v => _accrualStr = v)"
+                          ErrorMessage="@(_accrualReqError ? "انتخاب این فیلد الزامی است" : null)" />
+              <button type="button" class="ds-inline-tip" @onclick="ShowAccrualTip">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>راهنما</span>
+              </button>
+              @if (_openTipKey == "accrual")
+              {
+                <div class="ds-collapsible-sheet">
+                  <div class="title">@_infoTitle</div>
+                  <div class="body">@_infoText</div>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="ios-form-col">
+            <div class="dd-sep">
+              <DsDropdown Label="تناوب واریز سود"
+                          Placeholder="-- انتخاب کنید --"
+                          Items="@_itemsPosting"
+                          Value="@_postingStr"
+                          ValueChanged="@(v => _postingStr = v)"
+                          ErrorMessage="@(_postingReqError ? "انتخاب این فیلد الزامی است" : null)" />
+              <button type="button" class="ds-inline-tip" @onclick="ShowPostingTip">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>راهنما</span>
+              </button>
+              @if (_openTipKey == "posting")
+              {
+                <div class="ds-collapsible-sheet">
+                  <div class="title">@_infoTitle</div>
+                  <div class="body">@_infoText</div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="ios-form-grid">
+          <div class="ios-form-col">
+            <div class="dd-sep">
+              <DsDropdown Label="مرکب شدن سود"
+                          Items="@_itemsCompounding"
+                          Value="@_compoundingStr"
+                          ValueChanged="@(v => _compoundingStr = v)" />
+              <button type="button" class="ds-inline-tip" @onclick="ShowCompoundingTip">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>راهنما</span>
+              </button>
+              @if (_openTipKey == "compounding")
+              {
+                <div class="ds-collapsible-sheet">
+                  <div class="title">@_infoTitle</div>
+                  <div class="body">@_infoText</div>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="ios-form-col">
+            <div class="dd-sep">
+              <DsDropdown Label="مقصد واریز سود"
+                          Placeholder="-- انتخاب کنید --"
+                          Items="@_itemsPostingTarget"
+                          Value="@_postingTargetStr"
+                          ValueChanged="@(v => _postingTargetStr = v)" />
+              <button type="button" class="ds-inline-tip" @onclick="ShowPostingTargetTip">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>راهنما</span>
+              </button>
+              @if (_openTipKey == "postingTarget")
+              {
+                <div class="ds-collapsible-sheet">
+                  <div class="title">@_infoTitle</div>
+                  <div class="body">@_infoText</div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="ios-form-grid">
+          <div class="ios-form-col">
+            <div class="dd-sep">
+              <DsDropdown Label="قاعده روزشمار"
+                          Placeholder="-- انتخاب کنید --"
+                          Items="@_itemsDayCount"
+                          Value="@_dayCountStr"
+                          ValueChanged="@(v => _dayCountStr = v)" />
+              <button type="button" class="ds-inline-tip" @onclick="ShowDayCountTip">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>راهنما</span>
+              </button>
+              @if (_openTipKey == "daycount")
+              {
+                <div class="ds-collapsible-sheet">
+                  <div class="title">@_infoTitle</div>
+                  <div class="body">@_infoText</div>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="ios-form-col">
+            <div class="dd-sep">
+              <DsDropdown Label="روش گرد کردن"
+                          Items="@_itemsRounding"
+                          Value="@_roundingStr"
+                          ValueChanged="@(v => _roundingStr = v)" />
+              <button type="button" class="ds-inline-tip" @onclick="ShowRoundingTip">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>راهنما</span>
+              </button>
+              @if (_openTipKey == "rounding")
+              {
+                <div class="ds-collapsible-sheet">
+                  <div class="title">@_infoTitle</div>
+                  <div class="body">@_infoText</div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        @if (Model.HasInterest)
+        {
+          <!-- ورودی‌های مرتبط با سود -->
+          <DsMoneyInput Label="حداقل مانده برای محاسبه سود"
+                        Value="@_minBalanceString"
+                        ValueChanged="@(v => _minBalanceString = v)" />
+
+          <DsInput @bind-Value="_breakRateString" 
+                   Label="نرخ شکست (درصد)" 
+                   Type="number"
+                   Step="0.01"
+                   Class="center-text"
+                   Placeholder="مثال: 5" />
+        }
+        }
+        else
+        {
+          <!-- حالت قدیمی: بخش استاندارد نمایش داده نمی‌شود -->
+        }
+
+        <DsToggle @bind-Value="Model.IsActive"
+                  Label="وضعیت فعال"
+                  Description="نوع سپرده در سیستم فعال باشد"
+                  Icon="fa-solid fa-toggle-on" />
+
+        <DsToggle @bind-Value="Model.EligibleForLoan"
+                  Label="مشمول دریافت وام"
+                  Description="این نوع سپرده امکان دریافت وام دارد"
+                  Icon="fa-solid fa-money-check-dollar" />
+
+        <DsToggle @bind-Value="Model.CanGuaranteeLoan"
+                  Label="مجوز ضمانت وام"
+                  Description="از این نوع سپرده به عنوان ضمانت وام استفاده شود"
+                  Icon="fa-solid fa-shield-halved" />
+
+        <DsToggle @bind-Value="Model.ShowInTransactions"
+                  Label="نمایش در لیست تراکنش‌ها"
+                  Description="تراکنش‌های این نوع سپرده در لیست تراکنش‌ها نمایش داده شوند"
+                  Icon="fa-solid fa-list" />
+
+        <DsToggle @bind-Value="Model.IncludeInTotalBalance"
+                  Label="لحاظ در جمع موجودی کل"
+                  Description="موجودی این نوع سپرده در جمع کل صندوق محاسبه شود"
+                  Icon="fa-solid fa-scale-balanced" />
+      </div>
+    </div>
+  </DsSheet>
+}
+
+@code {
+  [Parameter] public DepositType Model { get; set; } = new();
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _isVisible;
+  private bool _isSaving;
+  private bool _titleError;
+  private decimal? _breakRate;
+  private decimal? _minBalance;
+  private int? _accrual;
+  private int? _posting;
+  private int? _compounding;
+  private int? _postingTarget;
+  private int? _dayCount;
+  private int? _rounding;
+  // Dropdown binding as strings for DsDropdown
+  private string? _accrualStr;
+  private string? _postingStr;
+  private string? _compoundingStr;
+  private string? _postingTargetStr;
+  private string? _dayCountStr;
+  private string? _roundingStr;
+  // Required flags for central validation display
+  private bool _accrualReqError;
+  private bool _postingReqError;
+  
+  // Item sources for dropdowns
+  private IEnumerable<DsDropdown.DsDropdownItem> _itemsAccrual = new []
+  {
+    new DsDropdown.DsDropdownItem { Value = ((int)AccrualBasis.Daily).ToString(), Text = "روزانه" },
+    new DsDropdown.DsDropdownItem { Value = ((int)AccrualBasis.Monthly).ToString(), Text = "ماهانه" },
+    new DsDropdown.DsDropdownItem { Value = ((int)AccrualBasis.Annual).ToString(), Text = "سالانه" }
+  };
+  private IEnumerable<DsDropdown.DsDropdownItem> _itemsPosting = new []
+  {
+    new DsDropdown.DsDropdownItem { Value = ((int)PostingFrequency.Daily).ToString(), Text = "روزانه" },
+    new DsDropdown.DsDropdownItem { Value = ((int)PostingFrequency.Monthly).ToString(), Text = "ماهانه" },
+    new DsDropdown.DsDropdownItem { Value = ((int)PostingFrequency.Quarterly).ToString(), Text = "سه‌ماهه" },
+    new DsDropdown.DsDropdownItem { Value = ((int)PostingFrequency.Annual).ToString(), Text = "سالانه" },
+    new DsDropdown.DsDropdownItem { Value = ((int)PostingFrequency.OnMaturity).ToString(), Text = "در سررسید" }
+  };
+  private IEnumerable<DsDropdown.DsDropdownItem> _itemsCompounding = new []
+  {
+    new DsDropdown.DsDropdownItem { Value = ((int)Compounding.None).ToString(), Text = "بدون مرکب" },
+    new DsDropdown.DsDropdownItem { Value = ((int)Compounding.Daily).ToString(), Text = "روزانه" },
+    new DsDropdown.DsDropdownItem { Value = ((int)Compounding.Monthly).ToString(), Text = "ماهانه" },
+    new DsDropdown.DsDropdownItem { Value = ((int)Compounding.Quarterly).ToString(), Text = "سه‌ماهه" },
+    new DsDropdown.DsDropdownItem { Value = ((int)Compounding.Annual).ToString(), Text = "سالانه" }
+  };
+  private IEnumerable<DsDropdown.DsDropdownItem> _itemsPostingTarget = new []
+  {
+    new DsDropdown.DsDropdownItem { Value = ((int)PostingTarget.SameAccount).ToString(), Text = "همان حساب" },
+    new DsDropdown.DsDropdownItem { Value = ((int)PostingTarget.SupportAccount).ToString(), Text = "حساب پشتیبان" }
+  };
+  private IEnumerable<DsDropdown.DsDropdownItem> _itemsDayCount = new []
+  {
+    new DsDropdown.DsDropdownItem { Value = ((int)DayCountConvention.Actual360).ToString(), Text = "واقعی/۳۶۰" },
+    new DsDropdown.DsDropdownItem { Value = ((int)DayCountConvention.Actual365).ToString(), Text = "واقعی/۳۶۵" },
+    new DsDropdown.DsDropdownItem { Value = ((int)DayCountConvention.ActualActual).ToString(), Text = "واقعی/واقعی" },
+    new DsDropdown.DsDropdownItem { Value = ((int)DayCountConvention.ThirtyE360).ToString(), Text = "۳۰/۳۶۰ (اروپایی)" }
+  };
+  private IEnumerable<DsDropdown.DsDropdownItem> _itemsRounding = new []
+  {
+    new DsDropdown.DsDropdownItem { Value = ((int)RoundingRule.None).ToString(), Text = "بدون گرد کردن" },
+    new DsDropdown.DsDropdownItem { Value = ((int)RoundingRule.HalfUp).ToString(), Text = "نزدیک‌ترین رو به بالا" },
+    new DsDropdown.DsDropdownItem { Value = ((int)RoundingRule.HalfEven).ToString(), Text = "گرد کردن بانکی" }
+  };
+  private bool _breakRateError;
+  private bool _minBalanceError;
+  private string? _logicError;
+  private string _breakRateString
+  {
+    get => _breakRate?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
+    set => _breakRate = decimal.TryParse(value, out var result) ? result : null;
+  }
+  private string _minBalanceString
+  {
+    get => _minBalance.HasValue ? ((long)_minBalance.Value).ToString("N0", System.Globalization.CultureInfo.InvariantCulture) : null;
+    set
+    {
+      if (string.IsNullOrWhiteSpace(value)) { _minBalance = null; return; }
+      var s = value.Trim();
+      var negative = s.StartsWith("-");
+      var digits = new string(s.Where(char.IsDigit).ToArray());
+      if (string.IsNullOrEmpty(digits)) { _minBalance = null; return; }
+      if (long.TryParse(digits, out var num))
+        _minBalance = negative ? -(decimal)num : (decimal)num;
+      else
+        _minBalance = null;
+    }
+  }
+
+  protected override void OnParametersSet()
+  {
+    // هر بار که Model از والد تغییر کند، مقادیر داخلی به‌روز شوند
+    _isVisible = true;
+    if (Model is null) Model = new();
+    _breakRate = Model.BreakRate;
+    _minBalance = Model.MinBalanceForInterest;
+    // Sync string bindings explicitly to guarantee initial UI values
+    _ = _breakRateString; // access getter once
+    _ = _minBalanceString;
+    _accrual = Model.AccrualBasis.HasValue ? (int)Model.AccrualBasis.Value : (int?)null;
+    _posting = Model.PostingFrequency.HasValue ? (int)Model.PostingFrequency.Value : (int?)null;
+    _compounding = Model.Compounding.HasValue ? (int)Model.Compounding.Value : (int?)null;
+    _postingTarget = Model.PostingTarget.HasValue ? (int)Model.PostingTarget.Value : (int?)null;
+    _dayCount = Model.DayCountConvention.HasValue ? (int)Model.DayCountConvention.Value : (int?)null;
+    _rounding = Model.RoundingRule.HasValue ? (int)Model.RoundingRule.Value : (int?)null;
+    // Sync string bindings for DsDropdowns
+    _accrualStr = _accrual?.ToString();
+    _postingStr = _posting?.ToString();
+    _compoundingStr = _compounding?.ToString();
+    _postingTargetStr = _postingTarget?.ToString();
+    _dayCountStr = _dayCount?.ToString();
+    _roundingStr = _rounding?.ToString();
+    // Reset required errors when opening
+    _accrualReqError = _postingReqError = false;
+  }
+
+  private async Task OnConfirm()
+  {
+    if (_isSaving) return;
+    _titleError = string.IsNullOrWhiteSpace(Model.Title);
+    _breakRateError = _breakRate.HasValue && (_breakRate < 0 || _breakRate > 100);
+    _minBalanceError = _minBalance.HasValue && _minBalance < 0;
+
+    // Convert dropdown string values to ints before logic
+    _accrual = int.TryParse(_accrualStr, out var a) ? a : (int?)null;
+    _posting = int.TryParse(_postingStr, out var p) ? p : (int?)null;
+    _compounding = int.TryParse(_compoundingStr, out var c) ? c : (int?)null;
+    _postingTarget = int.TryParse(_postingTargetStr, out var pt) ? pt : (int?)null;
+    _dayCount = int.TryParse(_dayCountStr, out var dc) ? dc : (int?)null;
+    _rounding = int.TryParse(_roundingStr, out var rd) ? rd : (int?)null;
+
+    // Central required validation for key fields (only when interest is enabled)
+    if (Model.HasInterest)
+    {
+      _accrualReqError = !_accrual.HasValue;
+      _postingReqError = !_posting.HasValue;
+    }
+    else
+    {
+      _accrualReqError = _postingReqError = false;
+    }
+
+    // منطق پایه بر اساس انتخاب‌های فعلی کاربر (نه مقدار قبلی مدل)
+    _logicError = null;
+    if (_compounding.HasValue && _compounding.Value != (int)Compounding.None)
+    {
+      if (!_postingTarget.HasValue || _postingTarget.Value != (int)PostingTarget.SameAccount)
+        _logicError = "در صورت مرکب شدن سود، مقصد واریز باید 'همان حساب' باشد";
+    }
+    // توصیه: اگر فرکانس واریز تعریف شده، بهتر است پایه محاسبه نیز مشخص باشد
+    if (string.IsNullOrEmpty(_logicError) && _posting.HasValue && !_accrual.HasValue)
+      _logicError = "با تعیین تناوب واریز، بهتر است پایه محاسبه (روزانه/ماهانه/سالانه) را مشخص کنید";
+
+    if (_titleError || _breakRateError || _minBalanceError || _accrualReqError || _postingReqError || !string.IsNullOrEmpty(_logicError))
+    {
+      if (_titleError) Toasts.Warning("عنوان الزامی است");
+      if (_breakRateError) Toasts.Warning("نرخ شکست باید بین 0 تا 100 باشد");
+      if (_minBalanceError) Toasts.Warning("حداقل مانده نمی‌تواند منفی باشد");
+      if (_accrualReqError) Toasts.Warning("پایه محاسبه الزامی است");
+      if (_postingReqError) Toasts.Warning("تناوب واریز سود الزامی است");
+      if (!string.IsNullOrEmpty(_logicError)) Toasts.Warning(_logicError!);
+      StateHasChanged(); return;
+    }
+
+    _isSaving = true;
+    try
+    {
+      if (Model.HasInterest)
+      {
+        Model.BreakRate = _breakRate;
+        Model.MinBalanceForInterest = _minBalance;
+        Model.AccrualBasis = _accrual.HasValue ? (AccrualBasis?)_accrual.Value : null;
+        Model.PostingFrequency = _posting.HasValue ? (PostingFrequency?)_posting.Value : null;
+        Model.Compounding = _compounding.HasValue ? (Compounding?)_compounding.Value : null;
+        Model.PostingTarget = _postingTarget.HasValue ? (PostingTarget?)_postingTarget.Value : null;
+        Model.DayCountConvention = _dayCount.HasValue ? (DayCountConvention?)_dayCount.Value : null;
+        Model.RoundingRule = _rounding.HasValue ? (RoundingRule?)_rounding.Value : null;
+      }
+      else
+      {
+        // Clear all interest-related fields when disabled
+        Model.BreakRate = null;
+        Model.MinBalanceForInterest = null;
+        Model.AccrualBasis = null;
+        Model.PostingFrequency = null;
+        Model.Compounding = null;
+        Model.PostingTarget = null;
+        Model.DayCountConvention = null;
+        Model.RoundingRule = null;
+      }
+      if (IsNew)
+      {
+        var id = await DepositTypeService.CreateAsync(Model);
+        Model.DepositTypeId = id;
+      }
+      else
+      {
+        await DepositTypeService.UpdateAsync(Model);
+      }
+      await OnClose.InvokeAsync(true);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره: {ex.Message}");
+    }
+    finally
+    {
+      _isSaving = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task Cancel()
+  {
+    await OnClose.InvokeAsync(false);
+  }
+
+  private async Task HandleOverlayClick() { await Task.CompletedTask; }
+
+  // Inline collapsible tip state
+  private string? _openTipKey; // one of: accrual, posting, compounding, postingTarget, daycount, rounding
+  private string _infoTitle = string.Empty;
+  private string _infoText = string.Empty;
+
+  private async Task OnHasInterestToggle(bool value)
+  {
+    Model.HasInterest = value;
+    if (!value)
+    {
+      // Clear UI state for interest-related inputs when toggled off
+      _breakRate = null;
+      _minBalance = null;
+      _breakRateString = string.Empty;
+      _minBalanceString = string.Empty;
+      _accrual = _posting = _compounding = _postingTarget = _dayCount = _rounding = null;
+      _accrualStr = _postingStr = _compoundingStr = _postingTargetStr = _dayCountStr = _roundingStr = null;
+      _accrualReqError = _postingReqError = false;
+    }
+    StateHasChanged();
+    await Task.CompletedTask;
+  }
+
+  private void ToggleInfo(string key, string title, string text)
+  {
+    if (_openTipKey == key)
+    {
+      _openTipKey = null; // collapse if open
+    }
+    else
+    {
+      _openTipKey = key;
+      _infoTitle = title;
+      _infoText = text;
+    }
+    StateHasChanged();
+  }
+  private void ShowAccrualTip() => ToggleInfo("accrual", "پایه محاسبه (Accrual)", "مثال: سپرده‌های روزشمار معمولاً Accrual را «روزانه» می‌گیرند.");
+  private void ShowPostingTip() => ToggleInfo("posting", "تناوب واریز سود (Posting)", "سود می‌تواند روزانه محاسبه شود ولی مثلاً ماهانه واریز گردد.");
+  private void ShowCompoundingTip() => ToggleInfo("compounding", "مرکب شدن سود (Compounding)", "در صورت «مرکب»، سودِ واریزشده به اصل اضافه و در دوره بعدی هم سود می‌گیرد.");
+  private void ShowPostingTargetTip() => ToggleInfo("postingTarget", "مقصد واریز", "برای مرکب شدن سود، مقصد باید «همان حساب» باشد.");
+  private void ShowDayCountTip() => ToggleInfo("daycount", "روزشمار (Day Count)", "بانک‌ها از قواعد مختلف مثل 30E/360 یا Actual/365 استفاده می‌کنند.");
+  private void ShowRoundingTip() => ToggleInfo("rounding", "قاعده گرد کردن", "HalfEven روش رایج بانکی برای کاهش خطای گرد کردن تجمعی است.");
+}

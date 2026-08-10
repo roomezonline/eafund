@@ -1,0 +1,1187 @@
+ .loan-mje2-page {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 2px 6px;
+  direction: rtl;
+ }
+
+ .journal-history-container {
+  margin-top: 20px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+ }
+
+ .journal-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+ }
+
+ .journal-history-header h2 {
+  color: #1e293b;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+ }
+
+  .journal-history-header h2 i {
+  margin-left: 8px;
+  color: #3b82f6;
+  }
+
+.force-status-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.force-status-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  line-height: 1.9;
+  padding: 14px 16px;
+}
+
+.force-status-meta strong {
+  font-weight: 900;
+  color: #334155;
+}
+
+.force-status-field {
+  margin: 14px 16px 0;
+}
+
+.force-status-field label {
+  display: block;
+  font-weight: 900;
+  font-size: 13px;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.force-status-select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  font-weight: 900;
+  font-size: 14px;
+  direction: rtl;
+  text-align: right;
+  outline: none;
+  background: #fff;
+}
+
+.force-status-select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+}
+
+.force-status-warning {
+  margin: 8px 16px 0;
+  font-size: 12px;
+  color: #b91c1c;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .force-status-meta {
+    padding: 12px 14px;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .force-status-field {
+    margin: 10px 14px 0;
+  }
+
+  .force-status-warning {
+    margin: 6px 14px 0;
+  }
+}
+
+ .history-actions {
+  display: flex;
+  gap: 10px;
+ }
+
+ .history-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+ }
+
+ .history-actions-cell button {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 32px;
+  white-space: nowrap;
+ }
+
+ .history-actions-cell .history-edit-btn,
+ .history-actions-cell .history-post-btn,
+ .history-actions-cell .history-delete-btn {
+  border-radius: 10px;
+ }
+
+ .refresh-btn {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  white-space: nowrap;
+ }
+
+ .refresh-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+ }
+
+ .refresh-btn i { margin-left: 6px; }
+
+ .history-filters {
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 12px;
+ }
+
+ .filter-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+ }
+
+ .loan-count-row {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+ }
+
+ .desktop-only { display: block; }
+
+ .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+ }
+
+ .filter-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+ }
+
+ .search-input {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+ }
+
+ .journals-table-container {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+ }
+
+ .journals-table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+ }
+
+ .journals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 1100px;
+ }
+
+ .journals-table thead th {
+  background: #fde047;
+  color: #111827;
+  padding: 4px 8px;
+  border: 1px solid #111827;
+  font-weight: bold;
+  text-align: center;
+ }
+
+ .journals-table.loans-guarantors-table thead th {
+  background: #dbeafe;
+  color: #0f172a;
+  border-color: #93c5fd;
+ }
+
+ .journals-table.loans-loan-summary-table thead th {
+  background: #e0f2fe;
+  color: #0f172a;
+  border-color: #7dd3fc;
+ }
+
+ .journals-table.loans-installments-table thead th {
+  background: #dcfce7;
+  color: #0f172a;
+  border-color: #86efac;
+ }
+
+ .journals-table tbody td {
+  padding: 4px 8px;
+  border: 1px solid #111827;
+  white-space: nowrap;
+  text-align: right;
+  background: #ffffff;
+ }
+
+ .journals-table td.cell-center {
+  text-align: center !important;
+ }
+
+ .journals-table.loans-loan-summary-table tbody td {
+  text-align: center !important;
+ }
+
+ .journals-table.loans-loan-summary-table tbody td.amount-td,
+ .journals-table.loans-guarantors-table tbody td.amount-td {
+  text-align: center !important;
+  direction: ltr !important;
+ }
+
+ /* Amount columns: align digits (units under units) */
+ .journals-table td.amount-td {
+  text-align: right !important;
+  direction: ltr !important;
+ }
+
+ .journals-table tbody tr {
+  height: 34px;
+ }
+
+ .journals-table tbody tr:nth-child(even):not(.journal-details-row):not(.loans-total-row) td {
+  background: #f8fafc;
+ }
+
+ /* Settled loans: visually distinct row */
+ .journals-table tbody tr.loan-row-settled td {
+  background: #f0fdf4 !important;
+  border-color: #86efac;
+ }
+
+ .journals-table tbody tr.loan-row-settled:hover td {
+  background: #dcfce7 !important;
+ }
+
+ .journals-table tbody tr.loans-total-row td {
+  background: #dbeafe !important;
+  border-top: 2px solid #3b82f6 !important;
+  border-bottom: 2px solid #3b82f6 !important;
+  font-weight: 900;
+ }
+
+ .journals-table tbody tr.loans-total-row td:first-child {
+  color: #1d4ed8;
+ }
+
+ .journals-table.loans-installments-table tbody tr.installments-total-row td {
+  background: #fff7ed;
+  border-top: 2px solid #fb923c;
+  border-bottom: 2px solid #fb923c;
+  font-weight: 900;
+ }
+
+ .journals-table.loans-guarantors-table tbody tr.guarantors-total-row td {
+  background: #eff6ff;
+  border-top: 2px solid #3b82f6;
+  border-bottom: 2px solid #3b82f6;
+  font-weight: 900;
+}
+
+.journals-table.loans-installments-table tbody tr.installments-total-row td:first-child {
+  color: #9a3412;
+}
+
+/* Installments: emphasize penalty/paid and improve reason readability */
+.journals-table.loans-installments-table td.td-penalty {
+  background: #fef2f2 !important;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.journals-table.loans-installments-table td.td-paid {
+  background: #ecfdf5 !important;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.journals-table.loans-installments-table td.reason-td {
+  white-space: nowrap;
+  line-height: 1.75;
+}
+
+.journals-table.loans-installments-table th:last-child,
+.journals-table.loans-installments-table td.reason-td {
+  min-width: 520px;
+}
+
+.journals-table.loans-installments-table .reason-sep {
+  color: #94a3b8;
+  padding: 0 6px;
+}
+
+.journals-table.loans-installments-table .reason-penalty {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 1px 6px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.journals-table.loans-installments-table .reason-days {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  padding: 1px 6px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+ .journals-table.loans-installments-table .journal-link {
+  color: #2563eb;
+  font-weight: 900;
+  text-decoration: none;
+ }
+
+ .journals-table.loans-installments-table .journal-link:hover {
+  text-decoration: underline;
+ }
+
+ .journals-table.loans-installments-table .journal-link-date {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+ }
+
+ .journal-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  z-index: 9999;
+ }
+
+ .journal-modal {
+  width: min(1100px, 96vw);
+  max-height: min(86vh, 900px);
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+ }
+
+ .journal-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #0ea5e9;
+  color: #ffffff;
+ }
+
+ .journal-modal-title {
+  font-weight: 900;
+  font-size: 14px;
+ }
+
+ .journal-modal-close {
+  border: none;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 20px;
+  line-height: 20px;
+  cursor: pointer;
+ }
+
+ .journal-modal-close:hover {
+  background: rgba(255,255,255,0.28);
+ }
+
+ .journal-modal-meta {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  line-height: 1.9;
+ }
+
+ .journal-modal-notes {
+  margin-top: 4px;
+  color: #0f172a;
+ }
+
+ .journal-modal-table {
+  padding: 10px 12px;
+  overflow: auto;
+ }
+
+ .loan-disburse-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  z-index: 10000;
+  overscroll-behavior: contain;
+ }
+
+ .loan-disburse-modal {
+  width: min(1100px, 96vw);
+  max-height: min(88vh, 920px);
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+ }
+
+ .loan-disburse-modal.prepay-modal {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+ }
+
+ .loan-disburse-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #2563eb;
+  color: #ffffff;
+ }
+
+ .loan-disburse-modal-title {
+  font-weight: 900;
+  font-size: 14px;
+ }
+
+ .loan-disburse-modal-close {
+  border: none;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 20px;
+  line-height: 20px;
+  cursor: pointer;
+ }
+
+ .loan-disburse-modal-close:hover {
+  background: rgba(255,255,255,0.28);
+ }
+
+ .loan-disburse-modal-meta {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  line-height: 1.9;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+ }
+
+ .loan-disburse-notes {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+ }
+
+ .loan-disburse-notes label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+ }
+
+ .loan-disburse-notes-input {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 12px;
+ }
+
+ .loan-disburse-modal-table {
+  padding: 10px 12px;
+  overflow: auto;
+ }
+
+ .loan-jp-main,
+ .loan-jp-sub {
+  font-weight: 800;
+  color: #0f172a;
+  text-align: right !important;
+  white-space: nowrap;
+ }
+
+ .loan-jp-main {
+  min-width: 0;
+ }
+
+ .loan-jp-sub {
+  min-width: 0;
+ }
+
+ .loan-disburse-journal-table {
+  width: 100%;
+  min-width: 0 !important;
+  table-layout: auto;
+ }
+
+ .loan-disburse-journal-table thead th,
+ .loan-disburse-journal-table tbody td {
+  white-space: nowrap;
+ }
+
+ .loan-disburse-journal-table thead th,
+ .loan-disburse-journal-table tbody td {
+  padding-left: 8px;
+  padding-right: 8px;
+ }
+
+ .loan-disburse-journal-table th:nth-child(1),
+ .loan-disburse-journal-table td:nth-child(1) {
+  width: 44px;
+  min-width: 44px;
+ }
+
+ .loan-disburse-journal-table th:nth-child(4),
+ .loan-disburse-journal-table td:nth-child(4),
+ .loan-disburse-journal-table th:nth-child(5),
+ .loan-disburse-journal-table td:nth-child(5) {
+  width: 120px;
+  min-width: 120px;
+ }
+
+ .loan-disburse-journal-table th:nth-child(6),
+ .loan-disburse-journal-table td:nth-child(6) {
+  min-width: 150px;
+ }
+
+ .loan-disburse-modal-actions {
+  padding: 10px 12px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+ }
+
+ .loan-disburse-cancel,
+ .loan-disburse-confirm {
+  min-height: 42px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 8px 12px;
+  cursor: pointer;
+ }
+
+ .loan-disburse-cancel {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+ }
+
+ .loan-disburse-cancel:hover {
+  background: #f8fafc;
+ }
+
+ .loan-disburse-confirm {
+  border: 1px solid #10b981;
+  background: #10b981;
+  color: #ffffff;
+ }
+
+ .loan-disburse-confirm:hover {
+  background: #059669;
+  border-color: #059669;
+ }
+
+ .loan-disburse-cancel:disabled,
+ .loan-disburse-confirm:disabled {
+  opacity: .65;
+  cursor: not-allowed;
+ }
+
+ @media (max-width: 768px) {
+  .journal-modal {
+    width: 96vw;
+    max-height: 92vh;
+    border-radius: 12px;
+  }
+  .journal-modal-title { font-size: 13px; }
+  .journal-modal-meta { font-size: 11px; }
+
+  .loan-disburse-modal { width: 96vw; max-height: 92vh; border-radius: 12px; }
+  .loan-disburse-modal-title { font-size: 13px; }
+  .loan-disburse-modal-meta { grid-template-columns: 1fr; font-size: 11px; }
+  .loan-disburse-modal-actions { flex-direction: column; }
+  .loan-disburse-cancel,
+  .loan-disburse-confirm { width: 100%; }
+
+  .loan-disburse-journal-table {
+    font-size: 11px;
+    min-width: 0 !important;
+  }
+
+  .loan-disburse-journal-table thead th,
+  .loan-disburse-journal-table tbody td {
+    padding-left: 6px;
+    padding-right: 6px;
+    white-space: nowrap;
+  }
+
+  .loan-disburse-journal-table th:nth-child(1),
+  .loan-disburse-journal-table td:nth-child(1) {
+    width: 38px;
+    min-width: 38px;
+  }
+
+  .loan-disburse-journal-table th:nth-child(4),
+  .loan-disburse-journal-table td:nth-child(4),
+  .loan-disburse-journal-table th:nth-child(5),
+  .loan-disburse-journal-table td:nth-child(5) {
+    width: 92px;
+    min-width: 92px;
+  }
+
+  .loan-disburse-journal-table th:nth-child(6),
+  .loan-disburse-journal-table td:nth-child(6) {
+    min-width: 120px;
+  }
+
+  .history-actions-cell {
+    gap: 5px;
+  }
+
+  .history-actions-cell button {
+    height: 28px;
+    min-height: 28px;
+    line-height: 28px;
+    padding: 0 8px;
+    border-radius: 10px;
+    font-size: 11px;
+  }
+
+  .loan-jp-main,
+  .loan-jp-sub {
+    min-width: 0;
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+}
+
+.journals-table tbody tr.history-row {
+  cursor: pointer;
+}
+
+ .journals-table tbody tr.history-row:hover td {
+  background: #e0f2fe;
+ }
+
+ .journals-table tbody tr.history-row.expanded td {
+  background: #fef9c3;
+  border-top: 2px solid #f59e0b;
+  border-bottom: 2px solid #f59e0b;
+ }
+
+ .journal-details-row td {
+  background: #eff6ff;
+  padding: 0;
+ }
+
+ .journal-details-inline {
+  border: 2px solid #93c5fd;
+  border-top: none;
+  background: #eff6ff;
+ }
+
+ .journal-details-inline {
+  padding: 12px;
+ }
+
+ .amount-td {
+  text-align: right !important;
+  direction: ltr !important;
+  white-space: nowrap;
+  font-weight: 900;
+ }
+
+ .history-details-btn {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #111827;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+ }
+
+ .history-details-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+ }
+
+ .history-edit-btn {
+  border: 1px solid #10b981;
+  border-radius: 6px;
+  background: #10b981;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+ }
+
+ .history-edit-btn:hover {
+  background: #059669;
+  border-color: #059669;
+ }
+
+ .history-post-btn {
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  background: #2563eb;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+ }
+
+ .history-post-btn:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+ }
+
+.history-delete-btn {
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  background: #ef4444;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.history-delete-btn:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.history-force-status-btn {
+  border: 1px solid #7c3aed;
+  border-radius: 6px;
+  background: #7c3aed;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.history-force-status-btn:hover {
+  background: #6d28d9;
+  border-color: #6d28d9;
+}
+
+ .status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+ }
+
+ .status-badge.balanced {
+  background: #d1fae5;
+  color: #065f46;
+ }
+
+ .status-badge.paid {
+  background: #d1fae5;
+  color: #065f46;
+ }
+
+ .status-badge.approved {
+  background: #e0f2fe;
+  color: #075985;
+ }
+
+ .status-badge.settled {
+  background: #ede9fe;
+  color: #5b21b6;
+ }
+
+ .status-badge.partial {
+  background: #fed7aa;
+  color: #92400e;
+ }
+
+ .status-badge.unpaid {
+  background: #fee2e2;
+  color: #991b1b;
+ }
+
+ .loading-container,
+ .empty-container {
+  padding: 12px;
+  text-align: center;
+  color: #475569;
+ }
+
+ .loan-details-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+ }
+
+ .loan-details-strip .strip-item {
+  border: 1px solid #dbeafe;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 10px 12px;
+ }
+
+ .loan-details-strip .strip-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 6px;
+ }
+
+ .loan-details-strip .strip-value {
+  font-size: 12px;
+  font-weight: 900;
+  color: #0f172a;
+  direction: ltr;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+ }
+
+ /* Minimal helpers reused by details area */
+ .details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+ }
+
+ .detail .label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 4px;
+ }
+
+ .chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+ }
+
+ .chip-blue {
+  background: #dbeafe;
+  color: #1d4ed8;
+ }
+
+ @media (max-width: 768px) {
+  .journal-history-container { padding: 10px; }
+  .filter-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .filter-group { width: 100%; }
+
+  .filter-group-date > div {
+    width: 100%;
+  }
+
+  .filter-group-date .search-input {
+    width: calc(50% - 4px) !important;
+  }
+  .journals-table { font-size: 11px; }
+  .details-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .detail .label { font-size: 10px; }
+  .chip { padding: 5px 8px; font-size: 11px; }
+  .loan-details-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .loan-details-strip .strip-item { padding: 6px 8px; border-radius: 10px; }
+  .loan-details-strip .strip-label { font-size: 10px; margin-bottom: 4px; }
+  .loan-details-strip .strip-value { font-size: 11px; }
+ }
+
+ @media (min-width: 992px) {
+  .loan-mje2-page,
+  .loan-mje2-container {
+    max-width: 98vw;
+  }
+
+  .loan-mje2-page { padding-left: 2px; padding-right: 2px; }
+  .journal-history-container { padding: 8px; }
+  .history-filters { padding: 8px; }
+  .journal-details-inline { padding: 8px; }
+ }
+
+ /* Inline create form (manual-journal-entry-v2 inspired) */
+ .loan-mje2-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 5px;
+ }
+
+ .header-blue-bar {
+  background: #0056b3;
+  color: white;
+  padding: 15px 20px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 0;
+ }
+
+ .header-yellow-bar-1 {
+  background: #f3f4f6;
+  color: #111827;
+  padding: 12px 20px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  border-bottom: 2px solid #0056b3;
+ }
+
+ .form-section {
+  background: white;
+  border: 2px solid #0056b3;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 15px;
+ }
+
+ .form-table {
+  width: 100%;
+  direction: rtl;
+  border-collapse: collapse;
+  border: 2px solid #000;
+ }
+
+ .form-row td {
+  padding: 8px 15px;
+  border-bottom: 2px solid #000;
+  vertical-align: middle;
+ }
+
+ .form-row td:first-child {
+  border-left: 2px solid #000;
+  width: 150px;
+  font-weight: bold;
+  color: #01080fff;
+  text-align: right;
+ }
+
+ .form-row:last-child td {
+  border-bottom: none;
+ }
+
+ .form-row:nth-child(odd) td { background-color: #fff !important; }
+ .form-row:nth-child(even) td { background-color: #f8fafc !important; }
+
+ .form-input {
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 0;
+  font-size: 16px;
+  font-weight: bold;
+  background: transparent !important;
+  transition: all 0.3s ease;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+ }
+
+ .center-text { text-align: center; }
+
+ .field-error {
+  margin-top: 6px;
+  color: #b91c1c;
+  font-weight: 800;
+  font-size: 12px;
+ }
+
+ .action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+ }
+
+ .action-buttons-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+ }
+
+ .btn-delete,
+ .btn-edit,
+ .btn-cancel,
+ .btn-next {
+  min-height: 44px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.10);
+ }
+
+ .btn-delete {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+ }
+
+ .btn-edit {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+ }
+
+ .btn-cancel {
+  background: #6b7280;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex: 1;
+ }
+
+ .btn-next {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+ }
+
+ .btn-next:hover { background: #0056b3; }
+
+ .pending-history {
+  margin: 8px 0;
+  padding: 6px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+ }
+
+ .pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+ }
+
+ .pending-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  border: 1px solid #0a0233ff;
+  border-radius: 14px;
+  padding: 8px;
+ }
+
+ .pending-item-title {
+  font-weight: 800;
+  color: #0a1935ff;
+  text-align: right;
+  font-size: 12px;
+  line-height: 1.2;
+ }
+
+ .pending-item-amount {
+  font-weight: 900;
+  color: #111827;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 12px;
+ }
+
+ .pending-item-actions {
+  display: inline-flex;
+  justify-content: center;
+ }
+
+ @media (max-width: 768px) {
+  .loan-mje2-container { padding: 2px; }
+  .action-buttons-top { flex-direction: column; }
+  .pending-item { grid-template-columns: 1fr; }
+  .form-row td:first-child { width: 35%; min-width: 100px; font-size: 0.8em; }
+ }

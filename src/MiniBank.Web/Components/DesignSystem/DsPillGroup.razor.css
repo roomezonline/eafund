@@ -1,0 +1,76 @@
+/* Design System - Pill Group styles aligned with Members/Households */
+:root {
+  --ds-border: #d1d5db;
+  --ds-card: #ffffff;
+  --ds-muted: #475569;
+  --ds-primary-a: #0ea5e9; /* cyan-500 */
+  --ds-primary-b: #3b82f6; /* blue-500 */
+}
+
+/* Ensure variables exist in component scope even if page-level tokens are missing */
+:host {
+  --ds-primary-a: #0ea5e9;
+  --ds-primary-b: #3b82f6;
+}
+
+.ds-pill-group { direction: rtl; width: 100%; }
+.ds-pill-group .pill-row { 
+  display: flex; 
+  gap: 10px; 
+  overflow-x: auto; 
+  overflow-y: hidden;
+  padding: 2px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  width: 100%;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch; /* iOS smooth scroll */
+}
+
+/* Hide scrollbar for WebKit browsers */
+.ds-pill-group .pill-row::-webkit-scrollbar {
+  display: none;
+}
+
+.ds-pill-group .pill {
+  border: 1px solid var(--ds-border);
+  background: var(--ds-card);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ds-muted);
+  box-shadow: 0 3px 10px rgba(15,23,42,.08);
+  transition: all .18s ease;
+  display: inline-flex; 
+  align-items: center; 
+  gap: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Compact size for both filter and sort modes */
+.ds-pill-group.filter .pill,
+.ds-pill-group.sort .pill {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.ds-pill-group.filter .pill i,
+.ds-pill-group.sort .pill i {
+  font-size: 11px;
+}
+.ds-pill-group .pill:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15,23,42,.10); }
+.ds-pill-group .pill.active,
+.ds-pill-group.filter .pill.active,
+.ds-pill-group.sort .pill.active {
+  background: linear-gradient(45deg, var(--ds-primary-a, #0ea5e9), var(--ds-primary-b, #3b82f6)) !important;
+  color: #fff !important;
+  border-color: rgba(59,130,246,.16) !important;
+  box-shadow: 0 12px 22px rgba(59,130,246,.26) !important;
+}
+.ds-pill-group .pill.active i { color: #fff; opacity: 1; }
+.ds-pill-group .pill:focus { outline: 2px solid color-mix(in srgb, var(--ds-primary-b) 35%, transparent); outline-offset: 2px; }
+.ds-pill-group .pill i { font-size: 12px; opacity: .95; }

@@ -1,0 +1,54 @@
+@namespace MiniBank.Web.Components.DesignSystem
+
+<div class="ds-card @(Elevated ? "ds-card-elevated" : "") @(Clickable ? "ds-card-clickable" : "") @Class" @onclick="OnClick">
+  @if (!string.IsNullOrEmpty(Title) || HeaderContent != null)
+  {
+    <div class="ds-card-header">
+      @if (HeaderContent != null)
+      {
+        @HeaderContent
+      }
+      else
+      {
+        <h3 class="ds-card-title">@Title</h3>
+        @if (!string.IsNullOrEmpty(Subtitle))
+        {
+          <p class="ds-card-subtitle">@Subtitle</p>
+        }
+      }
+      @if (HeaderActions != null)
+      {
+        <div class="ds-card-actions">
+          @HeaderActions
+        </div>
+      }
+    </div>
+  }
+  
+  @if (ChildContent != null)
+  {
+    <div class="ds-card-content">
+      @ChildContent
+    </div>
+  }
+  
+  @if (FooterContent != null)
+  {
+    <div class="ds-card-footer">
+      @FooterContent
+    </div>
+  }
+</div>
+
+@code {
+  [Parameter] public string? Title { get; set; }
+  [Parameter] public string? Subtitle { get; set; }
+  [Parameter] public bool Elevated { get; set; } = true;
+  [Parameter] public bool Clickable { get; set; }
+  [Parameter] public RenderFragment? HeaderContent { get; set; }
+  [Parameter] public RenderFragment? HeaderActions { get; set; }
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+  [Parameter] public RenderFragment? FooterContent { get; set; }
+  [Parameter] public string Class { get; set; } = "";
+  [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+}

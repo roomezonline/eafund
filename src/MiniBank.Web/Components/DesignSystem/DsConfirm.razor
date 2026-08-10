@@ -1,0 +1,124 @@
+@namespace MiniBank.Web.Components.DesignSystem
+
+@if (Show)
+{
+  <div class="ds-confirm-overlay @(_isVisible ? "visible" : "")" @onclick="HandleOverlayClick" @onkeydown="HandleKeyDown" tabindex='-1'>
+    <div class="ds-confirm ds-confirm-@Variant @(_isVisible ? "visible" : "")" @onclick:stopPropagation="true" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+      <div class="ds-confirm-header">
+        <div class="ds-confirm-header-left">
+          <span class="ds-confirm-badge ds-confirm-badge-@Variant" aria-hidden="true">
+            <i class="@IconClass"></i>
+          </span>
+          <h3 id="confirm-title" class="ds-confirm-title">@Title</h3>
+        </div>
+        <button type="button" class="ds-confirm-close" aria-label="Close" @onclick="Cancel">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+
+      <div id="confirm-message" class="ds-confirm-body">
+        @if (ShowWarning)
+        {
+          <div class="ds-alert ds-alert-warning" role="alert">
+            <div class="ds-alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="ds-alert-content">
+              <strong>هشدار:</strong>
+              <span>@(string.IsNullOrWhiteSpace(WarningText) ? "این عمل غیرقابل بازگشت است!" : WarningText)</span>
+            </div>
+          </div>
+        }
+        @((MarkupString)Message)
+      </div>
+
+      <div class="ds-confirm-footer @(StackButtons ? "stack" : "")">
+        <DsButton Variant="@ButtonVariant" FullWidth="true" OnClick="Confirm" Loading="@Loading" Icon="@ConfirmIcon">
+          @ConfirmText
+        </DsButton>
+        <DsButton Variant="secondary" FullWidth="true" OnClick="Cancel">
+          @CancelText
+        </DsButton>
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+  [Parameter] public bool Show { get; set; }
+  [Parameter] public string Title { get; set; } = "تأیید";
+  [Parameter] public string Message { get; set; } = string.Empty;
+  [Parameter] public string Variant { get; set; } = "danger"; // danger|warning|info|success
+  [Parameter] public string ConfirmText { get; set; } = "تأیید";
+  [Parameter] public string CancelText { get; set; } = "انصراف";
+  [Parameter] public bool Loading { get; set; }
+  [Parameter] public EventCallback OnConfirm { get; set; }
+  [Parameter] public EventCallback OnCancel { get; set; }
+  [Parameter] public bool ShowWarning { get; set; } = true;
+  [Parameter] public string? WarningText { get; set; }
+  [Parameter] public bool StackButtons { get; set; } = true; // stack vertically to match PostingTemplates
+
+  private bool _isVisible = false;
+
+  private string IconClass => Variant switch
+  {
+    "danger" => "fa-solid fa-triangle-exclamation",
+    "warning" => "fa-solid fa-exclamation-circle",
+    "info" => "fa-solid fa-info-circle",
+    "success" => "fa-solid fa-check-circle",
+    _ => "fa-solid fa-question-circle"
+  };
+
+  private string ButtonVariant => Variant switch
+  {
+    "danger" => "danger",
+    "warning" => "warn",
+    "success" => "success",
+    _ => "primary"
+  };
+
+  private string ConfirmIcon => Variant switch
+  {
+    "danger" => "fa-solid fa-trash",
+    "success" => "fa-solid fa-check",
+    "info" => "fa-solid fa-info-circle",
+    "warning" => "fa-solid fa-exclamation",
+    _ => string.Empty
+  };
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (Show && !_isVisible)
+    {
+      StateHasChanged();
+      await Task.Delay(50);
+      _isVisible = true;
+      StateHasChanged();
+    }
+    else if (!Show)
+    {
+      _isVisible = false;
+    }
+  }
+
+  private async Task Confirm() => await OnConfirm.InvokeAsync();
+  
+  private async Task Cancel() 
+  {
+    _isVisible = false;
+    StateHasChanged();
+    await Task.Delay(300);
+    await OnCancel.InvokeAsync();
+  }
+
+  private async Task HandleOverlayClick()
+  {
+    await Cancel();
+  }
+
+  private async Task HandleKeyDown(KeyboardEventArgs e)
+  {
+    if (e.Key == "Escape")
+      await Cancel();
+    else if (e.Key == "Enter")
+      await Confirm();
+  }
+}

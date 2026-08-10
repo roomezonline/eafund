@@ -1,0 +1,426 @@
+@page "/admin/bank-accounts"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@inject MiniBank.Web.Services.BankAccountService BankAccountService
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+@using MiniBank.Web.Components.DesignSystem
+
+<div class="members-duo">
+  <DsPageHeader Icon="fa-solid fa-building-columns" 
+                Title="حساب‌های بانکی صندوق" 
+                Subtitle="@($"تعداد کل: {_items.Count}")"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="افزودن حساب"
+                OnRefreshClick="Refresh"
+                OnAddClick="ShowCreate">
+  </DsPageHeader>
+
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="_keyword" 
+                  Placeholder="جستجو در حساب‌های بانکی..." />
+  </div>
+  
+  <div class='duo-filters'>
+    <DsPillGroup Mode="filter"
+                 Items="@_filterItems"
+                 ActiveKey="@_filter"
+                 OnFilterChanged="OnFilterChanged" />
+  </div>
+  <div class='duo-sort'>
+    <DsPillGroup Mode="sort"
+                 Items="@_sortItems"
+                 ActiveKey="@_sortKey"
+                 ActiveKeyChanged="@(k => _sortKey = k)"
+                 Desc="@_sortDesc"
+                 DescChanged="@(d => _sortDesc = d)"
+                 OnSortChanged="OnSortChanged" />
+  </div>
+
+  <main class="duo-main">
+    @if (_loading)
+    {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>در حال بارگذاری حساب‌ها...</p>
+      </div>
+    }
+    else if (!_items.Any())
+    {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <i class="fa-solid fa-building-columns"></i>
+        </div>
+        <h3>هیچ حسابی ثبت نشده</h3>
+        <p>برای شروع، اولین حساب را اضافه کنید</p>
+        <button class="btn-primary" @onclick="ShowCreate">
+          <i class="fa-solid fa-plus"></i>
+          افزودن حساب جدید
+        </button>
+      </div>
+    }
+    else
+    {
+      <div class="items-grid">
+        @foreach (var item in _items)
+        {
+          var expanded = _expanded.Contains(item.AccountId);
+          var inactive = !item.IsActive;
+          <div id="bank-account-@item.AccountId" class="item-card @(expanded ? "expanded" : null) @(inactive ? "inactive" : null)" @onclick="(() => ToggleExpand(item.AccountId))" style="cursor: pointer;">
+            <div class="item-header">
+              <div class="item-info compact">
+                <h3 class="item-title">@item.BankName</h3>
+                <span class="id-chip" title="شناسه">#@item.AccountId</span>
+                <button class="btn-caret" title="نمایش جزئیات" @onclick="(() => ToggleExpand(item.AccountId))" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-chevron-down @(expanded ? "open" : null)"></i>
+                </button>
+              </div>
+              <div class="item-actions">
+                <button class="btn-icon btn-edit" title="ویرایش" @onclick="() => Edit(item)" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-edit"></i>
+                </button>
+                <button class="btn-icon btn-delete" title="حذف" @onclick="() => Delete(item)" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+
+            @if (expanded)
+            {
+              <div class="item-details">
+                <div class="details-section">
+                  <div class="section-title">
+                    <i class="fa-solid fa-hashtag"></i>
+                    <span>شناسه و شماره‌ها</span>
+                  </div>
+                  <div class="details-grid">
+                    <div class="detail">
+                      <div class="label">شماره حساب</div>
+                      <div class="value mono">@item.AccountNumber</div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(item.CardNumber))
+                    {
+                      <div class="detail">
+                        <div class="label">کارت</div>
+                        <div class="value chip mono">@item.CardNumber</div>
+                      </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(item.Shaba))
+                    {
+                      <div class="detail">
+                        <div class="label">شبا</div>
+                        <div class="value mono">@item.Shaba</div>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <div class="details-section">
+                  <div class="section-title">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>نوع و سود</span>
+                  </div>
+                  <div class="details-grid">
+                    @if (!string.IsNullOrWhiteSpace(item.AccountType))
+                    {
+                      <div class="detail">
+                        <div class="label">نوع</div>
+                        <div class="value">@item.AccountType</div>
+                      </div>
+                    }
+                    <div class="detail">
+                      <div class="label">سود</div>
+                      <div class="value badge @(item.InterestRate.HasValue ? "ok" : "na")">
+                        @(item.InterestRate.HasValue ? item.InterestRate.Value.ToString("0.##") + "%" : "—")
+                      </div>
+                    </div>
+                    <div class="detail">
+                      <div class="label">تاریخ افتتاح</div>
+                      <div class="value">@item.OpenedAt.ToPersianDate()</div>
+                    </div>
+                    @if (item.GlAccountId.HasValue && _glAccounts.ContainsKey(item.GlAccountId.Value))
+                    {
+                      var glAccount = _glAccounts[item.GlAccountId.Value];
+                      <div class="detail">
+                        <div class="label">معین مرتبط</div>
+                        <div class="value gl-link">
+                          <i class="fa-solid fa-link"></i>
+                          @glAccount.Code - @glAccount.Name
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <div class="details-footer">
+                  <div class="item-toggle">
+                    <label class="toggle-switch">
+                      <input type="checkbox" checked="@item.IsActive" @onchange="(e) => ToggleSwitch(item, (bool)e.Value!)" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label @(item.IsActive ? "on" : "off")">@(item.IsActive ? "فعال" : "غیرفعال")</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </main>
+
+  <DsFab Title="افزودن" Icon="fa-plus" OnClick="ShowCreate" />
+</div>
+
+@* Design-system confirmation (responsive): modal on desktop, bottom-sheet on mobile *@
+<DsConfirm Show="_showDeleteConfirm"
+           Title="@_deleteConfirmTitle"
+           Message="@_deleteConfirmMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           OnConfirm="ConfirmDelete"
+           OnCancel="CancelDelete" />
+
+@if (_showSheet)
+{
+  <BankAccountIOSSheet Model="_current" IsNew="_isNew" OnClose="OnSheetClose" />
+}
+
+@code {
+  private List<BankAccount> _all = new();
+  private List<BankAccount> _items = new();
+  private bool _loading;
+  private string _keyword = string.Empty;
+  private bool _showSheet;
+  private BankAccount _current = new();
+  private bool _isNew;
+  private string _filter = "all"; // all|active|inactive
+  private string _sortKey = "created"; // created|bank|opened|active
+  private bool _sortDesc = false;
+  private CancellationTokenSource? _searchCts;
+  private HashSet<long> _expanded = new();
+  private Dictionary<long, Account> _glAccounts = new();
+  private List<DsPillGroup.DsPillItem> _filterItems = new()
+  {
+    new() { Key = "all", Text = "همه" },
+    new() { Key = "active", Text = "فعال" },
+    new() { Key = "inactive", Text = "غیرفعال" },
+  };
+  private List<DsPillGroup.DsPillItem> _sortItems = new()
+  {
+    new() { Key = "created", Text = "تاریخ ایجاد" },
+    new() { Key = "bank", Text = "بانک" },
+    new() { Key = "opened", Text = "افتتاح" },
+    new() { Key = "active", Text = "فعال‌ها" },
+  };
+
+  // Design-system confirm dialog helpers
+  private bool _showDeleteConfirm;
+  private string _deleteConfirmTitle = "تأیید حذف";
+  private string _deleteConfirmMessage = string.Empty;
+  private BankAccount? _pendingDelete;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAsync();
+  }
+
+  private async Task LoadAsync()
+  {
+    try
+    {
+      _loading = true; StateHasChanged();
+      
+      // Load bank accounts
+      var list = await BankAccountService.GetAsync(null, null, 1000);
+      _all = list.ToList();
+      
+      // Load GL accounts for display
+      await LoadGlAccountsAsync();
+      
+      ApplyFilter();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری حساب‌ها: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false; StateHasChanged();
+    }
+  }
+
+  private async Task LoadGlAccountsAsync()
+  {
+    try
+    {
+      var accounts = await AccountsRepo.GetAllAccountsAsync();
+      _glAccounts = accounts.ToDictionary(a => a.AccountId, a => a);
+    }
+    catch (Exception ex)
+    {
+      // Silently fail GL account loading - not critical for bank account display
+      _glAccounts = new Dictionary<long, Account>();
+    }
+  }
+
+  private void ApplyFilter()
+  {
+    IEnumerable<BankAccount> q = _all;
+
+    if (_filter == "active") q = q.Where(x => x.IsActive);
+    else if (_filter == "inactive") q = q.Where(x => !x.IsActive);
+
+    var key = (_keyword ?? string.Empty).Trim();
+    if (!string.IsNullOrEmpty(key))
+    {
+      var kw = key.ToLowerInvariant();
+      q = q.Where(x =>
+        (x.BankName ?? string.Empty).ToLowerInvariant().Contains(kw) ||
+        (x.AccountNumber ?? string.Empty).ToLowerInvariant().Contains(kw) ||
+        (x.CardNumber ?? string.Empty).ToLowerInvariant().Contains(kw) ||
+        (x.Shaba ?? string.Empty).ToLowerInvariant().Contains(kw) ||
+        (x.AccountType ?? string.Empty).ToLowerInvariant().Contains(kw)
+      );
+    }
+
+    q = (_sortKey, _sortDesc) switch
+    {
+      ("bank", false) => q.OrderBy(x => x.BankName).ThenByDescending(x => x.CreatedAt),
+      ("bank", true)  => q.OrderByDescending(x => x.BankName).ThenByDescending(x => x.CreatedAt),
+      ("opened", false) => q.OrderBy(x => x.OpenedAt),
+      ("opened", true)  => q.OrderByDescending(x => x.OpenedAt),
+      ("active", false)=> q.OrderBy(x => x.IsActive).ThenBy(x => x.AccountId),
+      ("active", true) => q.OrderByDescending(x => x.IsActive).ThenBy(x => x.AccountId),
+      ("created", true) => q.OrderByDescending(x => x.CreatedAt),
+      _ => q.OrderBy(x => x.CreatedAt)
+    };
+
+    _items = q.ToList();
+    StateHasChanged();
+  }
+
+  private async Task DebouncedApplyFilterAsync(int delayMs = 180)
+  {
+    _searchCts?.Cancel();
+    _searchCts = new CancellationTokenSource();
+    var token = _searchCts.Token;
+    try
+    {
+      await Task.Delay(delayMs, token);
+      if (!token.IsCancellationRequested) ApplyFilter();
+    }
+    catch (TaskCanceledException) { }
+  }
+
+  private async Task OnFilterChanged(string key)
+  { if (_filter == key) return; _filter = key; ApplyFilter(); await Task.CompletedTask; }
+  private Task OnSortChanged((string key, bool desc) s)
+  { _sortKey = s.key; _sortDesc = s.desc; ApplyFilter(); return Task.CompletedTask; }
+
+  private async Task ShowCreate()
+  {
+    _current = new BankAccount { IsActive = true, OpenedAt = DateTime.UtcNow };
+    _isNew = true; _showSheet = true; StateHasChanged(); await Task.CompletedTask;
+  }
+
+  private async Task Edit(BankAccount m)
+  {
+    _current = new BankAccount
+    {
+      AccountId = m.AccountId,
+      BankName = m.BankName,
+      AccountNumber = m.AccountNumber,
+      CardNumber = m.CardNumber,
+      Shaba = m.Shaba,
+      AccountType = m.AccountType,
+      InterestRate = m.InterestRate,
+      IsActive = m.IsActive,
+      OpenedAt = m.OpenedAt,
+      CreatedAt = m.CreatedAt
+    };
+    _isNew = false; _showSheet = true; StateHasChanged(); await Task.CompletedTask;
+  }
+
+  private async Task OnSheetClose(bool success)
+  {
+    _showSheet = false; StateHasChanged();
+    if (success)
+    {
+      await LoadAsync();
+      Toasts.Success("با موفقیت ذخیره شد");
+    }
+  }
+
+  private async Task ToggleSwitch(BankAccount m, bool newValue)
+  {
+    // Optimistic UI: flip immediately
+    var old = m.IsActive;
+    m.IsActive = newValue;
+    StateHasChanged();
+
+    try
+    {
+      await BankAccountService.ToggleActiveAsync(m.AccountId, newValue);
+      // Keep UI and re-apply filters to reflect current view
+      ApplyFilter();
+      Toasts.Success($"وضعیت حساب '{m.DisplayTitle}' به {(newValue ? "فعال" : "غیرفعال")} تغییر کرد");
+    }
+    catch (Exception ex)
+    {
+      // Revert on failure
+      m.IsActive = old;
+      StateHasChanged();
+      Toasts.Error($"خطا: {ex.Message}");
+    }
+  }
+
+  private async Task Delete(BankAccount m)
+  {
+    // Prepare DS confirmation content
+    _pendingDelete = m;
+    _deleteConfirmTitle = "حذف حساب";
+    _deleteConfirmMessage = $"آیا از حذف حساب '<strong>{m.DisplayTitle}</strong>' اطمینان دارید؟<br/><small>این عمل قابل بازگشت نیست.</small>";
+    _showDeleteConfirm = true;
+    StateHasChanged();
+  }
+
+  private void ToggleExpand(long id)
+  {
+    if (_expanded.Contains(id)) _expanded.Remove(id);
+    else _expanded.Add(id);
+  }
+
+  private async Task Refresh() => await LoadAsync();
+
+  private async Task ConfirmDelete()
+  {
+    var m = _pendingDelete;
+    _showDeleteConfirm = false; StateHasChanged();
+    if (m is null) return;
+    try
+    {
+      await BankAccountService.DeleteAsync(m.AccountId);
+      await LoadAsync();
+      Toasts.Success("حساب با موفقیت حذف شد");
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در حذف: {ex.Message}");
+    }
+    finally
+    {
+      _pendingDelete = null;
+    }
+  }
+
+  private Task CancelDelete()
+  {
+    _showDeleteConfirm = false; _pendingDelete = null; StateHasChanged();
+    return Task.CompletedTask;
+  }
+}

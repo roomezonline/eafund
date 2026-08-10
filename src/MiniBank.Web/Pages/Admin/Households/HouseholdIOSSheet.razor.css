@@ -1,0 +1,400 @@
+/* iOS-style Bottom Sheet for Household Form */
+.ios-sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  opacity: 1;
+  visibility: visible;
+}
+
+.ios-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--card, var(--mud-palette-surface));
+  border-radius: 20px 20px 0 0;
+  max-height: 90vh;
+  transform: translateY(0);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Desktop responsive - center and limit width */
+@media (min-width: 768px) {
+  .ios-sheet {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: 500px;
+    max-width: 90vw;
+    border-radius: 20px;
+    max-height: 80vh;
+  }
+}
+
+/* Handle Bar */
+.ios-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--muted, #c7c7cc);
+  border-radius: 2px;
+  margin: 8px auto 12px;
+}
+
+/* Header */
+.ios-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--border, rgba(0,0,0,.08));
+}
+
+/* Header actions: keep buttons in a single row */
+.hdr-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.ios-cancel, .ios-done, .ios-delete {
+  background: none;
+  border: none;
+  font-size: 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ios-cancel {
+  background: #f59e0b; /* orange */
+  color: white;
+  font-weight: 600;
+}
+
+.ios-cancel:hover { background: color-mix(in srgb, #f59e0b 88%, black); }
+
+.ios-done {
+  background: var(--primary, #007aff);
+  color: white;
+  font-weight: 600;
+  min-width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ios-done:hover {
+  background: color-mix(in srgb, var(--primary, #007aff) 90%, black);
+}
+
+.ios-delete {
+  background: var(--danger, #ff3b30);
+  color: white;
+  font-weight: 700;
+}
+
+.ios-delete:hover { background: color-mix(in srgb, var(--danger, #ff3b30) 88%, black); }
+
+.ios-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text, var(--mud-palette-text-primary));
+  margin: 0;
+}
+
+/* Spinner */
+.ios-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Content */
+.ios-content {
+  padding: 0 20px 20px;
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+
+.ios-form-section {
+  background: var(--card, var(--mud-palette-surface));
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.ios-form-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--input-bg, #f2f2f7);
+  color: var(--muted, #8e8e93);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Household members list styling */
+.hh-member-row {
+  background: color-mix(in srgb, #e6f0ff 75%, transparent);
+  border: 1px dashed color-mix(in srgb, #2563eb 35%, var(--border, #d1d5db));
+}
+.hh-member-row.head {
+  background: color-mix(in srgb, #bfdbfe 65%, transparent);
+  border: 1px solid color-mix(in srgb, #2563eb 60%, var(--border, #d1d5db));
+  box-shadow: 0 6px 18px color-mix(in srgb, #2563eb 18%, transparent);
+}
+.hh-member-index {
+  font-weight: 900;
+  color: #1e40af; /* dark blue */
+}
+.hh-member-name {
+  font-weight: 800;
+  color: #1e3a8a; /* darker blue */
+}
+.hh-badge-head {
+  display: inline-block;
+  margin-inline-start: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #1e3a8a;
+  background: color-mix(in srgb, #93c5fd 55%, transparent);
+  border: 1px solid color-mix(in srgb, #2563eb 45%, transparent);
+  border-radius: 999px;
+}
+.hh-member-code {
+  font-size: 12px;
+  color: color-mix(in srgb, #1e40af 60%, var(--muted, #6b7280));
+}
+
+.ios-form-group {
+  background: var(--card, white);
+  border: 1px solid var(--border, #e5e5ea);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Fields */
+.ios-field {
+  padding: 16px;
+  border-bottom: 1px solid var(--border, #e5e5ea);
+}
+
+.ios-field:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted, #8e8e93);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.ios-input {
+  width: 100%;
+  border: 1px solid var(--border, #e5e5ea);
+  background: var(--input-bg, #f8f9fa);
+  font-size: 16px;
+  color: var(--text, var(--mud-palette-text-primary));
+  padding: 12px 16px;
+  outline: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.ios-input.center-text {
+  text-align: center;
+}
+
+.ios-input::placeholder {
+  color: var(--muted, #c7c7cc);
+  text-align: center;
+}
+
+.ios-input:focus {
+  border-color: var(--primary, #007aff);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.ios-input.error {
+  color: var(--danger, #ff3b30);
+  border-color: var(--danger, #ff3b30);
+  background: rgba(255, 59, 48, 0.05);
+}
+
+.field-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--danger, #ff3b30);
+}
+
+/* Toggle Row */
+.ios-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--card, white);
+  border: 1px solid var(--border, #e5e5ea);
+  border-radius: 12px;
+  margin-top: 16px;
+}
+
+.ios-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.ios-toggle-label i {
+  color: var(--primary, #007aff);
+  font-size: 20px;
+}
+
+.ios-toggle-title {
+  font-size: 16px;
+  color: var(--text, var(--mud-palette-text-primary));
+  font-weight: 500;
+  display: block;
+}
+
+.ios-toggle-subtitle {
+  font-size: 13px;
+  color: var(--muted, #8e8e93);
+  display: block;
+  margin-top: 2px;
+}
+
+/* iOS Toggle Switch */
+.ios-toggle {
+  position: relative;
+  display: inline-block;
+  width: 51px;
+  height: 31px;
+}
+
+.ios-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.ios-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e5e5ea;
+  transition: 0.3s;
+  border-radius: 31px;
+}
+
+.ios-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 27px;
+  width: 27px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.ios-toggle input:checked + .ios-toggle-slider {
+  background-color: var(--primary, #34c759);
+}
+
+.ios-toggle input:checked + .ios-toggle-slider:before {
+  transform: translateX(20px);
+}
+
+/* Dark Theme */
+:root[data-theme="dark"] .ios-sheet {
+  background: var(--card, var(--mud-palette-surface));
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="dark"] .ios-handle {
+  background: var(--muted, #48484a);
+}
+
+:root[data-theme="dark"] .ios-header {
+  border-bottom-color: var(--border, rgba(255,255,255,.12));
+}
+
+:root[data-theme="dark"] .ios-form-header {
+  background: color-mix(in srgb, var(--card, var(--mud-palette-surface)) 95%, white);
+}
+
+:root[data-theme="dark"] .ios-form-group {
+  background: var(--card, var(--mud-palette-surface));
+  border-color: var(--border, rgba(255,255,255,.12));
+}
+
+:root[data-theme="dark"] .ios-field {
+  border-bottom-color: var(--border, rgba(255,255,255,.12));
+}
+
+:root[data-theme="dark"] .ios-toggle-row {
+  background: var(--card, var(--mud-palette-surface));
+  border-color: var(--border, rgba(255,255,255,.12));
+}
+
+:root[data-theme="dark"] .ios-toggle-slider {
+  background-color: #39393d;
+}
+
+:root[data-theme="dark"] .ios-input {
+  background: color-mix(in srgb, var(--card, var(--mud-palette-surface)) 90%, white);
+  border-color: var(--border, rgba(255,255,255,.12));
+}
+
+:root[data-theme="dark"] .ios-input:focus {
+  border-color: var(--primary, #007aff);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .ios-sheet {
+    max-height: 95vh;
+  }
+  
+  .ios-content {
+    padding: 0 16px 16px;
+    max-height: calc(95vh - 100px);
+  }
+  
+  .ios-header {
+    padding: 0 16px 12px;
+  }
+}

@@ -1,0 +1,93 @@
+@namespace MiniBank.Web.Components.DesignSystem
+
+<div class="ds-field @(HasError ? "ds-field-error" : "") @(Disabled ? "ds-field-disabled" : "")">
+  @if (!string.IsNullOrEmpty(Label))
+  {
+    <label class="ds-label" for="@Id">
+      @Label
+      @if (Required)
+      {
+        <span class="ds-required">*</span>
+      }
+    </label>
+  }
+  
+  @if (Type == "textarea")
+  {
+    <textarea id="@Id" 
+              class="ds-input ds-textarea @Class" 
+              value="@Value"
+              placeholder="@Placeholder"
+              disabled="@Disabled"
+              rows="@Rows"
+              @oninput="OnValueChanged"
+              @attributes="AdditionalAttributes"></textarea>
+  }
+  else if (Type == "select")
+  {
+    <select id="@Id" 
+            class="ds-input ds-select @Class" 
+            value="@Value"
+            disabled="@Disabled"
+            @onchange="OnValueChanged"
+            @attributes="AdditionalAttributes">
+      @ChildContent
+    </select>
+  }
+  else
+  {
+    <input id="@Id" 
+           class="ds-input @Class" 
+           type="@Type"
+           value="@Value"
+           placeholder="@Placeholder"
+           disabled="@Disabled"
+           step="@Step"
+           min="@Min"
+           max="@Max"
+           @oninput="OnValueChanged"
+           @attributes="AdditionalAttributes" />
+  }
+  
+  @if (HasError && !string.IsNullOrEmpty(ErrorMessage))
+  {
+    <div class="ds-error">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      @ErrorMessage
+    </div>
+  }
+  
+  @if (!HasError && !string.IsNullOrEmpty(HelperText))
+  {
+    <div class="ds-helper">@HelperText</div>
+  }
+</div>
+
+@code {
+  [Parameter] public string? Label { get; set; }
+  [Parameter] public string? Value { get; set; }
+  [Parameter] public string Type { get; set; } = "text";
+  [Parameter] public string? Placeholder { get; set; }
+  [Parameter] public bool Disabled { get; set; }
+  [Parameter] public bool Required { get; set; }
+  [Parameter] public string? ErrorMessage { get; set; }
+  [Parameter] public string? HelperText { get; set; }
+  [Parameter] public EventCallback<string> ValueChanged { get; set; }
+  [Parameter] public string Class { get; set; } = "";
+  [Parameter] public int Rows { get; set; } = 3;
+  [Parameter] public string? Step { get; set; }
+  [Parameter] public string? Min { get; set; }
+  [Parameter] public string? Max { get; set; }
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+  [Parameter(CaptureUnmatchedValues = true)] 
+  public Dictionary<string, object>? AdditionalAttributes { get; set; }
+  
+  private string Id = Guid.NewGuid().ToString("N")[..8];
+  private bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+  
+  private async Task OnValueChanged(ChangeEventArgs e)
+  {
+    Value = e.Value?.ToString();
+    await ValueChanged.InvokeAsync(Value);
+  }
+}

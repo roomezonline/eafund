@@ -1,0 +1,84 @@
+@using System.Collections.Concurrent
+@implements IDisposable
+@inject DsToastService ToastService
+
+<div class="ds-toast-container">
+    @foreach (var toast in _toasts.Values)
+    {
+        <DsToast Show="@toast.Show"
+                 Message="@toast.Message"
+                 Type="@toast.Type"
+                 Duration="@toast.Duration"
+                 ShowProgressBar="@toast.ShowProgressBar"
+                 ShowCloseButton="@toast.ShowCloseButton"
+                 AutoClose="@toast.AutoClose"
+                 OnClose="@(() => RemoveToast(toast.Id))"
+                 OnClick="@(() => HandleToastClick(toast))" />
+    }
+</div>
+
+@code {
+    private readonly ConcurrentDictionary<string, DsToastModel> _toasts = new();
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnShow += HandleShowToast;
+        ToastService.OnHide += HandleHideToast;
+        ToastService.OnClear += HandleClearToasts;
+    }
+
+    private async Task HandleShowToast(DsToastModel toast)
+    {
+        toast.Show = true;
+        _toasts.AddOrUpdate(toast.Id, toast, (key, existing) => toast);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleHideToast(string toastId)
+    {
+        if (_toasts.TryGetValue(toastId, out var toast))
+        {
+            toast.Show = false;
+            await InvokeAsync(StateHasChanged);
+            
+            // Remove after animation completes
+            await Task.Delay(300);
+            _toasts.TryRemove(toastId, out _);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandleClearToasts()
+    {
+        foreach (var toast in _toasts.Values)
+        {
+            toast.Show = false;
+        }
+        await InvokeAsync(StateHasChanged);
+        
+        // Remove all after animation completes
+        await Task.Delay(300);
+        _toasts.Clear();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RemoveToast(string toastId)
+    {
+        await HandleHideToast(toastId);
+    }
+
+    private async Task HandleToastClick(DsToastModel toast)
+    {
+        if (toast.OnClick != null)
+        {
+            await toast.OnClick.Invoke();
+        }
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnShow -= HandleShowToast;
+        ToastService.OnHide -= HandleHideToast;
+        ToastService.OnClear -= HandleClearToasts;
+    }
+}

@@ -1,0 +1,144 @@
+/* Design System Theme Variables */
+
+/* Light Theme (Default) */
+:root {
+  --ds-theme: 'light';
+  
+  /* Surface Colors */
+  --ds-surface: #ffffff;
+  --ds-surface-variant: #f8fafc;
+  --ds-surface-container: #f1f5f9;
+  --ds-surface-dim: #f8fafc;
+  --ds-surface-bright: #ffffff;
+  
+  /* Text Colors */
+  --ds-text-primary: #111827;
+  --ds-text-secondary: #6b7280;
+  --ds-text-disabled: #9ca3af;
+  --ds-text-inverse: #ffffff;
+  
+  /* Border Colors */
+  --ds-outline: #e5e7eb;
+  --ds-outline-variant: #f1f5f9;
+  
+  /* Component Specific */
+  --ds-card-bg: #ffffff;
+  --ds-input-bg: #ffffff;
+  --ds-sheet-bg: #ffffff;
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  --ds-theme: 'dark';
+  
+  /* Surface Colors */
+  --ds-surface: #1f2937;
+  --ds-surface-variant: #374151;
+  --ds-surface-container: #4b5563;
+  --ds-surface-dim: #111827;
+  --ds-surface-bright: #374151;
+  
+  /* Text Colors */
+  --ds-text-primary: #f9fafb;
+  --ds-text-secondary: #d1d5db;
+  --ds-text-disabled: #6b7280;
+  --ds-text-inverse: #111827;
+  
+  /* Border Colors */
+  --ds-outline: #4b5563;
+  --ds-outline-variant: #374151;
+  
+  /* Component Specific */
+  --ds-card-bg: #1f2937;
+  --ds-input-bg: #374151;
+  --ds-sheet-bg: #1f2937;
+  
+  /* Semantic Colors - Adjusted for dark theme */
+  --ds-primary-50: #1e3a8a;
+  --ds-success-50: #14532d;
+  --ds-danger-50: #7f1d1d;
+  --ds-warning-50: #78350f;
+  --ds-info-50: #1e3a8a;
+}
+
+/* System Theme Detection */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --ds-theme: 'dark';
+    
+    /* Apply dark theme variables when no explicit theme is set */
+    --ds-surface: #1f2937;
+    --ds-surface-variant: #374151;
+    --ds-surface-container: #4b5563;
+    --ds-surface-dim: #111827;
+    --ds-surface-bright: #374151;
+    
+    --ds-text-primary: #f9fafb;
+    --ds-text-secondary: #d1d5db;
+    --ds-text-disabled: #6b7280;
+    --ds-text-inverse: #111827;
+    
+    --ds-outline: #4b5563;
+    --ds-outline-variant: #374151;
+    
+    --ds-card-bg: #1f2937;
+    --ds-input-bg: #374151;
+    --ds-sheet-bg: #1f2937;
+  }
+}
+
+/* Theme Transition */
+* {
+  transition: background-color var(--ds-transition-normal), 
+              color var(--ds-transition-normal), 
+              border-color var(--ds-transition-normal);
+}
+
+/* Theme-aware component updates */
+[data-theme="dark"] .ds-card {
+  background: var(--ds-card-bg);
+  border-color: var(--ds-outline);
+}
+
+[data-theme="dark"] .ds-input {
+  background: var(--ds-input-bg);
+  color: var(--ds-text-primary);
+  border-color: var(--ds-outline);
+}
+
+[data-theme="dark"] .ds-input::placeholder {
+  color: var(--ds-text-disabled);
+}
+
+[data-theme="dark"] .ds-sheet {
+  background: var(--ds-sheet-bg);
+}
+
+[data-theme="dark"] .ds-confirm {
+  background: var(--ds-surface);
+}
+
+/* Toggle switch dark theme adjustments */
+[data-theme="dark"] .ds-toggle-slider {
+  background: var(--ds-outline);
+}
+
+[data-theme="dark"] .ds-toggle input:checked + .ds-toggle-slider {
+  background: var(--ds-primary-500);
+}
+
+/* Button dark theme adjustments */
+[data-theme="dark"] .ds-btn-secondary {
+  background: var(--ds-surface-variant);
+  color: var(--ds-text-primary);
+  border-color: var(--ds-outline);
+}
+
+[data-theme="dark"] .ds-btn-outline {
+  color: var(--ds-primary-400);
+  border-color: var(--ds-outline);
+}
+
+[data-theme="dark"] .ds-btn-ghost:hover {
+  background: var(--ds-surface-variant);
+}

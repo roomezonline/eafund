@@ -1,0 +1,197 @@
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@using System.Globalization
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+@inject MiniBank.Web.Services.DepositTypeService DepositTypeService
+
+@if (_isVisible)
+{
+  <DsSheet Show="_isVisible"
+           Title="@(IsNew ? "نرخ سود جدید" : "ویرایش نرخ سود")"
+           ConfirmText="تایید"
+           CancelText="لغو"
+           OnConfirm="OnConfirm"
+           OnCancel="Cancel"
+           Open="true"
+           ShowSpinner="_isSaving">
+    <div class="ios-form-section">
+      <div class="ios-form-header">
+        <i class="fa-solid fa-percent"></i>
+        <span>مشخصات نرخ سود</span>
+      </div>
+
+      <div class="ios-form-group">
+        <DsInput @bind-Value="_interestRateText" 
+                 Label="نرخ سود (درصد)" 
+                 Type="text"
+                 inputmode="decimal"
+                 pattern="[0-9]*[.,]?[0-9]*"
+                 Class="center-text"
+                 Required="true"
+                 Placeholder="مثال: 18"
+                 ErrorMessage="@(_rateError ? "نرخ سود الزامی است" : null)" />
+
+        <DsInput Value="@EffectiveFromString" 
+                 ValueChanged="OnEffectiveFromInput"
+                 Label="تاریخ شروع اعتبار" 
+                 Class="center-text"
+                 Required="true"
+                 Placeholder="مثال: 1404/06/27"
+                 ErrorMessage="@(_fromError ? "تاریخ شروع الزامی است" : null)"
+                 data-jdp="true"
+                 data-jdp-only-date="true" />
+
+        <DsInput Value="@EffectiveToString" 
+                 ValueChanged="OnEffectiveToInput"
+                 Label="تاریخ پایان اعتبار (اختیاری)" 
+                 Class="center-text"
+                 Placeholder="خالی = بدون محدودیت"
+                 data-jdp="true"
+                 data-jdp-only-date="true" />
+
+        <DsInput @bind-Value="Model.Notes" 
+                 Label="توضیحات" 
+                 Type="textarea"
+                 Rows="3"
+                 Placeholder="توضیحات اضافی در مورد این نرخ ..." />
+      </div>
+    </div>
+  </DsSheet>
+}
+
+@code {
+  [Parameter] public DepositInterestRate Model { get; set; } = new();
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _isVisible;
+  private bool _isSaving;
+  private bool _rateError, _fromError;
+  
+  private string _interestRateText { get; set; } = string.Empty;
+
+  private string EffectiveFromString
+  {
+    get => Model.EffectiveFrom.ToPersianDate();
+    set { if (!string.IsNullOrEmpty(value)) Model.EffectiveFrom = DateTimeExtensions.FromPersianDate(value); }
+  }
+
+  private string EffectiveToString
+  {
+    get => Model.EffectiveTo?.ToPersianDate() ?? string.Empty;
+    set 
+    { 
+      if (string.IsNullOrEmpty(value)) 
+        Model.EffectiveTo = null; 
+      else 
+        Model.EffectiveTo = DateTimeExtensions.FromPersianDate(value); 
+    }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    await Task.Delay(50);
+    _isVisible = true;
+    // Initialize soft string from model on open (edit/new)
+    _interestRateText = Model.InterestRate > 0
+      ? Model.InterestRate.ToString(CultureInfo.InvariantCulture)
+      : string.Empty;
+    await InitJalaliPicker();
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (_isVisible) await InitJalaliPicker();
+  }
+
+  private async Task InitJalaliPicker()
+  {
+    try { await JS.InvokeVoidAsync("initJdp"); } catch { }
+  }
+
+  protected override void OnParametersSet()
+  {
+    // When editing, ensure the input shows the current rate value
+    // Only apply if we are not in the middle of saving
+    if (!_isSaving)
+    {
+      _interestRateText = Model.InterestRate > 0
+        ? Model.InterestRate.ToString(CultureInfo.InvariantCulture)
+        : string.Empty;
+    }
+  }
+
+  private async Task OnEffectiveFromInput(string value)
+  {
+    if (!string.IsNullOrEmpty(value)) 
+      Model.EffectiveFrom = DateTimeExtensions.FromPersianDate(value);
+    StateHasChanged();
+  }
+
+  private async Task OnEffectiveToInput(string value)
+  {
+    if (string.IsNullOrEmpty(value)) 
+      Model.EffectiveTo = null;
+    else 
+      Model.EffectiveTo = DateTimeExtensions.FromPersianDate(value);
+    StateHasChanged();
+  }
+
+  private async Task OnConfirm()
+  {
+    if (_isSaving) return;
+    // Soft-parse interest rate from text; do not coerce during typing
+    decimal parsedRate = 0;
+    if (!string.IsNullOrWhiteSpace(_interestRateText))
+    {
+      var s = _interestRateText.Trim();
+      s = s.Replace('٬', ' '); // remove Arabic thousands separator if any
+      s = s.Replace(" ", string.Empty);
+      s = s.Replace(',', '.'); // allow comma as decimal separator
+      _ = decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out parsedRate);
+    }
+    _rateError = parsedRate <= 0;
+    _fromError = Model.EffectiveFrom == default;
+    
+    if (_rateError || _fromError)
+    {
+      StateHasChanged();
+      return;
+    }
+
+    _isSaving = true;
+    try
+    {
+      Model.InterestRate = parsedRate;
+      if (IsNew)
+      {
+        var id = await DepositTypeService.AddOrUpdateRateWithRulesAsync(Model, true);
+        Model.RateId = id;
+      }
+      else
+      {
+        // Use rule-enforced path so overlaps are validated on edit as well
+        await DepositTypeService.AddOrUpdateRateWithRulesAsync(Model, false);
+      }
+      await OnClose.InvokeAsync(true);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره: {ex.Message}");
+    }
+    finally
+    {
+      _isSaving = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task Cancel()
+  {
+    await OnClose.InvokeAsync(false);
+  }
+
+  private async Task HandleOverlayClick() { await Task.CompletedTask; }
+}

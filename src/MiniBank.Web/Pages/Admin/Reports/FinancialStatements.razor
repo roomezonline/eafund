@@ -1,0 +1,737 @@
+@page "/admin/reports/financial-statements"
+@inject MiniBank.Web.Infrastructure.Repositories.TrialBalanceRepository TrialBalanceRepo
+@inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@using MiniBank.Web.Components.Extensions
+@inject NavigationManager Nav
+
+<MiniBank.Web.Components.DesignSystem.DsPageHeader 
+    Icon="fa-solid fa-file-lines" 
+    Title="صورت های مالی" 
+    Subtitle="ترازنامه و سود و  زیان" />
+
+<style>
+    .fs-container { max-width: 1200px; margin: 0 auto; padding: 12px; direction: rtl; }
+
+    .fs-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06); overflow: hidden; }
+    .fs-card + .fs-card { margin-top: 12px; }
+
+    .fs-tabs { display: flex; gap: 8px; padding: 10px; background: #f8fafc; border-bottom: 1px solid #e5e7eb; }
+    .fs-tab { border: 1px solid #e5e7eb; background: #fff; padding: 8px 10px; border-radius: 10px; font-weight: 800; cursor: pointer; }
+    .fs-tab.active { background: #111827; color: #fff; border-color: #111827; }
+
+    .fs-filters { padding: 10px; }
+    .fs-filter-row { display: flex; flex-direction: column; gap: 10px; }
+    .fs-top-row { display: flex; justify-content: space-between; align-items: end; gap: 10px; flex-wrap: wrap; }
+    .fs-filter-group label { display: block; font-weight: 800; font-size: 12px; color: #334155; margin-bottom: 6px; }
+
+    .fs-presets { display: flex; gap: 8px; flex-wrap: wrap; }
+    .fs-preset { border: 1px solid #e5e7eb; background: #fff; padding: 7px 10px; border-radius: 10px; cursor: pointer; font-weight: 800; }
+    .fs-preset.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+    .fs-custom-range { display:flex; flex-direction:column; gap:6px; margin-top:8px; width:100%; }
+    .fs-custom-range .fs-custom-row { display:flex; gap:8px; }
+    .fs-custom-range .fs-custom-field { flex:1; min-width:0; }
+    .fs-custom-range .fs-custom-field label { display:block; font-weight:800; font-size:12px; color:#334155; margin-bottom:4px; }
+    .fs-custom-range .fs-custom-btn { width:100%; background:#111827;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:800;cursor:pointer; }
+
+    .fs-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .fs-btn { border: none; background: #10b981; color: #fff; padding: 9px 12px; border-radius: 10px; font-weight: 900; cursor: pointer; }
+    .fs-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .fs-summary { padding: 10px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .fs-kpi { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .fs-kpi .label { font-size: 12px; color: #475569; font-weight: 800; }
+    .fs-kpi .value { font-size: 15px; font-weight: 900; color: #0f172a; white-space: nowrap; }
+
+    .fs-table-wrap { padding: 10px; overflow-x: auto; }
+    .fs-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    .fs-table th, .fs-table td { border: 1px solid #e5e7eb; padding: 10px; font-size: 13px; }
+    .fs-table th { background: #f1f5f9; font-weight: 900; text-align: center; }
+    .fs-table td { background: #fff; }
+    .fs-table td.amount { text-align: center; font-weight: 900; white-space: nowrap; }
+    .fs-table td.name { font-weight: 900; }
+
+    .fs-row { cursor: pointer; }
+    .fs-row:hover td { background: #f8fafc; }
+
+    .fs-expand-btn { border: 1px solid #e5e7eb; background: #fff; padding: 6px 10px; border-radius: 10px; cursor: pointer; font-weight: 900; }
+    .fs-turnover-btn { border: 1px solid #e5e7eb; background: #eef2ff; padding: 6px 10px; border-radius: 10px; cursor: pointer; font-weight: 900; }
+
+    .fs-level-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-weight: 900; background: #f1f5f9; border: 1px solid #e5e7eb; }
+
+    .bs-report { max-width: 660px; margin: 0 auto; width: 100%; }
+    .bs-header { text-align: center; margin-bottom: 14px; }
+    .bs-title { font-weight: 1000; font-size: 20px; margin-bottom: 8px; }
+    .bs-date { font-weight: 900; font-size: 14px; color: #444; }
+
+    .bs-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .bs-table td, .bs-table th { border: 1px solid #111; padding: 8px 10px; font-weight: 1000; }
+    .bs-table th { background: #ffff00; color: #111; font-size: 18px; text-align: center; }
+    .bs-table th.amt { color: #d40000; }
+    .bs-table td.desc { text-align: right; font-size: 16px; }
+    .bs-table td.amt { text-align: center; font-size: 20px; white-space: nowrap; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+    .bs-total-assets td { background: #8cc84b; }
+    .bs-total-liab td { background: #f39a48; }
+    .bs-total td.desc { text-align: center; font-size: 20px; }
+
+    .bs-gap { height: 38px; }
+
+    .bs-discrepancy { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 18px; }
+    .bs-discrepancy td { border: 1px solid #111; padding: 10px; font-weight: 1000; background: #e5e5e5; }
+    .bs-discrepancy.pos td { background: #8cc84b; }
+    .bs-discrepancy.neg td { background: #f39a48; }
+    .bs-discrepancy td.desc { text-align: center; font-size: 20px; }
+    .bs-discrepancy td.amt { text-align: center; font-size: 22px; }
+
+    .pl-header { text-align: center; margin-bottom: 20px; }
+    .pl-header-title { font-weight: 1000; font-size: 20px; margin-bottom: 8px; }
+    .pl-header-date { font-weight: 900; font-size: 14px; color: #444; }
+
+    .pl-report { margin-top: 6px; }
+    .pl-banner-wrap { display: flex; justify-content: flex-start; }
+    .pl-banner { padding: 10px 14px; font-weight: 1000; border: 1px solid #0f172a; border-bottom: none; min-width: 220px; text-align: right; }
+    .pl-banner.income { background: #16a34a; color: #0b1220; }
+    .pl-banner.expense { background: #facc15; color: #0b1220; }
+
+    .pl-table { width: 100%; border-collapse: collapse; }
+    .pl-table td { border: 1px solid #0f172a; padding: 10px; font-size: 13px; font-weight: 900; background: #fff; vertical-align: middle; }
+    .pl-table td.desc { text-align: right; width: 70%; }
+    .pl-table td.amount { width: 30%; text-align: center; font-weight: 1000; white-space: nowrap; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+    .pl-sub-row td.desc { background: #86c944; }
+    .pl-sub-row td.amount { background: #86c944; }
+    .pl-sub-row.expense td.desc { background: #ffef00; color: #b91c1c; }
+    .pl-sub-row.expense td.amount { background: #ffef00; }
+
+    .pl-total-row td { font-weight: 1000; }
+    .pl-total-row.income td { background: #00a9e0; }
+    .pl-total-row.expense td { background: #fb9b4a; }
+    .pl-total-row td.desc { text-align: right; }
+    .pl-total-row td.amount { text-align: center; }
+
+    .pl-between { padding: 8px 0 0; text-align: right; font-weight: 1000; }
+
+    .pl-net-row td { font-weight: 1000; }
+    .pl-net-row.pos td { background: #00a9e0; }
+    .pl-net-row.neg td { background: #fb9b4a; }
+    .pl-net-row.zero td { background: #e5e5e5; }
+    .pl-net-row td.desc { text-align: right; }
+    .pl-net-row td.amount { text-align: center; }
+
+    @@media (max-width: 768px) {
+        .fs-container { padding: 10px; }
+        .fs-summary { grid-template-columns: 1fr; }
+        .fs-tabs { position: sticky; top: 0; z-index: 2; }
+        .fs-custom-range .fs-custom-row { flex-direction:column; }
+        .pl-table td { padding: 8px; font-size: 12px; }
+        .pl-table td.amount { width: 120px; }
+        .pl-table td.blank { width: 140px; }
+        .pl-banner { min-width: 170px; }
+
+        .bs-title { font-size: 18px; }
+        .bs-date { font-size: 13px; }
+        .bs-table td, .bs-table th { padding: 6px 8px; }
+        .bs-table th { font-size: 16px; }
+        .bs-table td.desc { font-size: 14px; }
+        .bs-table td.amt { font-size: 16px; }
+        .bs-total td.desc { font-size: 16px; }
+        .bs-discrepancy td.desc { font-size: 16px; }
+        .bs-discrepancy td.amt { font-size: 16px; }
+    }
+</style>
+
+<div class="fs-container">
+    <div class="fs-card">
+        <div class="fs-tabs">
+            <button type="button" class="fs-tab @(ActiveTab == 0 ? "active" : "")" @onclick="() => SwitchTab(0)">ترازنامه</button>
+            <button type="button" class="fs-tab @(ActiveTab == 1 ? "active" : "")" @onclick="() => SwitchTab(1)">سود و زیان</button>
+        </div>
+
+        <div class="fs-filters">
+            <div class="fs-filter-row">
+                <div class="fs-top-row">
+                    <div class="fs-filter-group">
+                        <label>دوره</label>
+                        <div class="fs-presets">
+                            <button type="button" class="fs-preset @(PeriodMode == 1 ? "active" : "")" @onclick="() => SetPeriodMode(1)">ماهانه</button>
+                            <button type="button" class="fs-preset @(PeriodMode == 0 ? "active" : "")" @onclick="() => SetPeriodMode(0)">سالانه</button>
+                            <button type="button" class="fs-preset @(PeriodMode == 2 ? "active" : "")" @onclick="() => SetPeriodMode(2)">دلخواه</button>
+                        </div>
+                    </div>
+                    @if (PeriodMode == 2)
+                    {
+                        <div class="fs-custom-range">
+                            <div class="fs-custom-row">
+                                <div class="fs-custom-field">
+                                    <label>از تاریخ</label>
+                                    <MiniBank.Web.Components.DesignSystem.DsJalaliDatePicker
+                                        Value="@FromDate" ValueChanged="@((string v) => { FromDate = v; })"
+                                        Placeholder="مثال: 1404/01/01" />
+                                </div>
+                                <div class="fs-custom-field">
+                                    <label>تا تاریخ</label>
+                                    <MiniBank.Web.Components.DesignSystem.DsJalaliDatePicker
+                                        Value="@ToDate" ValueChanged="@((string v) => { ToDate = v; })"
+                                        Placeholder="مثال: 1404/12/29" />
+                                </div>
+                            </div>
+                            <button type="button" class="fs-custom-btn" @onclick="Load">اعمال</button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="fs-table-wrap">
+            @if (Loading)
+            {
+                <div style="padding: 12px; text-align:center; font-weight:900;">در حال بارگذاری...</div>
+            }
+            else if (ActiveTab == 0)
+            {
+                <div class="bs-report">
+                    <div class="bs-header">
+                        <div class="bs-title">ترازنامه</div>
+                        <div class="bs-date">منتهی به تاریخ @ToDate</div>
+                    </div>
+
+                    <table class="bs-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 62%;">دارایی ها</th>
+                                <th class="amt" style="width: 38%;">مبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (BalanceAssetsKolRows.Count == 0)
+                            {
+                                <tr>
+                                    <td class="desc"></td>
+                                    <td class="amt">-</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var row in BalanceAssetsKolRows)
+                                {
+                                    var amt = ComputeDisplayNet(row);
+                                    <tr>
+                                        <td class="desc">@row.Name</td>
+                                        <td class="amt">@(amt == 0 ? "-" : amt.ToString("N0"))</td>
+                                    </tr>
+                                }
+                            }
+
+                            <tr class="bs-total bs-total-assets">
+                                <td class="desc">جمع و موازنه</td>
+                                <td class="amt">@AssetsNet.ToString("N0")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="bs-gap"></div>
+
+                    <table class="bs-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 62%;">بدهی ها و حقوق صاحبان سرمایه</th>
+                                <th class="amt" style="width: 38%;">مبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (BalanceLiabEquityKolRows.Count == 0)
+                            {
+                                <tr>
+                                    <td class="desc"></td>
+                                    <td class="amt">-</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var row in BalanceLiabEquityKolRows)
+                                {
+                                    var amt = ComputeDisplayNet(row);
+                                    <tr>
+                                        <td class="desc">@row.Name</td>
+                                        <td class="amt">@(amt == 0 ? "-" : amt.ToString("N0"))</td>
+                                    </tr>
+                                }
+                            }
+
+                            <tr class="bs-total bs-total-liab">
+                                <td class="desc">جمع و موازنه</td>
+                                <td class="amt">@((LiabilitiesNet + EquityNet).ToString("N0"))</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    @{ var discClass = BalanceDiscrepancy == 0 ? string.Empty : (BalanceDiscrepancy > 0 ? "pos" : "neg"); }
+                    <table class="bs-discrepancy @discClass">
+                        <tbody>
+                            <tr>
+                                <td class="desc" style="width: 62%;">مغایرت</td>
+                                <td class="amt" style="width: 38%;">@(BalanceDiscrepancy == 0 ? "-" : BalanceDiscrepancy.ToString("N0"))</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else if (ActiveTab == 1)
+            {
+                <div class="pl-header">
+                    <div class="pl-header-title">صورت  سود و زیان</div>
+                    <div class="pl-header-date">از تاریخ: @FromDate تا تاریخ: @ToDate</div>
+                </div>
+
+                <div class="pl-report">
+                    <div class="pl-banner-wrap"><div class="pl-banner income">درآمدها:</div></div>
+                    <table class="pl-table">
+                        <tbody>
+                            <tr class="pl-sub-row income">
+                                <td class="desc">درآمدهای عملیاتی صندوق:</td>
+                                <td class="amount"></td>
+                            </tr>
+
+                            @if (IncomeMoeinRows.Count == 0)
+                            {
+                                <tr>
+                                    <td class="desc" colspan="2" style="text-align:center; color:#475569;">داده‌ای برای درآمدها یافت نشد</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                var i = 0;
+                                foreach (var row in IncomeMoeinRows)
+                                {
+                                    <tr>
+                                        <td class="desc">@row.Name</td>
+                                        <td class="amount">@ComputeDisplayNet(row).ToString("N0")</td>
+                                    </tr>
+                                    i++;
+                                }
+                            }
+
+                            <tr class="pl-total-row income">
+                                <td class="desc">جمع درآمدهای عملیاتی صندوق</td>
+                                <td class="amount">@IncomeNet.ToString("N0")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="pl-between">کسر میشود:</div>
+
+                    <div class="pl-banner-wrap" style="margin-top: 6px;"><div class="pl-banner expense">هزینه ها:</div></div>
+                    <table class="pl-table">
+                        <tbody>
+                            <tr class="pl-sub-row expense">
+                                <td class="desc">هزینه های عملیاتی صندوق:</td>
+                                <td class="amount"></td>
+                            </tr>
+
+                            @if (ExpenseMoeinRows.Count == 0)
+                            {
+                                <tr>
+                                    <td class="desc" colspan="2" style="text-align:center; color:#475569;">داده‌ای برای هزینه‌ها یافت نشد</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                var j = 0;
+                                foreach (var row in ExpenseMoeinRows)
+                                {
+                                    <tr>
+                                        <td class="desc">@row.Name</td>
+                                        <td class="amount">@ComputeDisplayNet(row).ToString("N0")</td>
+                                    </tr>
+                                    j++;
+                                }
+                            }
+
+                            <tr class="pl-total-row expense">
+                                <td class="desc">جمع هزینه های عملیاتی صندوق</td>
+                                <td class="amount">@ExpenseNet.ToString("N0")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <table class="pl-table" style="margin-top: 10px;">
+                        <tbody>
+                            @{ var plNetClass = ProfitNet == 0 ? "zero" : (ProfitNet > 0 ? "pos" : "neg"); }
+                            <tr class="pl-net-row @plNetClass">
+                                <td class="desc">سود(زیان) خالص صندوق - تاکنون</td>
+                                <td class="amount">@ProfitNet.ToString("N0")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else if (Nodes.Count == 0)
+            {
+                <div style="padding: 12px; text-align:center; color:#64748b; font-weight:900;">داده‌ای برای نمایش نیست</div>
+            }
+            else
+            {
+                <table class="fs-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 90px;">کد</th>
+                            <th>شرح حساب</th>
+                            <th style="width: 140px;">بدهکار</th>
+                            <th style="width: 140px;">بستانکار</th>
+                            <th style="width: 140px;">مانده</th>
+                            <th style="width: 220px;">عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var n in Nodes)
+                        {
+                            <tr class="fs-row" @onclick="() => ToggleExpand(n)">
+                                <td class="amount">@n.Code</td>
+                                <td class="name">
+                                    <span class="fs-level-badge">@n.Name</span>
+                                </td>
+                                <td class="amount">@n.DebitBalance.ToString("N0")</td>
+                                <td class="amount">@n.CreditBalance.ToString("N0")</td>
+                                <td class="amount">@ComputeDisplayNet(n).ToString("N0")</td>
+                                <td style="text-align:center;">
+                                    <button type="button" class="fs-expand-btn" @onclick="() => ToggleExpand(n)" @onclick:stopPropagation="true">@(n.IsExpanded ? "بستن" : "جزئیات")</button>
+                                    @if (n.Level >= 1 && n.Level <= 4)
+                                    {
+                                        <button type="button" class="fs-turnover-btn" @onclick="() => GoToTurnover(n)" @onclick:stopPropagation="true">گردش</button>
+                                    }
+                                </td>
+                            </tr>
+
+                            @if (n.IsExpanded && n.Children.Any())
+                            {
+                                @foreach (var c in n.Children)
+                                {
+                                    <tr class="fs-row" @onclick="() => ToggleExpand(c)">
+                                        <td class="amount">@c.Code</td>
+                                        <td class="name" style="padding-right: 26px;">@c.Name</td>
+                                        <td class="amount">@c.DebitBalance.ToString("N0")</td>
+                                        <td class="amount">@c.CreditBalance.ToString("N0")</td>
+                                        <td class="amount">@ComputeDisplayNet(c).ToString("N0")</td>
+                                        <td style="text-align:center;">
+                                            <button type="button" class="fs-expand-btn" @onclick="() => ToggleExpand(c)" @onclick:stopPropagation="true">@(c.IsExpanded ? "بستن" : "جزئیات")</button>
+                                            @if (c.Level >= 1 && c.Level <= 4)
+                                            {
+                                                <button type="button" class="fs-turnover-btn" @onclick="() => GoToTurnover(c)" @onclick:stopPropagation="true">گردش</button>
+                                            }
+                                        </td>
+                                    </tr>
+
+                                    @if (c.IsExpanded && c.Children.Any())
+                                    {
+                                        @foreach (var d in c.Children)
+                                        {
+                                            <tr class="fs-row" @onclick="() => ToggleExpand(d)">
+                                                <td class="amount">@d.Code</td>
+                                                <td class="name" style="padding-right: 42px;">@d.Name</td>
+                                                <td class="amount">@d.DebitBalance.ToString("N0")</td>
+                                                <td class="amount">@d.CreditBalance.ToString("N0")</td>
+                                                <td class="amount">@ComputeDisplayNet(d).ToString("N0")</td>
+                                                <td style="text-align:center;">
+                                                    <button type="button" class="fs-expand-btn" @onclick="() => ToggleExpand(d)" @onclick:stopPropagation="true">@(d.IsExpanded ? "بستن" : "جزئیات")</button>
+                                                    @if (d.Level >= 1 && d.Level <= 4)
+                                                    {
+                                                        <button type="button" class="fs-turnover-btn" @onclick="() => GoToTurnover(d)" @onclick:stopPropagation="true">گردش</button>
+                                                    }
+                                                </td>
+                                            </tr>
+
+                                            @if (d.IsExpanded && d.Children.Any())
+                                            {
+                                                @foreach (var e in d.Children)
+                                                {
+                                                    <tr>
+                                                        <td class="amount">@e.Code</td>
+                                                        <td class="name" style="padding-right: 58px;">@e.Name</td>
+                                                        <td class="amount">@e.DebitBalance.ToString("N0")</td>
+                                                        <td class="amount">@e.CreditBalance.ToString("N0")</td>
+                                                        <td class="amount">@ComputeDisplayNet(e).ToString("N0")</td>
+                                                        <td style="text-align:center;">
+                                                            <button type="button" class="fs-turnover-btn" @onclick="() => GoToTurnover(e)" @onclick:stopPropagation="true">گردش</button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private int ActiveTab = 0; // 0=BalanceSheet, 1=IncomeStatement
+    private int PeriodMode = 1; // 0=Yearly, 1=Monthly, 2=Custom
+
+    private string FromDate = string.Empty;
+    private string ToDate = string.Empty;
+
+    private bool Loading = false;
+
+    private List<MiniBank.Web.Models.TrialBalanceNode> Nodes = new();
+
+    private decimal AssetsNet = 0;
+    private decimal LiabilitiesNet = 0;
+    private decimal EquityNet = 0;
+
+    private decimal IncomeNet = 0;
+    private decimal ExpenseNet = 0;
+    private decimal ProfitNet = 0;
+
+    private List<MiniBank.Web.Models.TrialBalanceNode> BalanceAssetsKolRows = new();
+    private List<MiniBank.Web.Models.TrialBalanceNode> BalanceLiabEquityKolRows = new();
+    private decimal BalanceDiscrepancy = 0;
+
+    private List<MiniBank.Web.Models.TrialBalanceNode> IncomeMoeinRows = new();
+    private List<MiniBank.Web.Models.TrialBalanceNode> ExpenseMoeinRows = new();
+
+    private DateTime? fromDateG;
+    private DateTime? toDateG;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))
+        {
+            try
+            {
+                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
+                if (fy != null)
+                {
+                    if (string.IsNullOrWhiteSpace(FromDate)) FromDate = fy.StartDate.ToPersianDate();
+                    if (string.IsNullOrWhiteSpace(ToDate)) ToDate = fy.EndDate.ToPersianDate();
+                }
+            }
+            catch { }
+            if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))
+            {
+                var r = MiniBank.Web.Components.Extensions.DateTimeExtensions.CurrentJalaliYearRange();
+                if (string.IsNullOrWhiteSpace(FromDate)) FromDate = r.From;
+                if (string.IsNullOrWhiteSpace(ToDate)) ToDate = r.To;
+            }
+        }
+        await Load();
+    }
+
+    private async Task SwitchTab(int tab)
+    {
+        ActiveTab = tab;
+        await Load();
+    }
+
+    private async Task SetPeriodMode(int mode)
+    {
+        PeriodMode = mode;
+        if (mode == 2)
+        {
+            var pc = new System.Globalization.PersianCalendar();
+            var y = pc.GetYear(DateTime.Today);
+            var m = pc.GetMonth(DateTime.Today);
+            var d = pc.GetDayOfMonth(DateTime.Today);
+            if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))
+            {
+                FromDate = $"{y:0000}/{m:00}/01";
+                ToDate = $"{y:0000}/{m:00}/{d:00}";
+            }
+        }
+        else
+        {
+            ApplyPresetRangeIfPossible();
+        }
+        await Load();
+    }
+
+    private void ApplyPresetRangeIfPossible()
+    {
+        if (PeriodMode == 2) return;
+
+        var baseDate = DateTime.Today;
+
+        var pc = new System.Globalization.PersianCalendar();
+        var y = pc.GetYear(baseDate);
+        var m = pc.GetMonth(baseDate);
+
+        if (PeriodMode == 0)
+        {
+            FromDate = $"{y:0000}/01/01";
+            var endDay = pc.GetDaysInMonth(y, 12);
+            ToDate = $"{y:0000}/12/{endDay:00}";
+        }
+        else if (PeriodMode == 1)
+        {
+            FromDate = $"{y:0000}/{m:00}/01";
+            var endDay = pc.GetDaysInMonth(y, m);
+            ToDate = $"{y:0000}/{m:00}/{endDay:00}";
+        }
+    }
+
+    private async Task Load()
+    {
+        try
+        {
+            Loading = true;
+            Nodes.Clear();
+            ResetTotals();
+            IncomeMoeinRows.Clear();
+            ExpenseMoeinRows.Clear();
+            BalanceAssetsKolRows.Clear();
+            BalanceLiabEquityKolRows.Clear();
+            BalanceDiscrepancy = 0;
+            await InvokeAsync(StateHasChanged);
+
+            fromDateG = TryParseJalali(FromDate, out var f) ? f.Date : null;
+            toDateG = TryParseJalali(ToDate, out var t) ? t.Date : null;
+
+            if (ActiveTab == 0)
+                fromDateG = null;
+
+            var wantedTypes = ActiveTab == 0
+                ? new HashSet<byte>(new byte[] { 1, 2, 3 })
+                : new HashSet<byte>(new byte[] { 4, 5 });
+
+            var level1 = (await TrialBalanceRepo.GetByLevelAsync(1, null, true, fromDateG, toDateG, null)).ToList();
+            level1 = level1.Where(x => wantedTypes.Contains(x.AccountType)).OrderBy(x => x.AccountType).ToList();
+
+            Nodes = level1;
+
+            if (ActiveTab == 0)
+            {
+                var assets = level1.FirstOrDefault(x => x.AccountType == 1);
+                var liabilities = level1.FirstOrDefault(x => x.AccountType == 2);
+                var equity = level1.FirstOrDefault(x => x.AccountType == 3);
+
+                AssetsNet = assets != null ? ComputeDisplayNet(assets) : 0;
+                LiabilitiesNet = liabilities != null ? ComputeDisplayNet(liabilities) : 0;
+                EquityNet = equity != null ? ComputeDisplayNet(equity) : 0;
+
+                if (assets != null)
+                    BalanceAssetsKolRows = await LoadKolRowsForRoot(assets.AccountId, 1);
+
+                var liabRows = new List<MiniBank.Web.Models.TrialBalanceNode>();
+                if (liabilities != null)
+                    liabRows.AddRange(await LoadKolRowsForRoot(liabilities.AccountId, 2));
+                if (equity != null)
+                    liabRows.AddRange(await LoadKolRowsForRoot(equity.AccountId, 3));
+                BalanceLiabEquityKolRows = liabRows.OrderBy(x => x.Code).ToList();
+
+                BalanceDiscrepancy = AssetsNet - (LiabilitiesNet + EquityNet);
+            }
+            else
+            {
+                var income = level1.FirstOrDefault(x => x.AccountType == 4);
+                var expense = level1.FirstOrDefault(x => x.AccountType == 5);
+
+                IncomeNet = income != null ? ComputeDisplayNet(income) : 0;
+                ExpenseNet = expense != null ? ComputeDisplayNet(expense) : 0;
+                ProfitNet = IncomeNet - ExpenseNet;
+
+                if (income != null)
+                    IncomeMoeinRows = await LoadMoeinRowsForRoot(income.AccountId, 4);
+                if (expense != null)
+                    ExpenseMoeinRows = await LoadMoeinRowsForRoot(expense.AccountId, 5);
+            }
+        }
+        finally
+        {
+            Loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ResetTotals()
+    {
+        AssetsNet = 0;
+        LiabilitiesNet = 0;
+        EquityNet = 0;
+        IncomeNet = 0;
+        ExpenseNet = 0;
+        ProfitNet = 0;
+    }
+
+    private async Task<List<MiniBank.Web.Models.TrialBalanceNode>> LoadKolRowsForRoot(long rootAccountId, byte accountType)
+    {
+        var level2 = (await TrialBalanceRepo.GetChildrenAsync(rootAccountId, fromDateG, toDateG, null))
+            .Where(x => x.AccountType == accountType && x.Level == 2)
+            .OrderBy(x => x.Code)
+            .ToList();
+
+        return level2;
+    }
+
+    private async Task<List<MiniBank.Web.Models.TrialBalanceNode>> LoadMoeinRowsForRoot(long rootAccountId, byte accountType)
+    {
+        var result = new List<MiniBank.Web.Models.TrialBalanceNode>();
+
+        var level2 = (await TrialBalanceRepo.GetChildrenAsync(rootAccountId, fromDateG, toDateG, null))
+            .Where(x => x.AccountType == accountType)
+            .OrderBy(x => x.Code)
+            .ToList();
+
+        foreach (var n2 in level2)
+        {
+            if (n2.Level == 3)
+            {
+                if (ComputeDisplayNet(n2) != 0)
+                    result.Add(n2);
+                continue;
+            }
+
+            if (n2.Level < 3)
+            {
+                var level3 = (await TrialBalanceRepo.GetChildrenAsync(n2.AccountId, fromDateG, toDateG, null))
+                    .Where(x => x.AccountType == accountType && x.Level == 3)
+                    .OrderBy(x => x.Code)
+                    .ToList();
+
+                foreach (var n3 in level3)
+                {
+                    if (ComputeDisplayNet(n3) != 0)
+                        result.Add(n3);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private decimal ComputeDisplayNet(MiniBank.Web.Models.TrialBalanceNode node)
+    {
+        var net = node.DebitBalance - node.CreditBalance;
+        if (node.AccountType == 2 || node.AccountType == 3 || node.AccountType == 4)
+            net = -net;
+        return net;
+    }
+
+    private async Task ToggleExpand(MiniBank.Web.Models.TrialBalanceNode node)
+    {
+        if (!node.HasChildren) return;
+
+        node.IsExpanded = !node.IsExpanded;
+        if (node.IsExpanded && (node.Children == null || node.Children.Count == 0))
+        {
+            var children = (await TrialBalanceRepo.GetChildrenAsync(node.AccountId, fromDateG, toDateG, null)).ToList();
+            children = children.Where(x => x.AccountType == node.AccountType).ToList();
+            node.Children = children;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void GoToTurnover(MiniBank.Web.Models.TrialBalanceNode node)
+    {
+        var fromQ = Uri.EscapeDataString(FromDate ?? string.Empty);
+        var toQ = Uri.EscapeDataString(ToDate ?? string.Empty);
+        var includeChildrenQ = node.Level == 4 ? "" : "&includeChildren=true";
+        Nav.NavigateTo($"/admin/reports/subsidiary-transactions/{node.AccountId}?fromDate={fromQ}&toDate={toQ}&level={node.Level}{includeChildrenQ}");
+    }
+
+    private bool TryParseJalali(string? jalali, out DateTime greg)
+        => Components.Extensions.DateTimeExtensions.TryParseJalaliDate(jalali, out greg);
+}

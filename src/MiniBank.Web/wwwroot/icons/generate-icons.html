@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PWA Icon Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .icon-preview { margin: 10px; display: inline-block; }
+        canvas { border: 1px solid #ccc; margin: 5px; }
+        .download-section { margin: 20px 0; }
+        button { padding: 10px 20px; margin: 5px; background: #6750a4; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>PWA Icon Generator for صندوق امام علی (ع)</h1>
+    
+    <div class="download-section">
+        <button onclick="generateAllIcons()">Generate All Icons</button>
+        <button onclick="downloadAll()">Download All</button>
+    </div>
+    
+    <div id="icons-container"></div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        const canvases = {};
+
+        function createIcon(size, isMaskable = false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#6750a4');
+            gradient.addColorStop(1, '#4f378b');
+            ctx.fillStyle = gradient;
+            
+            if (isMaskable) {
+                // Maskable icons need padding
+                ctx.fillRect(0, 0, size, size);
+            } else {
+                // Regular icons with rounded corners
+                const radius = size * 0.15;
+                ctx.beginPath();
+                ctx.roundRect(0, 0, size, size, radius);
+                ctx.fill();
+            }
+
+            // Icon content - Vault/Safe symbol
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = size * 0.03;
+
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const iconSize = size * (isMaskable ? 0.4 : 0.6);
+
+            // Draw vault door
+            const vaultRadius = iconSize * 0.4;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, vaultRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // Draw vault handle
+            const handleSize = iconSize * 0.15;
+            ctx.beginPath();
+            ctx.arc(centerX + vaultRadius * 0.5, centerY, handleSize, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Draw combination dial
+            const dialRadius = iconSize * 0.2;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, dialRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // Draw dial marks
+            for (let i = 0; i < 12; i++) {
+                const angle = (i * 30) * Math.PI / 180;
+                const x1 = centerX + Math.cos(angle) * dialRadius * 0.8;
+                const y1 = centerY + Math.sin(angle) * dialRadius * 0.8;
+                const x2 = centerX + Math.cos(angle) * dialRadius * 0.9;
+                const y2 = centerY + Math.sin(angle) * dialRadius * 0.9;
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+
+            return canvas;
+        }
+
+        function generateAllIcons() {
+            const container = document.getElementById('icons-container');
+            container.innerHTML = '';
+
+            sizes.forEach(size => {
+                // Regular icon
+                const canvas = createIcon(size);
+                canvases[`icon-${size}`] = canvas;
+                
+                const div = document.createElement('div');
+                div.className = 'icon-preview';
+                div.innerHTML = `<div>icon-${size}.png</div>`;
+                div.appendChild(canvas);
+                container.appendChild(div);
+
+                // Maskable versions for 192 and 512
+                if (size === 192 || size === 512) {
+                    const maskableCanvas = createIcon(size, true);
+                    canvases[`icon-${size}-maskable`] = maskableCanvas;
+                    
+                    const maskableDiv = document.createElement('div');
+                    maskableDiv.className = 'icon-preview';
+                    maskableDiv.innerHTML = `<div>icon-${size}-maskable.png</div>`;
+                    maskableDiv.appendChild(maskableCanvas);
+                    container.appendChild(maskableDiv);
+                }
+            });
+        }
+
+        function downloadCanvas(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function downloadAll() {
+            Object.keys(canvases).forEach(key => {
+                downloadCanvas(canvases[key], `${key}.png`);
+            });
+        }
+
+        // Generate icons on load
+        generateAllIcons();
+    </script>
+</body>
+</html>

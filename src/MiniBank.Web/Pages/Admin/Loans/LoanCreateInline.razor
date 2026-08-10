@@ -1,0 +1,2573 @@
+@using System.Globalization
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Services.LoanService LoanService
+@inject MiniBank.Web.Services.MemberFinancialSnapshotService MemberFinancial
+@inject MiniBank.Web.Services.LoanRateService LoanRateService
+@inject MiniBank.Web.Services.LoanCalculatorService LoanCalculator
+@inject MiniBank.Web.Infrastructure.Repositories.MemberRepository MemberRepo
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject MiniBank.Web.Infrastructure.Repositories.TransactionReportRepository TxReportRepo
+@inject MiniBank.Web.Infrastructure.Repositories.CreditHoldRepository CreditHoldRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+
+<div class="loan-mje2-container">
+  <div class="header-blue-bar">@(EditLoanId.HasValue && EditLoanId.Value > 0 ? "ویرایش وام" : "ایجاد وام")</div>
+  <div class="header-yellow-bar-1">@HeaderStepTitle</div>
+  <div class="form-section">
+
+    <DsMultiStepForm CurrentStep="@_currentStep"
+                     TotalSteps="4"
+                     StepLabels="@_stepLabels"
+                     CanProceedToNext="@CanProceedToNextStep()"
+                     CanSubmit="@CanSubmitFinal()"
+                     IsNavigationDisabled="true"
+                     ShowNavigation="false"
+                     OnStepChanged="OnStepChanged"
+                     OnFinalSubmit="OnFinalSubmit">
+
+      @if (_currentStep == 1)
+      {
+        <div id="loan-step-1-top"></div>
+        <table class="form-table">
+          <tr class="form-row">
+            <td colspan="2" style="text-align:right">متقاضی</td>
+          </tr>
+          <tr class="form-row">
+            <td colspan="2">
+              <div class="applicant-dropdown">
+                <DsDropdown Placeholder="-- انتخاب عضو --"
+                            Items="@_memberItems"
+                            Value="@_memberCode"
+                            ValueChanged="OnMemberChanged"
+                            Searchable="true"
+                            SearchPlaceholder="جستجوی نام/کدملی..."
+                            UseFixedMenu="true"
+                            ErrorMessage="@(_memberError ? "انتخاب عضو الزامی است" : null)" />
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        @if (_activeLoansLoading)
+        {
+          <div class="loading-container" style="margin-top: 10px">در حال بررسی وام‌های فعال...</div>
+        }
+        else if (_activeLoans.Count > 0)
+        {
+          <div class="active-loans-container" style="margin-top: 10px">
+            <div class="active-loans-header" style="margin-bottom: 10px; padding-bottom: 8px">
+              <h2 style="font-size: 14px">وام‌های فعال متقاضی</h2>
+            </div>
+
+            <div class="active-loans-table-container">
+              <div class="active-loans-table-scroll">
+                <table class="active-loans-table">
+                  <thead>
+                    <tr>
+                      <th>تاریخ</th>
+                      <th>مبلغ وام</th>
+                      <th>مانده</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach (var l in _activeLoans)
+                    {
+                      <tr>
+                        <td>@l.DisbursedAt.ToPersianDate()</td>
+                        <td class="amount-td">@ToMoney(GetTotalPayable(l))</td>
+                        <td class="amount-td loan-outstanding-td">@ToMoney(GetOutstandingWithInterest(l))</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (_householdLoading)
+        {
+          <div class="loading-container">در حال بارگذاری اطلاعات خانوار...</div>
+        }
+        else if (_householdBalances.Count > 0)
+        {
+          <div class="journal-history-container" style="margin-top: 12px">
+            <div class="journal-history-header" style="margin-bottom: 10px; padding-bottom: 8px">
+              <h2 style="font-size: 14px">سپرده خانوار</h2>
+            </div>
+
+            <div class="journals-table-container">
+              <div class="journals-table-scroll">
+                <table class="journals-table">
+                  <thead>
+                    <tr>
+                      <th>تفصیلی</th>
+                      <th>نام و نام خانوادگی</th>
+                      <th>اصل سپرده</th>
+                      <th>سود سپرده</th>
+                      <th>رهن/مسدود</th>
+                      <th>خالص در دسترس</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach (var r in _householdBalances.OrderBy(x => x.MemberId))
+                    {
+                      var code = string.IsNullOrWhiteSpace(r.BankAccountNumber) ? "" : r.BankAccountNumber;
+                      var locked = (!string.IsNullOrWhiteSpace(code) && _householdLockedByCode.TryGetValue(code, out var la)) ? la : 0m;
+                      var available = r.TotalBalance - locked;
+                      if (available < 0) available = 0;
+                      <tr>
+                        <td>@(string.IsNullOrWhiteSpace(r.BankAccountNumber) ? "-" : r.BankAccountNumber)</td>
+                        <td style="text-align:right">@r.MemberName</td>
+                        <td class="amount-td">@ToMoney(r.PrincipalBalance)</td>
+                        <td class="amount-td">@ToMoney(r.InterestBalance)</td>
+                        <td class="amount-td">@ToMoney(locked)</td>
+                        <td class="amount-td">@ToMoney(available)</td>
+                      </tr>
+                    }
+                    <tr class="household-total-row">
+                      <td></td>
+                      <td style="text-align:right; font-weight:900">جمع کل سپرده خانوار</td>
+                      <td class="amount-td">@ToMoney(_householdBalances.Sum(x => x.PrincipalBalance))</td>
+                      <td class="amount-td">@ToMoney(_householdBalances.Sum(x => x.InterestBalance))</td>
+                      <td class="amount-td">@ToMoney(_householdBalances.Sum(x => string.IsNullOrWhiteSpace(x.BankAccountNumber) ? 0m : (_householdLockedByCode.TryGetValue(x.BankAccountNumber, out var l) ? l : 0m)))</td>
+                      <td class="amount-td">@ToMoney(_householdBalances.Sum(x => {
+                        var code2 = x.BankAccountNumber;
+                        var l2 = (!string.IsNullOrWhiteSpace(code2) && _householdLockedByCode.TryGetValue(code2, out var ll2)) ? ll2 : 0m;
+                        var av2 = x.TotalBalance - l2;
+                        return av2 < 0 ? 0m : av2;
+                      }))</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          @if (_householdRiskLoading)
+          {
+            <div class="loading-container" style="margin-top: 10px">در حال اعتبارسنجی خانوار...</div>
+          }
+          else if (_householdRiskRows.Count > 0)
+          {
+            <div class="household-risk-container" style="margin-top: 10px">
+              <div class="household-risk-header" style="margin-bottom: 10px; padding-bottom: 8px">
+                <h2 style="font-size: 14px">اعتبارسنجی خانوار</h2>
+              </div>
+
+              <div class="household-risk-table-container">
+                <div class="household-risk-table-scroll">
+                  <table class="household-risk-table">
+                    <thead>
+                      <tr>
+                        <th>تفصیلی</th>
+                        <th>عضو</th>
+                        <th>وام فعال</th>
+                        <th>ضامن وام فعال</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @foreach (var r in _householdRiskRows)
+                      {
+                        var isApplicant = !string.IsNullOrWhiteSpace(_memberCode) && string.Equals(r.MemberCode, _memberCode, StringComparison.OrdinalIgnoreCase);
+                        <tr class="@(isApplicant ? "household-risk-applicant" : null)">
+                          <td>@(string.IsNullOrWhiteSpace(r.MemberCode) ? "-" : r.MemberCode)</td>
+                          <td style="text-align:right">@r.MemberName</td>
+                          <td>
+                            @if (r.ActiveLoanCount > 0)
+                            {
+                              <span class="risk-badge risk-badge-danger">@r.ActiveLoanCount</span>
+                            }
+                            else
+                            {
+                              <span class="risk-badge risk-badge-success">ندارد</span>
+                            }
+                          </td>
+                          <td>
+                            @if (r.ActiveGuarantorCount > 0)
+                            {
+                              @if (isApplicant)
+                              {
+                                <button type="button" class="risk-cell-button" @onclick="() => OpenGuaranteedLoansAsync(r)">
+                                  <span class="risk-badge risk-badge-warning">@r.ActiveGuarantorCount</span>
+                                </button>
+                              }
+                              else
+                              {
+                                <span class="risk-badge risk-badge-warning">@r.ActiveGuarantorCount</span>
+                              }
+                            }
+                            else
+                            {
+                              <span class="risk-badge risk-badge-muted">نیست</span>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_step1BlockMessage))
+            {
+              <div class="step1-block-message" style="margin-top: 10px">@_step1BlockMessage</div>
+            }
+          }
+        }
+        else if (!string.IsNullOrWhiteSpace(_memberCode) && !_memberError)
+        {
+          <div class="empty-container" style="margin-top: 10px">برای این خانوار اطلاعات سپرده‌ای یافت نشد</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_memberCode) && !_memberError)
+        {
+          @if (_step1HasActiveLoanBlock)
+          {
+            <div class="ds-msg ds-msg-danger">
+              <i class="fa-solid fa-circle-xmark ds-msg-icon"></i>
+              <span>متقاضی دارای وام فعال است و امکان ثبت وام جدید وجود ندارد</span>
+            </div>
+          }
+
+          @if (_applicantAvailableError)
+          {
+            <div class="ds-msg ds-msg-warn">
+              <i class="fa-solid fa-triangle-exclamation ds-msg-icon"></i>
+              <span>خالص سپرده آزاد متقاضی باید بیشتر از ۰ باشد</span>
+            </div>
+          }
+
+          @if (_approvedPrincipalError)
+          {
+            <div class="ds-msg ds-msg-warn">
+              <i class="fa-solid fa-triangle-exclamation ds-msg-icon"></i>
+              <span>@_approvedPrincipalErrorText</span>
+            </div>
+          }
+
+          @if (!_step1HasActiveLoanBlock && !_applicantAvailableError)
+          {
+            <div class="ds-msg ds-msg-success" style="margin-top: 10px">
+              <i class="fa-solid fa-circle-check ds-msg-icon"></i>
+              <span>متقاضی شرایط دریافت وام را دارد</span>
+            </div>
+          }
+
+          <div class="loan-factor-card">
+            <div class="loan-factor-title">محاسبه مبلغ وام مصوب</div>
+
+            <div class="loan-factor-grid">
+              <div class="loan-factor-item">
+                <div class="loan-factor-label">خالص سپرده آزاد متقاضی</div>
+                <div class="loan-factor-value amount-td">@_applicantAvailableCapitalStr</div>
+              </div>
+
+              <div class="loan-factor-item">
+                <div class="loan-factor-label">خالص سپرده آزاد خانوار</div>
+                <div class="loan-factor-value amount-td">@_householdAvailableCapitalStr</div>
+              </div>
+            </div>
+
+            <div class="loan-factor-input-row">
+              <div class="loan-factor-input-col">
+                <div class="loan-factor-label">ضریب</div>
+                <input class="form-input center-text loan-factor-textbox" inputmode="numeric" value="@_loanFactorStr" @oninput="OnLoanFactorInput" />
+                @if (_loanFactorError)
+                {
+                  <div class="field-error">ضریب معتبر نیست</div>
+                }
+              </div>
+
+              <div class="loan-factor-input-col">
+                <div class="loan-factor-label">مبلغ وام مصوب</div>
+                <DsMoneyInput Value="@_approvedPrincipalStr"
+                              ValueChanged="OnApprovedPrincipalChanged"
+                              Class="center-text" />
+                @if (_approvedPrincipalError)
+                {
+                  <div class="field-error">@_approvedPrincipalErrorText</div>
+                }
+              </div>
+            </div>
+
+          </div>
+        }
+      }
+      else if (_currentStep == 2)
+      {
+        <div id="loan-step-2-top"></div>
+        <div class="step2-container">
+          <div class="step2-card-header">
+            <div class="step2-card-title">
+              <i class="fa-solid fa-sack-dollar"></i>
+              <span>تصویب مبلغ وام</span>
+            </div>
+            <div class="step2-card-subtitle">مبلغ از مرحله قبل تعیین می‌شود و در این مرحله قابل تغییر نیست</div>
+          </div>
+
+          <div class="step2-grid">
+            <div class="step2-field">
+              <div class="step2-label">شماره وام</div>
+              <input class="form-input center-text step2-loan-number" value="@_nextLoanNumberText" disabled />
+            </div>
+
+            <div class="step2-field">
+              <div class="step2-label">مبلغ وام مصوب</div>
+              <DsMoneyInput Value="@_principalStr" Disabled="true" Class="center-text step2-readonly" style="text-align: center;" />
+              @if (_principalError)
+              {
+                <div class="field-error">مبلغ وام معتبر نیست</div>
+              }
+            </div>
+
+            <div class="step2-field">
+              <div class="step2-label">تعداد اقساط</div>
+              <input class="form-input center-text step2-input" inputmode="numeric" pattern="[0-9]*" value="@_termMonthsStr" @oninput="OnTermMonthsInput" />
+              @if (_termError)
+              {
+                <div class="field-error">تعداد اقساط معتبر نیست</div>
+              }
+            </div>
+
+            <div class="step2-field">
+              <div class="step2-label">تاریخ</div>
+              <input class="form-input center-text step2-input" value="@DisbursedAtString" @onchange="OnDisbursedAtChanged" data-jdp="true" data-jdp-only-date="true" />
+              @if (_disbursedError)
+              {
+                <div class="field-error">تاریخ الزامی است</div>
+              }
+            </div>
+
+            <div class="step2-field">
+              <div class="step2-label">نرخ سود (%)</div>
+              <input class="form-input center-text step2-input" inputmode="decimal" value="@_currentAnnualRateText" @oninput="OnAnnualRateInput" />
+            </div>
+
+            <div class="step2-field">
+              <div class="step2-label">نرخ دیرکرد (%)</div>
+              <input class="form-input center-text step2-input" inputmode="decimal" value="@_currentPenaltyRateText" @oninput="OnPenaltyRateInput" />
+            </div>
+
+            <div class="step2-field">
+              <div class="step2-label">مبلغ روزشمار جریمه </div>
+              <input class="form-input center-text step2-readonly" value="@_penaltyDailyAmountText" disabled />
+            </div>
+
+            <div class="step2-field">
+              <div class="step2-label">قسط تقریبی</div>
+              <input class="form-input center-text step2-readonly" value="@_previewEmiText" disabled />
+            </div>
+
+            <div class="step2-field">
+              <div class="step2-label">قسط ماهانه (قابل ویرایش)</div>
+              <DsMoneyInput Value="@ManualEmiDisplay"
+                            ValueChanged="OnManualEmiChanged"
+                            Class="center-text step2-input" style="text-align: center;" />
+              @if (!string.IsNullOrWhiteSpace(_scheduleErrorText))
+              {
+                <div class="field-error">@_scheduleErrorText</div>
+              }
+            </div>
+
+            <div class="step2-field step2-field-wide">
+              <div class="step2-label">یادداشت</div>
+              <input class="form-input step2-input" @bind="_notes" />
+            </div>
+          </div>
+
+          <div class="step2-schedule">
+            @if (_scheduleLoading)
+            {
+              <div class="loading-container">در حال محاسبه جدول تقسیط...</div>
+            }
+            else if (_scheduleRows.Count > 0)
+            {
+              decimal cumPrincipal = 0m;
+              decimal cumInterest = 0m;
+              var totalPrincipal = _scheduleRows.Sum(x => x.PrincipalAmount);
+              var totalInterest = _scheduleRows.Sum(x => x.InterestAmount);
+              var totalEmi = _scheduleRows.Sum(x => x.EmiAmount);
+
+              <div class="journals-table-scroll">
+                <table class="journals-table">
+                  <thead>
+                    <tr>
+                      <th>شماره قسط</th>
+                      <th>تاریخ قسط</th>
+                      <th>مانده وام (ابتدای ماه)</th>
+                      <th>مبلغ قسط وام</th>
+                      <th>مبلغ قسط سود</th>
+                      <th>اقساط سود تجمیعی</th>
+                      <th>مبلغ قسط اصل</th>
+                      <th>اقساط اصل تجمیعی</th>
+                      <th>مانده وام (انتهای ماه)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach (var it in _scheduleRows)
+                    {
+                      cumPrincipal += it.PrincipalAmount;
+                      cumInterest += it.InterestAmount;
+                      <tr>
+                        <td>@it.InstallmentNo</td>
+                        <td>@it.DueDate.ToPersianDate()</td>
+                        <td class="amount-td">@ToMoney(it.OpeningBalance)</td>
+                        <td class="amount-td">@ToMoney(it.EmiAmount)</td>
+                        <td class="amount-td">@ToMoney(it.InterestAmount)</td>
+                        <td class="amount-td">@ToMoney(cumInterest)</td>
+                        <td class="amount-td">@ToMoney(it.PrincipalAmount)</td>
+                        <td class="amount-td">@ToMoney(cumPrincipal)</td>
+                        <td class="amount-td">@ToMoney(it.ClosingBalance)</td>
+                      </tr>
+                    }
+
+                    <tr>
+                      <td colspan="3" style="text-align:right; font-weight:900">جمع</td>
+                      <td class="amount-td">@ToMoney(totalEmi)</td>
+                      <td class="amount-td">@ToMoney(totalInterest)</td>
+                      <td class="amount-td">@ToMoney(totalInterest)</td>
+                      <td class="amount-td">@ToMoney(totalPrincipal)</td>
+                      <td class="amount-td">@ToMoney(totalPrincipal)</td>
+                      <td class="amount-td">@ToMoney(0)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            }
+            else
+            {
+              <div class="empty-container">برای نمایش جدول تقسیط، تعداد اقساط و تاریخ را مشخص کنید</div>
+            }
+          </div>
+        </div>
+      }
+      else if (_currentStep == 3)
+      {
+        <div id="loan-step-3-top"></div>
+
+        <div class="step3-summary">
+          <div class="step3-summary-title">خلاصه</div>
+          <div class="step3-summary-grid">
+            <div class="sum-item">
+              <div class="sum-k">متقاضی</div>
+              <div class="sum-v">@SelectedMemberDisplay</div>
+            </div>
+            <div class="sum-item">
+              <div class="sum-k">شماره وام</div>
+              <div class="sum-v">@_nextLoanNumberText</div>
+            </div>
+            <div class="sum-item">
+              <div class="sum-k">کل مبلغ قابل ضمانت (اصل + سود)</div>
+              <div class="sum-v amount-td">@ToMoney(ReviewTotalPayable)</div>
+            </div>
+            <div class="sum-item">
+              <div class="sum-k">قسط مبنا</div>
+              <div class="sum-v amount-td">@ToMoney(EffectiveEmi)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="guarantors-container">
+          <div class="guarantor-add-card">
+            <div class="guarantor-add-title">افزودن ضامن</div>
+
+            <div class="guarantor-add-selector guarantor-dropdown">
+              <DsDropdown Placeholder="-- انتخاب ضامن --"
+                          Items="@_memberItems"
+                          Value="@_newGuarantorMemberCode"
+                          ValueChanged="OnNewGuarantorMemberChanged"
+                          Searchable="true"
+                          UseFixedMenu="true"
+                          ErrorMessage="@(_newGuarantorMemberError ? "ضامن را انتخاب کنید" : null)" />
+            </div>
+
+            <div class="guarantor-summary">
+              <table class="guarantor-summary-table">
+                <thead>
+                  <tr>
+                    <th>خالص</th>
+                    <th>مسدود</th>
+                    <th>آزاد</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="amount-td">@ToMoney(ParseMoney(_newGuarantorNetPrincipalStr) + ParseMoney(_newGuarantorNetInterestStr))</td>
+                    <td class="amount-td">@_newGuarantorExistingLockedStr</td>
+                    <td class="amount-td">@_newGuarantorAvailableCapitalStr</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="guarantor-add-row"  style="align-items: flex-start;">
+              <div class="guarantor-add-field">
+                <div class="guarantor-field-label">درصد</div>
+                <div class="percent-input-wrap">
+                  <input class="form-input guarantor-percent-input" type="text"
+                         inputmode="numeric" autocomplete="off"
+                         value="@_newGuarantorLockPercentStr"
+                         @oninput="OnNewGuarantorPercentInput" />
+                  <span class="percent-suffix">%</span>
+                </div>
+              </div>
+
+              <div class="guarantor-add-field" >
+                <div class="guarantor-field-label">مبلغ بلوکه (ریال)</div>
+                <DsMoneyInput Value="@_newGuarantorAmountStr"
+                              ValueChanged="OnNewGuarantorAmountChanged"
+                              ErrorMessage="@(_newGuarantorAmountError ? " " : null)"  style="height:36px; text-align:center"/>
+              </div>
+
+              <div class="guarantor-add-actions">
+                <button type="button" class="btn-next" @onclick="AddGuarantorFromForm">افزودن</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="guarantors-list-card">
+            <div class="guarantors-list-title">لیست ضامنین</div>
+
+            @if (_guarantors.Count == 0)
+            {
+              <div class="empty-container" style="margin-top: 8px">هنوز ضامنی اضافه نشده است</div>
+            }
+            else
+            {
+              <div class="guarantors-table-scroll">
+                <table class="guarantors-table">
+                  <thead>
+                    <tr>
+                      <th>ضامن</th>
+                      <th>خالص</th>
+                      <th>مسدود</th>
+                      <th>آزاد</th>
+                      <th>درصد</th>
+                      <th>مبلغ بلوکه</th>
+                      <th>پوشش از مبلغ وام</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (var i = 0; i < _guarantors.Count; i++)
+                    {
+                      var idx = i;
+                      var approvedForCoverage = ReviewTotalPayable;
+                      var gAmount = ParseMoney(_guarantors[idx].AmountStr);
+                      var gPct = (approvedForCoverage > 0) ? (gAmount / approvedForCoverage * 100m) : 0m;
+                      var gNet = ParseMoney(_guarantors[idx].NetPrincipalStr) + ParseMoney(_guarantors[idx].NetInterestStr);
+                      <tr>
+                        <td>
+                          @GetMemberDisplayByCode(_guarantors[idx].GuarantorMemberIdStr)
+                          @if (_guarantors[idx].IsApplicantSelfGuarantee)
+                          {
+                            <span class="self-guarantee-badge">خودضمانت</span>
+                          }
+                        </td>
+                        <td class="amount-td">@ToMoney(gNet)</td>
+                        <td class="amount-td">@_guarantors[idx].ExistingLockedStr</td>
+                        <td class="amount-td">@_guarantors[idx].AvailableCapitalStr</td>
+                        <td class="amount-td">@_guarantors[idx].LockPercentStr</td>
+                        <td class="amount-td">@_guarantors[idx].AmountStr</td>
+                        <td class="amount-td">@(approvedForCoverage > 0 ? gPct.ToString("0.##", CultureInfo.InvariantCulture) + "%" : "-")</td>
+                        <td>
+                          <button type="button" class="history-delete-btn" @onclick="(() => RemoveGuarantor(idx))">حذف</button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="guarantors-total">
+                <div >جمع تضمین:</div>
+                <div class="amount-td">@ToMoney(_guarantors.Sum(x => ParseMoney(x.AmountStr)))</div>
+              </div>
+
+              <div class="guarantors-total" style="margin-top: 6px">
+                <div>درصد تضمین نسبت به وام:</div>
+                <div class="amount-td">@_guarantorCoveragePercentText</div>
+              </div>
+
+              <div style="margin-top: 8px; display:flex; align-items:center; gap:8px; justify-content:flex-start;color:#B30000">
+                <input type="checkbox" id="ignoreCoverage" @bind="_ignoreGuarantorCoverage" />
+                <label for="ignoreCoverage" style="margin:0">چشم‌پوشی از شرط ۱۰۰٪ تضمین</label>
+              </div>
+              @if (_guarantorCoverageError)
+              {
+                <div class="field-error" style="margin-top: 6px; text-align:right">@_guarantorCoverageErrorText</div>
+              }
+            }
+          </div>
+        </div>
+      }
+      else if (_currentStep == 4)
+      {
+        <div id="loan-step-4-top"></div>
+        <div class="review-container">
+          <div class="review-header">
+            <div class="review-title">بازبینی نهایی وام</div>
+            <div class="review-subtitle">قبل از تایید نهایی، اطلاعات زیر را بررسی کنید</div>
+          </div>
+
+          <div class="review-grid">
+            <div class="review-card review-card-applicant">
+              <div class="review-card-title">متقاضی</div>
+              <div class="review-kv review-kv-member">
+                <div class="k">عضو</div>
+                <div class="v review-member-name">@SelectedMemberDisplay</div>
+              </div>
+              <div class="review-kv">
+                <div class="k">خالص سپرده آزاد متقاضی</div>
+                <div class="v amount-td"><span class="money-inline" style=" direction: rtl;"><span class="money-num" dir="ltr">@_applicantAvailableCapitalStr</span><span class="money-cur" dir="rtl">&nbsp;ریال</span></span></div>
+              </div>
+              <div class="review-kv">
+                <div class="k">خالص سپرده آزاد خانوار</div>
+                <div class="v amount-td"><span class="money-inline" style=" direction: rtl;"><span class="money-num" dir="ltr">@_householdAvailableCapitalStr</span><span class="money-cur" dir="rtl">&nbsp;ریال</span></span></div>
+              </div>
+            </div>
+
+            <div class="review-card review-card-loan">
+              <div class="review-card-title">مشخصات وام</div>
+              <div class="review-kv">
+                <div class="k">شماره وام</div>
+                <div class="v">@_nextLoanNumberText</div>
+              </div>
+              <div class="review-kv">
+                <div class="k">مبلغ اصل وام</div>
+                <div class="v amount-td"><span class="money-inline" style=" direction: rtl;"><span class="money-num" dir="ltr">@ToMoney(ReviewPrincipal)</span><span class="money-cur" dir="rtl">&nbsp;ریال</span></span></div>
+              </div>
+              <div class="review-kv">
+                <div class="k">مبلغ سود وام</div>
+                <div class="v amount-td"><span class="money-inline" style=" direction: rtl;"><span class="money-num" dir="ltr">@ToMoney(Math.Max(0m, ReviewTotalPayable - ReviewPrincipal))</span><span class="money-cur" dir="rtl">&nbsp;ریال</span></span></div>
+              </div>
+              <div class="review-kv">
+                <div class="k">مبلغ کل وام</div>
+                <div class="v amount-td"><span class="money-inline" style=" direction: rtl;"><span class="money-num" dir="ltr">@ToMoney(ReviewTotalPayable)</span><span class="money-cur" dir="rtl">&nbsp;ریال</span></span></div>
+              </div>
+              <div class="review-kv">
+                <div class="k">تعداد اقساط</div>
+                <div class="v">@ReviewTerm</div>
+              </div>
+              <div class="review-kv">
+                <div class="k">تاریخ پرداخت</div>
+                <div class="v">@DisbursedAtString</div>
+              </div>
+            </div>
+
+            <div class="review-card review-card-rates">
+              <div class="review-card-title">نرخ‌ها و اقساط</div>
+              <div class="review-kv">
+                <div class="k">نرخ سود</div>
+                <div class="v">@(!string.IsNullOrWhiteSpace(_currentAnnualRateText) && _currentAnnualRateText.Contains('%') ? _currentAnnualRateText : (_currentAnnualRateText + "%"))</div>
+              </div>
+              <div class="review-kv">
+                <div class="k">نرخ دیرکرد</div>
+                <div class="v">@(!string.IsNullOrWhiteSpace(_currentPenaltyRateText) && _currentPenaltyRateText.Contains('%') ? _currentPenaltyRateText : (_currentPenaltyRateText + "%"))</div>
+              </div>
+              <div class="review-kv">
+                <div class="k">قسط مبنا</div>
+                <div class="v amount-td"><span class="money-inline" style=" direction: rtl;"><span class="money-num" dir="ltr">@ToMoney(EffectiveEmi)</span><span class="money-cur" dir="rtl">&nbsp;ریال</span></span></div>
+              </div>
+              <div class="review-kv">
+                <div class="k">مبلغ روزشمار جریمه</div>
+                <div class="v amount-td"><span class="money-inline" style=" direction: rtl;"><span class="money-num" dir="ltr">@_penaltyDailyAmountText</span><span class="money-cur" dir="rtl">&nbsp;ریال</span></span></div>
+              </div>
+            </div>
+
+            <div class="review-card review-card-wide review-card-guarantors">
+              <div class="review-card-title">ضامنین و پوشش تضمین</div>
+
+              <div class="review-metrics">
+                <div class="metric">
+                  <div class="metric-label">تعداد ضامن</div>
+                  <div class="metric-value">@_guarantors.Count</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">جمع تضمین</div>
+                  <div class="metric-value amount-td"><span class="money-inline" style="direction: rtl;"><span class="money-num" dir="ltr">@ToMoney(ReviewGuaranteed)</span><span class="money-cur" dir="rtl"></span></span></div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">درصد تضمین</div>
+                  <div class="metric-value">@(!string.IsNullOrWhiteSpace(_guarantorCoveragePercentText) && _guarantorCoveragePercentText.Contains('%') ? _guarantorCoveragePercentText : (_guarantorCoveragePercentText + "%"))</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">چشم‌پوشی</div>
+                  <div class="metric-value">@(_ignoreGuarantorCoverage ? "فعال" : "غیرفعال")</div>
+                </div>
+              </div>
+
+              @if (_guarantors.Count > 0)
+              {
+                <div class="review-table-scroll">
+                  <table class="review-table">
+                    <thead>
+                      <tr>
+                        <th>ضامن</th>
+                        <th> بلوکه</th>
+                        <th>درصد پوشش </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (var i = 0; i < _guarantors.Count; i++)
+                      {
+                        var approvedForCoverage = ReviewTotalPayable;
+                        var gAmount = ParseMoney(_guarantors[i].AmountStr);
+                        var gPct = (approvedForCoverage > 0) ? (gAmount / approvedForCoverage * 100m) : 0m;
+                        <tr>
+                          <td style="text-align:right">@GetMemberDisplayByCode(_guarantors[i].GuarantorMemberIdStr)</td>
+                          <td class="amount-td">@(_guarantors[i].LockPercentStr + "%")</td>
+                          <td class="amount-td">@(approvedForCoverage > 0 ? gPct.ToString("0.##", CultureInfo.InvariantCulture) + "%" : "-")</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+              else
+              {
+                <div class="empty-container" style="margin-top: 8px">ضامنی ثبت نشده است</div>
+              }
+            </div>
+
+            <div class="review-card review-card-wide review-card-notes">
+              <div class="review-card-title">یادداشت</div>
+              <div class="review-notes">@(!string.IsNullOrWhiteSpace(_notes) ? _notes : "-")</div>
+            </div>
+          </div>
+        </div>
+      }
+
+    </DsMultiStepForm>
+
+    <div class="action-buttons">
+      <div class="action-buttons-top">
+        @if (_currentStep > 1)
+        {
+          <button type="button" class="btn-cancel" @onclick="OnPrev" disabled="@_isSaving">مرحله قبل</button>
+        }
+
+        @if (_currentStep < 4)
+      {
+        <button type="button" class="btn-next" @onclick="OnNext" disabled="@_isSaving">مرحله بعد</button>
+      }
+      else
+      {
+        <button type="button" class="btn-edit" @onclick="OnFinalSubmit" disabled="@_isSaving">@(EditLoanId.HasValue && EditLoanId.Value > 0 ? "ویرایش و تایید نهایی" : "تایید نهایی")</button>
+      }
+      </div>
+
+      <button type="button" class="btn-delete" @onclick="Cancel" disabled="@_isSaving">انصراف</button>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .loan-factor-label { font-size: 12px; font-weight: 700; margin-bottom: 4px; color: #333; }
+
+  .money-inline {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  .money-num {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  .money-cur {
+    direction: rtl;
+    unicode-bidi: isolate;
+  }
+
+  .money {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    direction: rtl;
+    unicode-bidi: isolate;
+  }
+
+  .money-value {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  .money-unit {
+    direction: rtl;
+    unicode-bidi: isolate;
+  }
+
+  .applicant-dropdown .ds-dropdown-button { font-size: 13px; }
+  .applicant-dropdown .ds-dropdown-value { white-space: normal; }
+  .applicant-dropdown .ds-dropdown-item { font-size: 15px; }
+
+  .guarantor-dropdown .ds-dropdown-button { font-size: 12px; }
+  .guarantor-dropdown .ds-dropdown-value { white-space: normal; }
+
+  .step3-summary { border: 1px solid #dbeafe; border-radius: 12px; background: linear-gradient(135deg, #eff6ff 0%, #ffffff 65%); padding: 10px 12px; margin-bottom: 10px; }
+  .step3-summary-title { font-weight: 900; font-size: 13px; color: #0f172a; text-align: right; margin-bottom: 8px; }
+  .step3-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sum-item { border: 1px solid #e0f2fe; border-radius: 12px; background: #ffffff; padding: 8px 10px; }
+  .sum-k { font-size: 11px; color: #64748b; text-align: right; }
+  .sum-v { font-size: 12px; font-weight: 900; color: #0f172a; text-align: right; margin-top: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  @@media (min-width: 992px) {
+    .step3-summary-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  .review-container { display: flex; flex-direction: column; gap: 12px; }
+  .review-container, .review-grid, .review-card, .review-header, .review-table-scroll { max-width: 100%; }
+  .review-container * { box-sizing: border-box; }
+  .review-header { padding: 12px 12px; border: 1px solid #dbeafe; border-radius: 12px; background: linear-gradient(135deg, #eff6ff 0%, #ffffff 65%); }
+  .review-title { font-weight: 900; font-size: 14px; color: #0f172a; text-align: right; }
+  .review-subtitle { font-size: 12px; color: #6b7280; margin-top: 4px; text-align: right; }
+
+  .review-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .review-card { border: 1px solid #e5e7eb; border-radius: 12px; background: #f8fafc; padding: 10px 12px; box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04); min-width: 0; overflow: hidden; }
+  .review-card-applicant { border-right: 4px solid #2563eb; background: linear-gradient(to left, #f8fafc 0%, #eef6ff 100%); }
+  .review-card-loan { border-right: 4px solid #7c3aed; background: linear-gradient(to left, #f8fafc 0%, #f5f0ff 100%); }
+  .review-card-rates { border-right: 4px solid #16a34a; background: linear-gradient(to left, #f8fafc 0%, #f0fdf4 100%); }
+  .review-card-guarantors { border-right: 4px solid #ea580c; background: linear-gradient(to left, #f8fafc 0%, #fff7ed 100%); }
+  .review-card-notes { border-right: 4px solid #0f172a; background: linear-gradient(to left, #f8fafc 0%, #f1f5f9 100%); }
+  .review-card-title { font-weight: 900; font-size: 13px; color: #0f172a; margin-bottom: 8px; text-align: right; }
+
+  .review-kv { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; padding: 6px 0; border-top: 1px dashed #e5e7eb; }
+  .review-kv:first-of-type { border-top: none; }
+  .review-kv .k { color: #6b7280; font-size: 12px; text-align: right; }
+  .review-kv .k, .review-kv .v { min-width: 0; }
+  .review-kv .v { color: #111827; font-size: 12px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+  .review-kv .v.amount-td { white-space: nowrap; text-align: left !important; direction: ltr !important; }
+  .review-member-name { white-space: nowrap; text-align: right !important; direction: rtl; }
+  .review-kv-member { grid-template-columns: minmax(0, 0.75fr) minmax(0, 2.2fr); }
+
+  .review-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px; }
+  .metric { border: 1px solid #e0f2fe; border-radius: 12px; background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%); padding: 10px; min-width: 0; overflow: hidden; }
+  .metric-label { font-size: 11px; color: #6b7280; text-align: right; }
+  .metric-value { font-size: 13px; font-weight: 900; color: #0f172a; margin-top: 4px; text-align: left; }
+  .metric-value.amount-td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; text-align: left !important; direction: ltr !important; }
+
+  .review-table-scroll { overflow: auto; }
+  .review-table { width: 100%; border-collapse: collapse; }
+  .review-table th { background: #f3f4f6; color: #111827; font-size: 12px; padding: 8px; text-align: center; border-bottom: 1px solid #e5e7eb; }
+  .review-table td { font-size: 12px; padding: 8px; border-bottom: 1px solid #f1f5f9; }
+
+  @@media (max-width: 520px) {
+    .review-table th, .review-table td { padding: 6px; font-size: 11px; }
+  }
+
+  .review-notes { white-space: pre-wrap; font-size: 12px; color: #111827; text-align: right; line-height: 1.8; }
+
+  @@media (min-width: 992px) {
+    .review-grid { grid-template-columns: 1fr 1fr; }
+    .review-card-wide { grid-column: 1 / -1; }
+    .review-metrics { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
+
+@if (_showGuaranteedLoansSheet)
+{
+  <DsSheet Show="_showGuaranteedLoansSheet"
+           Title="@_guaranteedLoansSheetTitle"
+           CancelText="بستن"
+           OnCancel="CloseGuaranteedLoansSheet"
+           ShowConfirmButton="false"
+           Open="true"
+           ShowSpinner="@_guaranteedLoansLoading">
+    <div class="guaranteed-loans-sheet">
+      @if (_guaranteedLoansLoading)
+      {
+        <div class="loading-container">در حال بارگذاری وام‌های ضمانت‌شده...</div>
+      }
+      else if (_guaranteedLoans.Count == 0)
+      {
+        <div class="empty-container">وام فعالِ ضمانت‌شده‌ای یافت نشد</div>
+      }
+      else
+      {
+        <div class="active-loans-table-container" style="margin-top: 8px">
+          <div class="active-loans-table-scroll">
+            <table class="active-loans-table">
+              <thead>
+                <tr>
+                  <th>شماره وام</th>
+                  <th>وام‌گیرنده</th>
+                  <th>مبلغ وام (اصل + سود)</th>
+                  <th>مانده وام</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var l in _guaranteedLoans)
+                {
+                  <tr>
+                    <td>@l.LoanId</td>
+                    <td style="text-align:right">@l.BorrowerName</td>
+                    <td class="amount-td">@ToMoney(GetTotalPayable(l))</td>
+                    <td class="amount-td loan-outstanding-td">@ToMoney(GetOutstandingWithInterest(l))</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </div>
+  </DsSheet>
+}
+
+@code {
+  [Parameter] public EventCallback OnCancel { get; set; }
+  [Parameter] public EventCallback OnSaved { get; set; }
+  [Parameter] public long? EditLoanId { get; set; }
+
+  private bool _isSaving;
+
+  private int _currentStep = 1;
+  private readonly List<string> _stepLabels = new() { "اعتبارسنجی", "تصویب مبلغ", "ضامنین", "تایید نهایی" };
+
+  private List<DsDropdown.DsDropdownItem> _memberItems = new();
+  private string? _memberCode;
+  private readonly Dictionary<string, long> _memberIdByCode = new(StringComparer.OrdinalIgnoreCase);
+  private readonly Dictionary<long, Member> _membersById = new();
+
+  private readonly List<Loan> _activeLoans = new();
+  private bool _activeLoansLoading;
+
+  private readonly List<MiniBank.Web.Models.Reports.MemberBankingBalanceRow> _householdBalances = new();
+  private bool _householdLoading;
+
+  private readonly Dictionary<string, decimal> _householdLockedByCode = new(StringComparer.OrdinalIgnoreCase);
+
+  private decimal _applicantAvailableCapital;
+  private string _applicantAvailableCapitalStr = "0";
+  private bool _applicantAvailableError;
+
+  private decimal _householdAvailableCapital;
+  private string _householdAvailableCapitalStr = "0";
+
+  private readonly Dictionary<string, decimal> _editingLoanLockedByCode = new(StringComparer.OrdinalIgnoreCase);
+
+  private string _loanFactorStr = "";
+  private bool _loanFactorError;
+  private string _approvedPrincipalStr = "0";
+
+  private bool _approvedPrincipalError;
+  private string? _approvedPrincipalErrorText;
+
+  private string _nextLoanNumberText = "-";
+
+  private string? _penaltyDailyAmountText = "0";
+
+  private string? _manualEmiStr;
+  private bool _manualEmiTouched;
+  private bool _scheduleLoading;
+  private string? _scheduleErrorText;
+  private readonly List<LoanInstallment> _scheduleRows = new();
+
+  private readonly List<MiniBank.Web.Services.LoanService.HouseholdLoanRiskRow> _householdRiskRows = new();
+  private bool _householdRiskLoading;
+
+  private string? _step1BlockMessage;
+
+  private bool _step1HasActiveLoanBlock;
+
+  private bool _showGuaranteedLoansSheet;
+  private bool _guaranteedLoansLoading;
+  private string _guaranteedLoansSheetTitle = "وام‌های ضمانت‌شده";
+  private readonly List<MiniBank.Web.Services.LoanService.GuaranteedLoanRow> _guaranteedLoans = new();
+
+  private string? _principalStr;
+  private string _termMonthsStr = "";
+  private DateTime _disbursedAt = DateTime.Today;
+  private bool _disbursedAtTouched;
+
+  private string? _currentAnnualRateText;
+  private string? _currentPenaltyRateText;
+  private string? _previewEmiText;
+
+  private bool _annualRateTouched;
+  private bool _penaltyRateTouched;
+
+  private string? _notes;
+
+  private string _creditCheckResult = "-";
+  private string _creditCheckNotes = "-";
+
+  private sealed class GuarantorRow
+  {
+    public string? GuarantorMemberIdStr { get; set; }
+    public string LockPercentStr { get; set; } = "100";
+    public string AmountStr { get; set; } = "0";
+    public string NetPrincipalStr { get; set; } = "0";
+    public string NetInterestStr { get; set; } = "0";
+    public string ExistingLockedStr { get; set; } = "0";
+    public string AvailableCapitalStr { get; set; } = "0";
+    public bool IsApplicantSelfGuarantee { get; set; }
+    public bool MemberError { get; set; }
+    public bool AmountError { get; set; }
+  }
+
+  private readonly List<GuarantorRow> _guarantors = new();
+
+  private string? _newGuarantorMemberCode;
+  private bool _newGuarantorMemberError;
+  private bool _newGuarantorAmountError;
+
+  private string _newGuarantorLockPercentStr = "100";
+  private string? _newGuarantorAmountStr = "0";
+
+  private string _newGuarantorNetPrincipalStr = "0";
+  private string _newGuarantorNetInterestStr = "0";
+  private string _newGuarantorExistingLockedStr = "0";
+  private string _newGuarantorAvailableCapitalStr = "0";
+
+  private bool _memberError;
+  private bool _principalError;
+  private bool _termError;
+  private bool _disbursedError;
+
+  private bool _annualRateError;
+  private bool _penaltyRateError;
+
+  private string HeaderStepTitle => _currentStep switch
+  {
+    1 => "مرحله ۱ : اعتبارسنجی متقاضی",
+    2 => "مرحله ۲ : تصویب مبلغ وام",
+    3 => "مرحله ۳ : ضامنین",
+    _ => "مرحله ۴ : بازبینی و تایید"
+  };
+
+  private string DisbursedAtString
+  {
+    get => _disbursedAt == default ? string.Empty : _disbursedAt.ToPersianDate();
+    set
+    {
+      if (string.IsNullOrWhiteSpace(value))
+      {
+        _disbursedAt = default;
+      }
+      else
+      {
+        _disbursedAt = DateTimeExtensions.FromPersianDate(value);
+      }
+    }
+  }
+
+  private string? ManualEmiDisplay => _manualEmiTouched ? _manualEmiStr : _previewEmiText;
+  private decimal EffectiveEmi => _manualEmiTouched ? ParseMoney(_manualEmiStr) : ParseMoney(_previewEmiText);
+
+  protected override async Task OnInitializedAsync()
+  {
+    await Task.Delay(50);
+    await InitJalaliPicker();
+    await LoadMembersAsync();
+
+    if (EditLoanId.HasValue && EditLoanId.Value > 0)
+      await LoadLoanForEditAsync(EditLoanId.Value);
+
+    await LoadCurrentRateAndPreviewAsync();
+    await RunCreditCheckAsync();
+  }
+
+  private async Task LoadLoanForEditAsync(long loanId)
+  {
+    try
+    {
+      var loan = await LoanService.GetByIdAsync(loanId);
+      if (loan == null)
+      {
+        Toasts.Warning("وام یافت نشد");
+        return;
+      }
+
+      _memberCode = !string.IsNullOrWhiteSpace(loan.MemberCode) ? loan.MemberCode : _memberCode;
+      _principalStr = ToMoney(loan.Principal);
+      _approvedPrincipalStr = ToMoney(loan.Principal);
+      _termMonthsStr = loan.TermMonths.ToString(CultureInfo.InvariantCulture);
+      _disbursedAt = loan.DisbursedAt.Date;
+      _notes = loan.Notes;
+      _nextLoanNumberText = loan.LoanId.ToString(CultureInfo.InvariantCulture);
+
+      _currentAnnualRateText = loan.AnnualRatePercent.ToString("0.##", CultureInfo.InvariantCulture);
+      _currentPenaltyRateText = loan.PenaltyAnnualRatePercent.ToString("0.##", CultureInfo.InvariantCulture);
+
+      _annualRateTouched = true;
+      _penaltyRateTouched = true;
+
+      _manualEmiTouched = loan.EmiAmount > 0;
+      _manualEmiStr = loan.EmiAmount > 0 ? ToMoney(loan.EmiAmount) : null;
+
+      _editingLoanLockedByCode.Clear();
+      var holds = (await CreditHoldRepo.GetByLoanIdAsync(loanId)).ToList();
+      foreach (var h in holds.Where(x => x.Status == CreditHoldStatus.Active && !string.IsNullOrWhiteSpace(x.MemberCode) && x.LockedAmount > 0))
+      {
+        var code = h.MemberCode!.Trim();
+        if (string.IsNullOrWhiteSpace(code)) continue;
+        if (_editingLoanLockedByCode.ContainsKey(code))
+          _editingLoanLockedByCode[code] += h.LockedAmount;
+        else
+          _editingLoanLockedByCode[code] = h.LockedAmount;
+      }
+
+      await LoadMemberActiveLoansAsync();
+      await LoadHouseholdBalancesAsync();
+
+      if (_householdAvailableCapital > 0)
+      {
+        var approved = ParseMoney(_approvedPrincipalStr);
+        if (approved > 0)
+        {
+          var factor = approved / _householdAvailableCapital;
+          if (factor < 0) factor = 0;
+          if (factor > 20m) factor = 20m;
+          factor = Math.Round(factor, 2, MidpointRounding.AwayFromZero);
+          _loanFactorStr = factor.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+      }
+
+      _guarantors.Clear();
+
+      // Load applicant self-guarantee (if exists) as a visible row in step 3
+      var applicantCodeForHold = (_memberCode ?? string.Empty).Trim();
+      var selfHold = holds
+        .Where(x => x.Status == CreditHoldStatus.Active && x.Role == CreditHoldRole.Applicant)
+        .Where(x => !string.IsNullOrWhiteSpace(x.MemberCode))
+        .FirstOrDefault(x => string.Equals(x.MemberCode!.Trim(), applicantCodeForHold, StringComparison.OrdinalIgnoreCase) && x.LockedAmount > 0);
+
+      if (selfHold != null && !string.IsNullOrWhiteSpace(applicantCodeForHold) && !_guarantors.Any(x => string.Equals(x.GuarantorMemberIdStr, applicantCodeForHold, StringComparison.OrdinalIgnoreCase)))
+      {
+        var snap = await MemberFinancial.GetSnapshotByMemberCodeAsync(applicantCodeForHold);
+        _snapshotsByMemberCode[applicantCodeForHold] = snap;
+
+        var available = snap.AvailableCapital;
+        if (_editingLoanLockedByCode.TryGetValue(applicantCodeForHold, out var lockedByThisLoan))
+          available += lockedByThisLoan;
+        if (available < 0) available = 0;
+
+        var locked = snap.LockedAmount;
+        if (_editingLoanLockedByCode.TryGetValue(applicantCodeForHold, out var lockedByThisLoan2))
+          locked = locked - lockedByThisLoan2;
+        if (locked < 0) locked = 0;
+
+        _guarantors.Add(new GuarantorRow
+        {
+          GuarantorMemberIdStr = applicantCodeForHold,
+          LockPercentStr = selfHold.LockPercent.ToString(CultureInfo.InvariantCulture),
+          AmountStr = ToMoney(selfHold.LockedAmount),
+          NetPrincipalStr = ToMoney(snap.NetPrincipal),
+          NetInterestStr = ToMoney(snap.NetInterest),
+          ExistingLockedStr = ToMoney(locked),
+          AvailableCapitalStr = ToMoney(available),
+          IsApplicantSelfGuarantee = true,
+          MemberError = false,
+          AmountError = false
+        });
+      }
+
+      var guarantees = (await LoanService.GetGuaranteesAsync(loanId)).ToList();
+      foreach (var g in guarantees.Where(x => x.Type == LoanGuaranteeType.GuarantorMember && !string.IsNullOrWhiteSpace(x.GuarantorMemberCode) && x.Amount > 0))
+      {
+        var code = g.GuarantorMemberCode!.Trim();
+        if (string.IsNullOrWhiteSpace(code)) continue;
+
+        var snap = await MemberFinancial.GetSnapshotByMemberCodeAsync(code);
+        _snapshotsByMemberCode[code] = snap;
+        var available = snap.AvailableCapital;
+        if (_editingLoanLockedByCode.TryGetValue(code, out var lockedByThisLoan))
+          available += lockedByThisLoan;
+        if (available < 0) available = 0;
+
+        var pct = (available > 0) ? (int)Math.Round((g.Amount / available) * 100m, 0, MidpointRounding.AwayFromZero) : 100;
+        if (pct <= 0) pct = 1;
+        if (pct > 100) pct = 100;
+
+        _guarantors.Add(new GuarantorRow
+        {
+          GuarantorMemberIdStr = code,
+          LockPercentStr = pct.ToString(CultureInfo.InvariantCulture),
+          AmountStr = ToMoney(g.Amount),
+          NetPrincipalStr = ToMoney(snap.NetPrincipal),
+          NetInterestStr = ToMoney(snap.NetInterest),
+          ExistingLockedStr = ToMoney(snap.LockedAmount),
+          AvailableCapitalStr = ToMoney(available),
+          MemberError = false,
+          AmountError = false
+        });
+      }
+
+      _currentStep = 1;
+      _pendingScrollToStep = _currentStep;
+      StateHasChanged();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری وام برای ویرایش: {ex.Message}");
+    }
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    await InitJalaliPicker();
+
+    if (_pendingScrollToStep.HasValue)
+    {
+      var s = _pendingScrollToStep.Value;
+      _pendingScrollToStep = null;
+      try { await Task.Delay(30); } catch { }
+      try { await JS.InvokeVoidAsync("appNav.scrollToIdSmoothRetryOffset", $"loan-step-{s}-top", 90, 12, 60); } catch { }
+    }
+  }
+
+  private async Task InitJalaliPicker()
+  {
+    try { await JS.InvokeVoidAsync("initJdp"); } catch { }
+  }
+
+  private async Task LoadMembersAsync()
+  {
+    try
+    {
+      var members = (await MemberRepo.GetAllAsync(activeOnly: true, limit: 500)).ToList();
+
+      _membersById.Clear();
+      foreach (var m in members)
+        _membersById[m.MemberId] = m;
+
+      var subs = await AccountsRepo.SearchMemberSubsidiariesAsync(q: null, activeOnly: true, limit: 1500);
+
+      _memberIdByCode.Clear();
+      foreach (var a in subs.Where(a => a.MemberId.HasValue && a.MemberId.Value > 0))
+        _memberIdByCode[a.Code] = a.MemberId!.Value;
+
+      _memberItems = subs
+        .Where(a => a.MemberId.HasValue && a.MemberId.Value > 0)
+        .OrderBy(a => a.Code)
+        .Select(a => new DsDropdown.DsDropdownItem
+        {
+          Value = a.Code,
+          Text = $"{a.Code} - {a.Name}"
+        })
+        .ToList();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری اعضا: {ex.Message}");
+    }
+  }
+
+  private Task OnStepChanged(int s)
+  {
+    _currentStep = s;
+    _pendingScrollToStep = _currentStep;
+    if (_currentStep == 2)
+      _ = EnsureDefaultRatesLoadedAsync();
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private async Task EnsureDefaultRatesLoadedAsync()
+  {
+    try
+    {
+      var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+      if (isEditMode) return;
+      if (_disbursedAt == default)
+      {
+        if (_disbursedAtTouched) return;
+        _disbursedAt = DateTime.Today;
+      }
+
+      var needAnnual = !_annualRateTouched && (string.IsNullOrWhiteSpace(_currentAnnualRateText) || (_currentAnnualRateText ?? string.Empty).Trim() == "-");
+      var needPenalty = !_penaltyRateTouched && (string.IsNullOrWhiteSpace(_currentPenaltyRateText) || (_currentPenaltyRateText ?? string.Empty).Trim() == "-");
+      if (!needAnnual && !needPenalty) return;
+
+      var plan = await LoanRateService.GetActiveForDateOrLatestAsync(_disbursedAt.Date);
+      if (plan == null) return;
+
+      if (needAnnual) _currentAnnualRateText = plan.AnnualRatePercent.ToString("0", CultureInfo.InvariantCulture);
+      if (needPenalty) _currentPenaltyRateText = plan.PenaltyAnnualRatePercent.ToString("0", CultureInfo.InvariantCulture);
+
+      await LoadCurrentRateAndPreviewAsync();
+    }
+    catch
+    {
+    }
+  }
+
+  private async Task OnMemberChanged(string? value)
+  {
+    _memberCode = value;
+    await RunCreditCheckAsync();
+    await LoadMemberActiveLoansAsync();
+    await LoadHouseholdBalancesAsync();
+    await Task.CompletedTask;
+  }
+
+  private long ResolveSelectedMemberId()
+  {
+    if (string.IsNullOrWhiteSpace(_memberCode)) return 0;
+    return _memberIdByCode.TryGetValue(_memberCode, out var id) ? id : 0;
+  }
+
+  private async Task LoadMemberActiveLoansAsync()
+  {
+    _activeLoans.Clear();
+
+    if (string.IsNullOrWhiteSpace(_memberCode))
+    {
+      StateHasChanged();
+      return;
+    }
+
+    _activeLoansLoading = true;
+    StateHasChanged();
+
+    try
+    {
+      var loans = (await LoanService.GetByMemberCodeAsync(_memberCode)).ToList();
+      var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+      _activeLoans.AddRange(loans
+        .Where(x => x.Status == LoanStatus.Approved || x.Status == LoanStatus.Disbursed || x.Status == LoanStatus.Active)
+        .Where(x => !isEditMode || x.LoanId != EditLoanId!.Value));
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری وام‌های متقاضی: {ex.Message}");
+    }
+    finally
+    {
+      _activeLoansLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task LoadHouseholdBalancesAsync()
+  {
+    _householdBalances.Clear();
+    _householdRiskRows.Clear();
+    _householdLockedByCode.Clear();
+    _step1BlockMessage = null;
+
+    _applicantAvailableCapital = 0m;
+    _applicantAvailableCapitalStr = "0";
+    _householdAvailableCapital = 0m;
+    _householdAvailableCapitalStr = "0";
+    var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+    if (!isEditMode)
+      _approvedPrincipalStr = "0";
+
+    var memberId = ResolveSelectedMemberId();
+    if (memberId <= 0)
+    {
+      StateHasChanged();
+      return;
+    }
+
+    if (!_membersById.TryGetValue(memberId, out var member) || string.IsNullOrWhiteSpace(member.HouseholdCode))
+    {
+      StateHasChanged();
+      return;
+    }
+
+    _householdLoading = true;
+    _householdRiskLoading = false;
+    StateHasChanged();
+
+    try
+    {
+      var rows = (await TxReportRepo.GetHouseholdMemberBankingBalancesAsync(member.HouseholdCode)).ToList();
+      _householdBalances.AddRange(rows);
+
+      var codes = _householdBalances
+        .Select(x => x.BankAccountNumber)
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Select(x => x!)
+        .ToList();
+
+      // Preload member snapshots (net principal/interest + locked/available) for reuse in guarantor steps
+      var snaps = await MemberFinancial.GetSnapshotsByMemberCodesAsync(codes);
+      foreach (var kv in snaps)
+        _snapshotsByMemberCode[kv.Key] = kv.Value;
+
+      var lockedMap = await CreditHoldRepo.SumActiveLockedAmountByMemberCodesAsync(codes);
+      foreach (var kv in lockedMap)
+        _householdLockedByCode[kv.Key] = kv.Value;
+
+      if (isEditMode)
+      {
+        foreach (var kv in _editingLoanLockedByCode)
+        {
+          if (!_householdLockedByCode.TryGetValue(kv.Key, out var l)) continue;
+          var nl = l - kv.Value;
+          _householdLockedByCode[kv.Key] = nl < 0 ? 0m : nl;
+        }
+      }
+
+      _householdAvailableCapital = _householdBalances.Sum(x =>
+      {
+        var code = x.BankAccountNumber;
+        var locked = (!string.IsNullOrWhiteSpace(code) && _householdLockedByCode.TryGetValue(code, out var l)) ? l : 0m;
+        var av = x.TotalBalance - locked;
+        return av < 0 ? 0m : av;
+      });
+      _householdAvailableCapitalStr = ToMoney(_householdAvailableCapital);
+
+      if (!string.IsNullOrWhiteSpace(_memberCode))
+      {
+        _applicantAvailableCapital = await LoanService.GetMemberAvailableCapitalByCodeAsync(_memberCode);
+        if (isEditMode && _editingLoanLockedByCode.TryGetValue(_memberCode, out var lockedByThisLoan))
+          _applicantAvailableCapital += lockedByThisLoan;
+        if (_applicantAvailableCapital < 0) _applicantAvailableCapital = 0;
+        _applicantAvailableCapitalStr = ToMoney(_applicantAvailableCapital);
+      }
+
+      var factor = ParseDecimal(_loanFactorStr);
+      if (factor > 0 && _householdAvailableCapital > 0)
+      {
+        var max = _householdAvailableCapital * 20m;
+        var v = Math.Round(_householdAvailableCapital * factor, 0, MidpointRounding.AwayFromZero);
+        if (v > max) v = max;
+        _approvedPrincipalStr = ToMoney(v);
+      }
+
+      _householdRiskLoading = true;
+      StateHasChanged();
+      var risk = await LoanService.GetHouseholdLoanRiskAsync(member.HouseholdCode);
+      _householdRiskRows.AddRange(risk);
+
+      _step1BlockMessage = null;
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری اطلاعات خانوار: {ex.Message}");
+    }
+    finally
+    {
+      _householdLoading = false;
+      _householdRiskLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task RunCreditCheckAsync()
+  {
+    try
+    {
+      var memberId = ResolveSelectedMemberId();
+      if (memberId <= 0)
+      {
+        _creditCheckResult = "-";
+        _creditCheckNotes = "ابتدا متقاضی را انتخاب کنید";
+        StateHasChanged();
+        return;
+      }
+
+      _creditCheckResult = "مجاز";
+      _creditCheckNotes = "اعتبارسنجی پایه انجام شد";
+      StateHasChanged();
+    }
+    catch
+    {
+      _creditCheckResult = "-";
+      _creditCheckNotes = "";
+    }
+
+    await Task.CompletedTask;
+  }
+
+  private async Task OnPrincipalChanged(string? v)
+  {
+    _principalStr = v;
+    await LoadCurrentRateAndPreviewAsync();
+    await RecalcScheduleAsync();
+  }
+
+  private async Task OnManualEmiChanged(string? v)
+  {
+    _manualEmiTouched = true;
+    _manualEmiStr = v;
+    await RecalcScheduleAsync();
+  }
+
+  private async Task OnTermMonthsInput(ChangeEventArgs e)
+  {
+    _termMonthsStr = e.Value?.ToString() ?? string.Empty;
+    await RecalcScheduleAsync();
+  }
+
+  private async Task OnAnnualRateInput(ChangeEventArgs e)
+  {
+    _currentAnnualRateText = e.Value?.ToString() ?? string.Empty;
+    _annualRateTouched = true;
+    await RecalcScheduleAsync();
+  }
+
+  private async Task OnPenaltyRateInput(ChangeEventArgs e)
+  {
+    _currentPenaltyRateText = e.Value?.ToString() ?? string.Empty;
+    _penaltyRateTouched = true;
+    await RecalcScheduleAsync();
+  }
+
+  private int _scheduleCalcVersion;
+
+  private async Task RecalcScheduleAsync()
+  {
+    var calcVersion = ++_scheduleCalcVersion;
+    _scheduleRows.Clear();
+    _scheduleErrorText = null;
+    _penaltyDailyAmountText = "0";
+
+    var p = ParseMoney(_principalStr);
+    var n = ParseInt(_termMonthsStr);
+    if (p <= 0 || n <= 0 || _disbursedAt == default)
+    {
+      StateHasChanged();
+      return;
+    }
+
+    var annualOk = decimal.TryParse((_currentAnnualRateText ?? string.Empty).Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var annualRate) && annualRate >= 0;
+    var penaltyOk = decimal.TryParse((_currentPenaltyRateText ?? string.Empty).Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var penaltyAnnualRate) && penaltyAnnualRate >= 0;
+
+    if (!annualOk || !penaltyOk)
+    {
+      try
+      {
+        var plan = await LoanRateService.GetActiveForDateOrLatestAsync(_disbursedAt.Date);
+        if (plan != null)
+        {
+          if (!annualOk)
+          {
+            _currentAnnualRateText = plan.AnnualRatePercent.ToString("0", CultureInfo.InvariantCulture);
+            annualRate = plan.AnnualRatePercent;
+            annualOk = annualRate >= 0;
+          }
+
+          if (!penaltyOk)
+          {
+            _currentPenaltyRateText = plan.PenaltyAnnualRatePercent.ToString("0", CultureInfo.InvariantCulture);
+            penaltyAnnualRate = plan.PenaltyAnnualRatePercent;
+            penaltyOk = penaltyAnnualRate >= 0;
+          }
+        }
+      }
+      catch
+      {
+      }
+
+      if (!annualOk)
+      {
+        StateHasChanged();
+        return;
+      }
+    }
+
+    var firstDue = _disbursedAt.Date.AddPersianMonths(1);
+
+    _scheduleLoading = true;
+    StateHasChanged();
+    var isLatest = false;
+    try
+    {
+      var manualEmi = _manualEmiTouched ? ParseMoney(_manualEmiStr) : 0m;
+
+      var standard = LoanCalculator.GenerateSchedule(0, p, n, firstDue, annualRate);
+      var used = manualEmi > 0
+        ? LoanCalculator.GenerateScheduleWithFixedEmi(0, p, n, firstDue, annualRate, manualEmi)
+        : standard;
+
+      isLatest = calcVersion == _scheduleCalcVersion;
+      if (!isLatest)
+        return;
+
+      // Keep preview EMI always based on the standard amortization
+      _previewEmiText = ToMoney(standard.emiAmount);
+
+      _scheduleRows.AddRange(used.installments);
+
+      if (_manualEmiTouched)
+        _manualEmiStr = manualEmi > 0 ? ToMoney(manualEmi) : null;
+
+      // Option B: penalty daily amount based on overdue installment amount (EMI) and penalty annual rate
+      if (penaltyOk && penaltyAnnualRate > 0)
+      {
+        var emiForPenalty = _scheduleRows.Count > 0 ? _scheduleRows[0].EmiAmount : used.emiAmount;
+        var daily = Math.Round((emiForPenalty * (penaltyAnnualRate / 100m) / 365m), 0, MidpointRounding.AwayFromZero);
+        if (daily < 0) daily = 0;
+        _penaltyDailyAmountText = ToMoney(daily);
+      }
+    }
+    catch (Exception ex)
+    {
+      if (calcVersion == _scheduleCalcVersion)
+        _scheduleErrorText = ex.Message;
+    }
+    finally
+    {
+      if (calcVersion == _scheduleCalcVersion)
+      {
+        _scheduleLoading = false;
+        StateHasChanged();
+      }
+      await Task.CompletedTask;
+    }
+  }
+
+  private async Task OnDisbursedAtChanged(ChangeEventArgs e)
+  {
+    var raw = e.Value?.ToString() ?? string.Empty;
+    // Some Jalali picker initializations can fire empty change events.
+    // Never let an empty change reset a valid date (this breaks default rate loading).
+    if (string.IsNullOrWhiteSpace(raw) && _disbursedAt != default)
+      return;
+
+    if (!string.IsNullOrWhiteSpace(raw))
+      _disbursedAtTouched = true;
+
+    DisbursedAtString = raw;
+    await LoadCurrentRateAndPreviewAsync();
+    await RecalcScheduleAsync();
+  }
+
+  private static decimal ParseMoney(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return 0m;
+    // Keep only integer part if user types decimal separators to avoid accidental huge numbers.
+    // Example: "2,070,991,377.0000" should be treated as 2,070,991,377 not 20,709,913,770,000,000.
+    var chars = s.Trim();
+    var digits = new List<char>(chars.Length);
+    foreach (var ch in chars)
+    {
+      if (ch == '.' || ch == '/' || ch == '\\') break;
+      if (char.IsDigit(ch)) digits.Add(ch);
+    }
+    var digitsStr = new string(digits.ToArray());
+    if (string.IsNullOrEmpty(digitsStr)) return 0m;
+    return decimal.TryParse(digitsStr, NumberStyles.None, CultureInfo.InvariantCulture, out var d) ? d : 0m;
+  }
+
+  private static int ParseInt(string? s)
+    => int.TryParse(new string((s ?? string.Empty).Where(char.IsDigit).ToArray()), out var n) ? n : 0;
+
+  private static string ToMoney(decimal v)
+    => v.ToString("N0", CultureInfo.InvariantCulture);
+
+  private static decimal ParseDecimal(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return 0m;
+    var t = s.Trim().Replace(",", ".");
+    return decimal.TryParse(t, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var n) ? n : 0m;
+  }
+
+  private static decimal ClampLoanFactorTo2Decimals(decimal factor)
+  {
+    if (factor < 0m) factor = 0m;
+    if (factor > 20m) factor = 20m;
+    // Truncate (NOT round) to avoid bumping tiny ratios (e.g. <1%) to 0.01
+    return Math.Truncate(factor * 100m) / 100m;
+  }
+
+  private static decimal GetTotalPayable(Loan l)
+  {
+    if (l == null) return 0m;
+    return l.EmiAmount > 0 && l.TermMonths > 0 ? (l.EmiAmount * l.TermMonths) : l.Principal;
+  }
+
+  private static decimal GetOutstandingWithInterest(Loan l)
+  {
+    if (l == null) return 0m;
+    var totalPayable = l.EmiAmount > 0 && l.TermMonths > 0 ? (l.EmiAmount * l.TermMonths) : l.Principal;
+    var totalInterest = totalPayable - l.Principal;
+    if (totalInterest < 0) totalInterest = 0;
+    return l.OutstandingPrincipal + totalInterest;
+  }
+
+  private static decimal GetTotalPayable(MiniBank.Web.Services.LoanService.GuaranteedLoanRow l)
+  {
+    if (l == null) return 0m;
+    return l.EmiAmount > 0 && l.TermMonths > 0 ? (l.EmiAmount * l.TermMonths) : l.Principal;
+  }
+
+  private static decimal GetOutstandingWithInterest(MiniBank.Web.Services.LoanService.GuaranteedLoanRow l)
+  {
+    if (l == null) return 0m;
+    var totalPayable = l.EmiAmount > 0 && l.TermMonths > 0 ? (l.EmiAmount * l.TermMonths) : l.Principal;
+    var totalInterest = totalPayable - l.Principal;
+    if (totalInterest < 0) totalInterest = 0;
+    return l.OutstandingPrincipal + totalInterest;
+  }
+
+  private async Task OpenGuaranteedLoansAsync(MiniBank.Web.Services.LoanService.HouseholdLoanRiskRow r)
+  {
+    if (r == null || r.ActiveGuarantorCount <= 0) return;
+
+    _guaranteedLoans.Clear();
+    _guaranteedLoansLoading = true;
+    _showGuaranteedLoansSheet = true;
+    _guaranteedLoansSheetTitle = $"وام‌های ضمانت‌شده - {r.MemberName}";
+    StateHasChanged();
+
+    try
+    {
+      var rows = await LoanService.GetActiveGuaranteedLoansAsync(r.MemberId, r.MemberCode);
+      _guaranteedLoans.AddRange(rows);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری وام‌های ضمانت‌شده: {ex.Message}");
+    }
+    finally
+    {
+      _guaranteedLoansLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task CloseGuaranteedLoansSheet()
+  {
+    _showGuaranteedLoansSheet = false;
+    await Task.CompletedTask;
+  }
+
+  private async Task LoadCurrentRateAndPreviewAsync()
+  {
+    try
+    {
+      var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+
+      if (_disbursedAt == default)
+      {
+        if (!isEditMode)
+        {
+          if (!_annualRateTouched) _currentAnnualRateText = string.Empty;
+          if (!_penaltyRateTouched) _currentPenaltyRateText = string.Empty;
+        }
+        _previewEmiText = string.Empty;
+        StateHasChanged();
+        return;
+      }
+
+      var plan = await LoanRateService.GetActiveForDateOrLatestAsync(_disbursedAt.Date);
+      if (plan == null)
+      {
+        if (!isEditMode)
+        {
+          if (!_annualRateTouched) _currentAnnualRateText = "-";
+          if (!_penaltyRateTouched) _currentPenaltyRateText = "-";
+        }
+        _previewEmiText = "-";
+        StateHasChanged();
+        return;
+      }
+
+      if (!isEditMode)
+      {
+        if (!_annualRateTouched)
+          _currentAnnualRateText = plan.AnnualRatePercent.ToString("0", CultureInfo.InvariantCulture);
+        if (!_penaltyRateTouched)
+          _currentPenaltyRateText = plan.PenaltyAnnualRatePercent.ToString("0", CultureInfo.InvariantCulture);
+      }
+
+      var p = ParseMoney(_principalStr);
+      var n = ParseInt(_termMonthsStr);
+      if (p > 0 && n > 0)
+      {
+        var annualForPreview = ParseDecimal(_currentAnnualRateText);
+        if (annualForPreview <= 0m) annualForPreview = plan.AnnualRatePercent;
+        var (emi, _) = LoanCalculator.GenerateSchedule(0, p, n, _disbursedAt.Date.AddPersianMonths(1), annualForPreview);
+        _previewEmiText = ToMoney(emi);
+      }
+      else
+      {
+        _previewEmiText = string.Empty;
+      }
+
+      StateHasChanged();
+    }
+    catch
+    {
+    }
+  }
+
+  private void Validate(bool showToasts)
+  {
+    var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+    var memberId = ResolveSelectedMemberId();
+    var principal = ParseMoney(_principalStr);
+    var term = ParseInt(_termMonthsStr);
+    var approvedPrincipal = ParseMoney(_approvedPrincipalStr);
+    var maxApproved = _householdAvailableCapital > 0 ? (_householdAvailableCapital * 20m) : 0m;
+
+    _memberError = string.IsNullOrWhiteSpace(_memberCode) || memberId <= 0;
+    _step1HasActiveLoanBlock = _currentStep >= 1 && !_memberError && !isEditMode && _activeLoans.Count > 0;
+    _applicantAvailableError = _currentStep >= 1 && !_memberError && !isEditMode && _applicantAvailableCapital <= 0;
+
+    _approvedPrincipalError = false;
+    _approvedPrincipalErrorText = null;
+    if (_currentStep >= 1 && !_memberError)
+    {
+      if (_householdAvailableCapital <= 0)
+      {
+        _approvedPrincipalError = true;
+        _approvedPrincipalErrorText = "خالص سپرده آزاد خانوار باید بیشتر از ۰ باشد";
+      }
+      else if (approvedPrincipal <= 0)
+      {
+        _approvedPrincipalError = true;
+        _approvedPrincipalErrorText = "مبلغ وام مصوب باید بیشتر از ۰ باشد";
+      }
+      else if (maxApproved > 0 && approvedPrincipal > maxApproved)
+      {
+        _approvedPrincipalError = true;
+        _approvedPrincipalErrorText = $"مبلغ وام مصوب نباید بیشتر از {ToMoney(maxApproved)} باشد";
+      }
+    }
+
+    _principalError = _currentStep >= 2 && principal <= 0;
+    _termError = _currentStep >= 2 && term <= 0;
+    _disbursedError = _currentStep >= 2 && _disbursedAt == default;
+
+    var annualOk = decimal.TryParse((_currentAnnualRateText ?? string.Empty).Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var annualRate) && annualRate >= 0;
+    var penaltyOk = decimal.TryParse((_currentPenaltyRateText ?? string.Empty).Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var penaltyRate) && penaltyRate >= 0;
+    _annualRateError = _currentStep >= 2 && (!annualOk || string.IsNullOrWhiteSpace(_currentAnnualRateText) || (_currentAnnualRateText ?? string.Empty).Trim() == "-");
+    _penaltyRateError = _currentStep >= 2 && (!penaltyOk || string.IsNullOrWhiteSpace(_currentPenaltyRateText) || (_currentPenaltyRateText ?? string.Empty).Trim() == "-");
+
+    var factor = ClampLoanFactorTo2Decimals(ParseDecimal(_loanFactorStr));
+    var allowZeroBecauseApprovedIsValid = factor == 0m && approvedPrincipal > 0m;
+    _loanFactorError = _currentStep >= 1 && !string.IsNullOrWhiteSpace(_loanFactorStr) && !allowZeroBecauseApprovedIsValid && (factor < 0m || factor > 20m);
+
+    foreach (var g in _guarantors)
+    {
+      g.MemberError = _currentStep >= 3 && (string.IsNullOrWhiteSpace(g.GuarantorMemberIdStr) || !_memberIdByCode.ContainsKey(g.GuarantorMemberIdStr));
+      g.AmountError = _currentStep >= 3 && ParseMoney(g.AmountStr) <= 0;
+
+      if (_currentStep >= 3 && !g.MemberError)
+      {
+        var lockAmount = ParseMoney(g.AmountStr);
+        var available = ParseMoney(g.AvailableCapitalStr);
+        if (lockAmount > 0 && (available <= 0 || lockAmount > available))
+          g.AmountError = true;
+      }
+    }
+
+    var totalPayable = ReviewTotalPayable;
+    var guaranteed = _guarantors.Sum(x => ParseMoney(x.AmountStr));
+    var pct = (totalPayable > 0) ? (guaranteed / totalPayable * 100m) : 0m;
+
+    _guarantorCoveragePercentText = totalPayable > 0
+      ? pct.ToString("0.##", CultureInfo.InvariantCulture) + "%"
+      : "-";
+
+    _guarantorCoverageError = false;
+    _guarantorCoverageErrorText = null;
+    if (_currentStep >= 3 && !_ignoreGuarantorCoverage)
+    {
+      if (totalPayable > 0 && pct < 100m)
+      {
+        _guarantorCoverageError = true;
+        _guarantorCoverageErrorText = $"درصد تضمین باید حداقل ۱۰۰٪ مبلغ کل وام (اصل + سود) باشد یا گزینه چشم‌پوشی را فعال کنید. مبلغ کل: {ToMoney(totalPayable)}";
+      }
+    }
+
+    if (!showToasts) return;
+    if (_memberError) Toasts.Warning("انتخاب عضو الزامی است");
+    if (_step1HasActiveLoanBlock) Toasts.Warning("متقاضی دارای وام فعال است و امکان دریافت وام مجدد ندارد");
+    if (_applicantAvailableError) Toasts.Warning("خالص سپرده آزاد متقاضی باید بیشتر از 0 ریال باشد");
+    if (_approvedPrincipalError && !string.IsNullOrWhiteSpace(_approvedPrincipalErrorText)) Toasts.Warning(_approvedPrincipalErrorText);
+    if (_principalError) Toasts.Warning("مبلغ وام معتبر نیست");
+    if (_termError) Toasts.Warning("تعداد اقساط معتبر نیست");
+    if (_disbursedError) Toasts.Warning("تاریخ الزامی است");
+    if (_annualRateError) Toasts.Warning("نرخ سود معتبر وارد کنید");
+    if (_penaltyRateError) Toasts.Warning("نرخ دیرکرد معتبر وارد کنید");
+    if (_currentStep >= 3 && _guarantors.Count == 0) Toasts.Warning("حداقل یک ضامن وارد کنید");
+    if (_currentStep >= 3)
+    {
+      var bad = _guarantors
+        .Where(g => !g.MemberError)
+        .Select(g => new { g.GuarantorMemberIdStr, Lock = ParseMoney(g.AmountStr), Av = ParseMoney(g.AvailableCapitalStr) })
+        .FirstOrDefault(x => x.Lock > 0 && x.Av > 0 && x.Lock > x.Av);
+
+      if (bad != null)
+      {
+        var name = GetMemberDisplayByCode(bad.GuarantorMemberIdStr);
+        Toasts.Warning($"مبلغ بلوکه ضامن ({name}) بیشتر از سپرده آزاد او است");
+      }
+    }
+    if (_currentStep >= 3 && _guarantorCoverageError && !string.IsNullOrWhiteSpace(_guarantorCoverageErrorText)) Toasts.Warning(_guarantorCoverageErrorText);
+  }
+
+  private string? _nextStepError;
+  private string? _finalSubmitError;
+
+  private bool CanProceedToNextStep()
+  {
+    Validate(showToasts: false);
+    _nextStepError = null;
+    
+    // Check if we're in edit mode
+    bool isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+    
+    if (_currentStep == 1)
+    {
+      if (_memberError) 
+        _nextStepError = "لطفاً متقاضی را انتخاب کنید";
+      else if (!isEditMode && _step1HasActiveLoanBlock) 
+        _nextStepError = "متقاضی دارای وام فعال است و امکان دریافت وام مجدد ندارد";
+      else if (!isEditMode && _applicantAvailableError) 
+        _nextStepError = "خالص سپرده آزاد متقاضی باید بیشتر از 0 ریال باشد";
+      else if (_loanFactorError) 
+        _nextStepError = "ضریب وام معتبر نیست";
+      else if (_approvedPrincipalError) 
+        _nextStepError = _approvedPrincipalErrorText ?? "مبلغ وام مصوب معتبر نیست";
+    }
+    else if (_currentStep == 2)
+    {
+      if (_memberError) 
+        _nextStepError = "لطفاً متقاضی را انتخاب کنید";
+      else if (_principalError) 
+        _nextStepError = "لطفاً مبلغ وام را به درستی وارد کنید";
+      else if (_termError) 
+        _nextStepError = "لطفاً تعداد اقساط را به درستی وارد کنید";
+      else if (_disbursedError) 
+        _nextStepError = "لطفاً تاریخ پرداخت را انتخاب کنید";
+      else if (_annualRateError)
+        _nextStepError = "نرخ سود معتبر وارد کنید";
+      else if (_penaltyRateError)
+        _nextStepError = "نرخ دیرکرد معتبر وارد کنید";
+    }
+    else if (_currentStep == 3)
+    {
+      if (_memberError) 
+      {
+        _nextStepError = "لطفاً متقاضی را انتخاب کنید";
+      }
+      else if (_guarantors.Count == 0) 
+      {
+        _nextStepError = "حداقل یک ضامن اضافه کنید";
+      }
+      else
+      {
+        var invalidGuarantor = _guarantors.FirstOrDefault(g => g.MemberError || g.AmountError);
+        if (invalidGuarantor != null)
+        {
+          if (invalidGuarantor.MemberError)
+            _nextStepError = "لطفاً اطلاعات ضامن را به درستی وارد کنید";
+          else
+          {
+            var available = ParseMoney(invalidGuarantor.AvailableCapitalStr);
+            var amount = ParseMoney(invalidGuarantor.AmountStr);
+            if (amount > available)
+            {
+              var name = GetMemberDisplayByCode(invalidGuarantor.GuarantorMemberIdStr);
+              _nextStepError = $"مبلغ بلوکه ضامن ({name}) بیشتر از سپرده آزاد او است";
+            }
+            else
+              _nextStepError = "مبلغ تضمین ضامن معتبر نیست";
+          }
+        }
+        else if (_guarantorCoverageError)
+        {
+          _nextStepError = _guarantorCoverageErrorText ?? "پوشش تضمین کافی نیست";
+        }
+      }
+    }
+
+    return string.IsNullOrEmpty(_nextStepError);
+  }
+
+  private bool CanSubmitFinal()
+  {
+    Validate(showToasts: false);
+    
+    // Check if we're in edit mode
+    bool isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+
+    _finalSubmitError = null;
+
+    if (_memberError) _finalSubmitError = "لطفاً متقاضی را انتخاب کنید";
+    else if (_principalError) _finalSubmitError = "لطفاً مبلغ وام را به درستی وارد کنید";
+    else if (_termError) _finalSubmitError = "لطفاً تعداد اقساط را به درستی وارد کنید";
+    else if (_disbursedError) _finalSubmitError = "لطفاً تاریخ پرداخت را انتخاب کنید";
+    
+    // For edit mode, only validate basic required fields
+    if (isEditMode)
+    {
+      return _finalSubmitError == null;
+    }
+    
+    if (_finalSubmitError != null) return false;
+
+    // For new loans, apply all validations
+    if (_guarantors.Count == 0) { _finalSubmitError = "حداقل یک ضامن وارد کنید"; return false; }
+    if (_guarantors.Any(g => g.MemberError || g.AmountError)) { _finalSubmitError = "اطلاعات ضامنین کامل نیست"; return false; }
+    if (_guarantorCoverageError && !_ignoreGuarantorCoverage) { _finalSubmitError = _guarantorCoverageErrorText ?? "پوشش تضمین کافی نیست"; return false; }
+    return true;
+  }
+
+  private decimal ReviewPrincipal => ParseMoney(_principalStr);
+  private decimal ReviewApprovedPrincipal => ParseMoney(_approvedPrincipalStr);
+  private int ReviewTerm => ParseInt(_termMonthsStr);
+  private decimal ReviewGuaranteed => _guarantors.Sum(x => ParseMoney(x.AmountStr));
+  
+  // Total payable amount (principal + interest)
+  private decimal ReviewTotalPayable
+  {
+    get
+    {
+      var principal = ParseMoney(_principalStr);
+      var emi = _scheduleRows.Count > 0 ? _scheduleRows.Sum(x => x.InterestAmount) : 0m;
+      return principal + emi;
+    }
+  }
+
+  private bool _ignoreGuarantorCoverage;
+  private bool _guarantorCoverageError;
+  private string? _guarantorCoverageErrorText;
+  private string _guarantorCoveragePercentText = "-";
+
+  private int? _pendingScrollToStep;
+  private async Task OnNext()
+  {
+    if (_isSaving) return;
+    
+    // First validate and show any field-level errors
+    Validate(showToasts: true);
+    
+    // Then check if we can proceed to next step
+    if (!CanProceedToNextStep())
+    {
+      if (!string.IsNullOrEmpty(_nextStepError))
+        Toasts.Warning(_nextStepError);
+      else
+        Toasts.Warning("امکان رفتن به مرحله بعد وجود ندارد. لطفاً اطلاعات را بررسی کنید.");
+      return;
+    }
+
+    var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+    if (_currentStep == 3 && !isEditMode)
+    {
+      // Hard gate: before entering step 4, re-check guarantors against latest snapshot/locks
+      var ok = await RefreshGuarantorsAndValidateAsync(showToasts: true);
+      if (!ok)
+      {
+        _pendingScrollToStep = _currentStep;
+        StateHasChanged();
+        await Task.CompletedTask;
+        return;
+      }
+    }
+
+    if (_currentStep == 1)
+    {
+      var v = ParseMoney(_approvedPrincipalStr);
+      if (v > 0)
+      {
+        _principalStr = ToMoney(Math.Round(v, 0, MidpointRounding.AwayFromZero));
+        await LoadCurrentRateAndPreviewAsync();
+      }
+
+      if (!isEditMode)
+      {
+        try
+        {
+          _nextLoanNumberText = (await LoanService.GetNextLoanNumberAsync()).ToString(CultureInfo.InvariantCulture);
+        }
+        catch
+        {
+          _nextLoanNumberText = "-";
+        }
+
+        _manualEmiTouched = false;
+        _manualEmiStr = null;
+      }
+
+      await RecalcScheduleAsync();
+    }
+
+    if (_currentStep < 4) _currentStep++;
+    if (_currentStep == 2)
+      await EnsureDefaultRatesLoadedAsync();
+    _pendingScrollToStep = _currentStep;
+    StateHasChanged();
+    await Task.CompletedTask;
+  }
+
+  private Task OnLoanFactorInput(ChangeEventArgs e)
+  {
+    var raw = e.Value?.ToString() ?? "";
+    var factor = ClampLoanFactorTo2Decimals(ParseDecimal(raw));
+
+    if (_householdAvailableCapital <= 0)
+    {
+      _loanFactorStr = "0";
+      _approvedPrincipalStr = "0";
+      Validate(showToasts: false);
+      StateHasChanged();
+      return Task.CompletedTask;
+    }
+
+    // keep factor formatted as decimal with up to 2 decimals
+    _loanFactorStr = factor.ToString("0.##", CultureInfo.InvariantCulture);
+
+    var max = _householdAvailableCapital * 20m;
+    var approved = Math.Round(_householdAvailableCapital * factor, 0, MidpointRounding.AwayFromZero);
+    if (approved > max) approved = max;
+    if (approved < 0) approved = 0;
+    _approvedPrincipalStr = ToMoney(approved);
+
+    Validate(showToasts: false);
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private Task OnApprovedPrincipalChanged(string? value)
+  {
+    var approved = ParseMoney(value);
+
+    if (_householdAvailableCapital <= 0)
+    {
+      _approvedPrincipalStr = "0";
+      _loanFactorStr = "0";
+      Validate(showToasts: false);
+      StateHasChanged();
+      return Task.CompletedTask;
+    }
+
+    var max = _householdAvailableCapital * 20m;
+    if (approved < 0) approved = 0;
+    if (approved > max) approved = max;
+
+    // Push the clamped value back to the input immediately
+    _approvedPrincipalStr = ToMoney(approved);
+
+    // sync factor from approved (0..3, up to 2 decimals, truncated)
+    var factor = ClampLoanFactorTo2Decimals(approved / _householdAvailableCapital);
+    _loanFactorStr = factor.ToString("0.##", CultureInfo.InvariantCulture);
+
+    Validate(showToasts: false);
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private async Task OnPrev()
+  {
+    if (_isSaving) return;
+    if (_currentStep > 1) _currentStep--;
+    _pendingScrollToStep = _currentStep;
+    StateHasChanged();
+    await Task.CompletedTask;
+  }
+
+  private async Task Cancel()
+  {
+    if (_isSaving) return;
+    await OnCancel.InvokeAsync();
+  }
+
+  private string SelectedMemberDisplay
+  {
+    get
+    {
+      if (string.IsNullOrWhiteSpace(_memberCode)) return "-";
+      var item = _memberItems.FirstOrDefault(x => x.Value == _memberCode);
+      return !string.IsNullOrWhiteSpace(item?.Text) ? item!.Text : _memberCode;
+    }
+  }
+
+  private void RemoveGuarantor(int index)
+  {
+    if (index < 0 || index >= _guarantors.Count) return;
+    _guarantors.RemoveAt(index);
+    StateHasChanged();
+  }
+
+  private async Task<bool> RefreshGuarantorsAndValidateAsync(bool showToasts)
+  {
+    try
+    {
+      if (_guarantors.Count == 0) return true;
+
+      var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+
+      var applicantCode = (_memberCode ?? string.Empty).Trim();
+
+      var codes = _guarantors
+        .Select(g => g.GuarantorMemberIdStr)
+        .Where(c => !string.IsNullOrWhiteSpace(c))
+        .Select(c => c!.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+      if (codes.Count == 0) return true;
+
+      var snaps = await MemberFinancial.GetSnapshotsByMemberCodesAsync(codes);
+      foreach (var kv in snaps)
+        _snapshotsByMemberCode[kv.Key] = kv.Value;
+
+      foreach (var g in _guarantors)
+      {
+        var code = (g.GuarantorMemberIdStr ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(code)) continue;
+        if (!snaps.TryGetValue(code, out var snap)) continue;
+
+        var available = snap.AvailableCapital;
+        if (isEditMode && _editingLoanLockedByCode.TryGetValue(code, out var lockedByThisLoan))
+          available += lockedByThisLoan;
+        if (available < 0) available = 0;
+
+        g.NetPrincipalStr = ToMoney(snap.NetPrincipal);
+        g.NetInterestStr = ToMoney(snap.NetInterest);
+        var locked = snap.LockedAmount;
+        if (isEditMode && _editingLoanLockedByCode.TryGetValue(code, out var lockedByThisLoan2))
+          locked = locked - lockedByThisLoan2;
+        if (locked < 0) locked = 0;
+        g.ExistingLockedStr = ToMoney(locked);
+        g.AvailableCapitalStr = ToMoney(available);
+
+        // Same safety check as LoanService: existing locked + new lock must not exceed total net.
+        // In edit mode we exclude locks created by the loan being edited.
+        var lockAmount = ParseMoney(g.AmountStr);
+        if (lockAmount > 0 && (locked + lockAmount) > snap.TotalNet)
+          g.AmountError = true;
+      }
+
+      // Block submit with a clear message
+      var bad = _guarantors
+        .Where(g => !g.MemberError)
+        .Select(g => new
+        {
+          g.GuarantorMemberIdStr,
+          Lock = ParseMoney(g.AmountStr),
+          Av = ParseMoney(g.AvailableCapitalStr),
+          NetTotal = ParseMoney(g.NetPrincipalStr) + ParseMoney(g.NetInterestStr),
+          ExistingLocked = ParseMoney(g.ExistingLockedStr)
+        })
+        // Self-guarantee is validated as applicant lock in service; do not block as guarantor here
+        .Where(x => string.IsNullOrWhiteSpace(applicantCode)
+          || string.IsNullOrWhiteSpace(x.GuarantorMemberIdStr)
+          || !string.Equals(x.GuarantorMemberIdStr.Trim(), applicantCode, StringComparison.OrdinalIgnoreCase))
+        .FirstOrDefault(x => x.Lock > 0 && (x.ExistingLocked + x.Lock) > x.NetTotal);
+
+      if (bad != null)
+      {
+        if (showToasts)
+        {
+          var name = GetMemberDisplayByCode(bad.GuarantorMemberIdStr);
+          Toasts.Warning($"اعتبار آزاد ضامن ({name}) برای قفل شدن کافی نیست — خالص: {ToMoney(bad.NetTotal)} | مسدود فعلی: {ToMoney(bad.ExistingLocked)} | مبلغ جدید: {ToMoney(bad.Lock)}");
+        }
+        return false;
+      }
+
+      return true;
+    }
+    catch (Exception ex)
+    {
+      if (showToasts)
+        Toasts.Error($"خطا در بروزرسانی اطلاعات ضامنین: {ex.Message}");
+      return false;
+    }
+  }
+
+  private readonly Dictionary<string, MemberFinancialSnapshot> _snapshotsByMemberCode = new(StringComparer.OrdinalIgnoreCase);
+
+  private string GetMemberDisplayByCode(string? code)
+  {
+    if (string.IsNullOrWhiteSpace(code)) return "-";
+    var item = _memberItems.FirstOrDefault(x => x.Value == code);
+    return !string.IsNullOrWhiteSpace(item?.Text) ? item!.Text : code;
+  }
+
+  private async Task OnNewGuarantorMemberChanged(string? v)
+  {
+    _newGuarantorMemberCode = v;
+    _newGuarantorMemberError = false;
+    await LoadNewGuarantorFinancialsAsync();
+
+    if (!string.IsNullOrWhiteSpace(_newGuarantorMemberCode))
+    {
+      var av = ParseMoney(_newGuarantorAvailableCapitalStr);
+      if (av <= 0)
+      {
+        Toasts.Warning("سپرده آزاد ضامن برای ضمانت کافی نیست");
+        _newGuarantorMemberCode = null;
+        _newGuarantorNetPrincipalStr = "0";
+        _newGuarantorNetInterestStr = "0";
+        _newGuarantorExistingLockedStr = "0";
+        _newGuarantorAvailableCapitalStr = "0";
+        _newGuarantorAmountStr = "0";
+        _newGuarantorLockPercentStr = "100";
+        StateHasChanged();
+        return;
+      }
+    }
+
+    await RecalcNewGuarantorLockedAmountAsync();
+  }
+
+  private Task OnNewGuarantorPercentInput(ChangeEventArgs e)
+  {
+    _newGuarantorLockPercentStr = e.Value?.ToString() ?? "";
+    _ = RecalcNewGuarantorLockedAmountAsync();
+    return Task.CompletedTask;
+  }
+
+  private async Task OnNewGuarantorAmountChanged(string? v)
+  {
+    _newGuarantorAmountStr = v ?? "0";
+    await SyncNewGuarantorPercentFromAmountAsync();
+  }
+
+  private async Task LoadNewGuarantorFinancialsAsync()
+  {
+    if (string.IsNullOrWhiteSpace(_newGuarantorMemberCode))
+    {
+      _newGuarantorNetPrincipalStr = "0";
+      _newGuarantorNetInterestStr = "0";
+      _newGuarantorExistingLockedStr = "0";
+      _newGuarantorAvailableCapitalStr = "0";
+      _newGuarantorAmountStr = "0";
+      StateHasChanged();
+      return;
+    }
+
+    var code = _newGuarantorMemberCode.Trim();
+    if (!_snapshotsByMemberCode.TryGetValue(code, out var snap))
+    {
+      snap = await MemberFinancial.GetSnapshotByMemberCodeAsync(code);
+      _snapshotsByMemberCode[code] = snap;
+    }
+
+    var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+    var available = snap.AvailableCapital;
+    if (isEditMode && _editingLoanLockedByCode.TryGetValue(code, out var lockedByThisLoan))
+      available += lockedByThisLoan;
+    if (available < 0) available = 0;
+
+    var locked = snap.LockedAmount;
+    if (isEditMode && _editingLoanLockedByCode.TryGetValue(code, out var lockedByThisLoan2))
+      locked = locked - lockedByThisLoan2;
+    if (locked < 0) locked = 0;
+
+    _newGuarantorNetPrincipalStr = ToMoney(snap.NetPrincipal);
+    _newGuarantorNetInterestStr = ToMoney(snap.NetInterest);
+    _newGuarantorExistingLockedStr = ToMoney(locked);
+    _newGuarantorAvailableCapitalStr = ToMoney(available);
+    StateHasChanged();
+  }
+
+  private async Task RecalcNewGuarantorLockedAmountAsync()
+  {
+    try
+    {
+      if (string.IsNullOrWhiteSpace(_newGuarantorMemberCode))
+      {
+        _newGuarantorAmountStr = "0";
+        return;
+      }
+
+      var code = _newGuarantorMemberCode.Trim();
+      if (!_snapshotsByMemberCode.TryGetValue(code, out var snap)) snap = new MemberFinancialSnapshot { MemberCode = code };
+
+      var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+      var available = snap.AvailableCapital;
+      if (isEditMode && _editingLoanLockedByCode.TryGetValue(code, out var lockedByThisLoan))
+        available += lockedByThisLoan;
+      if (available < 0) available = 0;
+
+      var pct = ParseInt(_newGuarantorLockPercentStr);
+      if (pct <= 0) pct = 1;
+      if (pct > 100) pct = 100;
+      _newGuarantorLockPercentStr = pct.ToString(CultureInfo.InvariantCulture);
+
+      var locked = Math.Round(available * pct / 100m, 0, MidpointRounding.AwayFromZero);
+      _newGuarantorAmountStr = ToMoney(locked);
+    }
+    finally
+    {
+      await Task.Yield();
+      StateHasChanged();
+    }
+  }
+
+  private async Task SyncNewGuarantorPercentFromAmountAsync()
+  {
+    try
+    {
+      if (string.IsNullOrWhiteSpace(_newGuarantorMemberCode)) return;
+      var code = _newGuarantorMemberCode.Trim();
+      if (!_snapshotsByMemberCode.TryGetValue(code, out var snap)) snap = new MemberFinancialSnapshot { MemberCode = code };
+
+      var isEditMode = EditLoanId.HasValue && EditLoanId.Value > 0;
+      var available = snap.AvailableCapital;
+      if (isEditMode && _editingLoanLockedByCode.TryGetValue(code, out var lockedByThisLoan))
+        available += lockedByThisLoan;
+      if (available <= 0)
+      {
+        _newGuarantorLockPercentStr = "0";
+        _newGuarantorAmountStr = "0";
+        return;
+      }
+
+      var amt = ParseMoney(_newGuarantorAmountStr);
+      if (amt < 0) amt = 0;
+      if (amt > available) amt = available;
+
+      var pct = (int)Math.Round((amt / available) * 100m, 0, MidpointRounding.AwayFromZero);
+      if (pct <= 0) pct = 1;
+      if (pct > 100) pct = 100;
+      _newGuarantorLockPercentStr = pct.ToString(CultureInfo.InvariantCulture);
+      _newGuarantorAmountStr = ToMoney(Math.Round(amt, 0, MidpointRounding.AwayFromZero));
+    }
+    finally
+    {
+      await Task.Yield();
+      StateHasChanged();
+    }
+  }
+
+  private void AddGuarantorFromForm()
+  {
+    _newGuarantorMemberError = string.IsNullOrWhiteSpace(_newGuarantorMemberCode);
+    _newGuarantorAmountError = ParseMoney(_newGuarantorAmountStr) <= 0;
+    if (_newGuarantorMemberError || _newGuarantorAmountError)
+    {
+      StateHasChanged();
+      return;
+    }
+
+    var code = _newGuarantorMemberCode!.Trim();
+
+    if (_guarantors.Any(x => string.Equals(x.GuarantorMemberIdStr, code, StringComparison.OrdinalIgnoreCase)))
+    {
+      Toasts.Warning("این ضامن قبلاً اضافه شده است");
+      return;
+    }
+
+    var row = new GuarantorRow
+    {
+      GuarantorMemberIdStr = code,
+      LockPercentStr = _newGuarantorLockPercentStr,
+      AmountStr = _newGuarantorAmountStr ?? "0",
+      NetPrincipalStr = _newGuarantorNetPrincipalStr,
+      NetInterestStr = _newGuarantorNetInterestStr,
+      ExistingLockedStr = _newGuarantorExistingLockedStr,
+      AvailableCapitalStr = _newGuarantorAvailableCapitalStr,
+      MemberError = false,
+      AmountError = false
+    };
+
+    _guarantors.Add(row);
+    _newGuarantorMemberCode = null;
+    _newGuarantorLockPercentStr = "100";
+    _newGuarantorAmountStr = "0";
+    _newGuarantorNetPrincipalStr = "0";
+    _newGuarantorNetInterestStr = "0";
+    _newGuarantorExistingLockedStr = "0";
+    _newGuarantorAvailableCapitalStr = "0";
+    _newGuarantorMemberError = false;
+    _newGuarantorAmountError = false;
+    StateHasChanged();
+  }
+
+
+  private async Task OnFinalSubmit()
+  {
+    if (_isSaving) return;
+
+    Validate(showToasts: true);
+    if (!CanSubmitFinal())
+    {
+      if (!string.IsNullOrWhiteSpace(_finalSubmitError))
+        Toasts.Warning(_finalSubmitError);
+      else
+        Toasts.Warning("امکان تایید نهایی وجود ندارد. لطفاً اطلاعات را بررسی کنید.");
+      return;
+    }
+
+    if (!await RefreshGuarantorsAndValidateAsync(showToasts: true))
+    {
+      StateHasChanged();
+      return;
+    }
+
+    var principal = ParseMoney(_principalStr);
+    var term = ParseInt(_termMonthsStr);
+    var memberId = ResolveSelectedMemberId();
+
+    var applicantCode = (_memberCode ?? string.Empty).Trim();
+
+    var guarantees = _guarantors
+      .Select(g => new LoanGuarantee
+      {
+        Type = LoanGuaranteeType.GuarantorMember,
+        GuarantorMemberId = !string.IsNullOrWhiteSpace(g.GuarantorMemberIdStr) && _memberIdByCode.TryGetValue(g.GuarantorMemberIdStr, out var gid) ? gid : null,
+        GuarantorMemberCode = g.GuarantorMemberIdStr,
+        Amount = ParseMoney(g.AmountStr),
+        IsActive = true
+      })
+      .ToList();
+
+    _ = applicantCode; // keep for readability/debug
+
+    _isSaving = true;
+    try
+    {
+      var fixedEmi = EffectiveEmi > 0 ? EffectiveEmi : (decimal?)null;
+      var annualOverride = ParseDecimal(_currentAnnualRateText);
+      var penaltyOverride = ParseDecimal(_currentPenaltyRateText);
+      decimal? annualRatePercentOverride = annualOverride >= 0m ? annualOverride : null;
+      decimal? penaltyAnnualRatePercentOverride = (_currentPenaltyRateText ?? string.Empty).Trim() == string.Empty ? null : penaltyOverride;
+      if (EditLoanId.HasValue && EditLoanId.Value > 0)
+      {
+        await LoanService.UpdateLoanWithScheduleAsync(
+          EditLoanId.Value,
+          _memberCode!,
+          principal,
+          term,
+          _disbursedAt,
+          fixedEmi,
+          null,
+          _notes,
+          guarantees,
+          _ignoreGuarantorCoverage,
+          annualRatePercentOverride,
+          penaltyAnnualRatePercentOverride);
+      }
+      else
+      {
+        await LoanService.CreateLoanWithScheduleAsync(
+          _memberCode!,
+          null,
+          principal,
+          term,
+          _disbursedAt,
+          fixedEmi,
+          null,
+          _notes,
+          guarantees,
+          _ignoreGuarantorCoverage,
+          annualRatePercentOverride,
+          penaltyAnnualRatePercentOverride);
+      }
+      await OnSaved.InvokeAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ایجاد وام: {ex.Message}");
+    }
+    finally
+    {
+      _isSaving = false;
+      StateHasChanged();
+    }
+  }
+}

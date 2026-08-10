@@ -1,0 +1,62 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
+@inject MiniBank.Web.Services.OnlineUsersTracker Tracker
+@inject NavigationManager Nav
+
+@code {
+    private CancellationTokenSource? _cts;
+
+    protected override void OnInitialized()
+    {
+        _cts = new CancellationTokenSource();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (_cts == null) return;
+
+        _ = RunLoopAsync(_cts.Token);
+        await Task.CompletedTask;
+    }
+
+    private async Task RunLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(25));
+            while (!ct.IsCancellationRequested)
+            {
+                await TouchOnceAsync();
+                await timer.WaitForNextTickAsync(ct);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch { }
+    }
+
+    private async Task TouchOnceAsync()
+    {
+        try
+        {
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = state.User;
+            if (user?.Identity?.IsAuthenticated != true) return;
+
+            Tracker.Touch(user, Nav.Uri);
+            Tracker.PurgeOlderThan(TimeSpan.FromHours(24));
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+        }
+        catch { }
+    }
+}

@@ -1,0 +1,498 @@
+@page "/admin/reports/loans"
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Models
+@inject LoanReportsRepository Repo
+@inject NavigationManager Nav
+
+<PageTitle>گزارش وام‌ها</PageTitle>
+
+<DsPageHeader Title="گزارش وام‌ها" 
+             Icon="fa-solid fa-list-check"
+             Subtitle="خلاصه کلی وام‌ها (آخرین وضعیت وصولی و معوقات)"
+             ShowBackButton="true" />
+
+<style>
+  .lr-wrap{direction:rtl}
+  .lr-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(15,23,42,.08)}
+  .lr-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .lr-field{display:flex;flex-direction:column;gap:6px}
+  .lr-field label{font-weight:900;font-size:12px;color:#0f172a}
+  .lr-input{height:40px;border-radius:10px;border:1px solid #cbd5e1;padding:0 10px;font-weight:900;outline:none}
+  .lr-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.14)}
+  .lr-actions{display:flex;gap:8px;align-items:center}
+  .lr-btn{height:40px;border-radius:10px;border:1px solid #e5e7eb;background:#0ea5e9;color:#fff;font-weight:900;padding:0 12px;cursor:pointer}
+  .lr-btn.secondary{background:#fff;color:#0f172a}
+  .lr-btn.export{display:inline-flex;align-items:center;gap:8px}
+  .lr-btn.export i{font-size:14px}
+  .lr-btn.export.pdf{background:#ef4444;border-color:#ef4444;color:#fff}
+  .lr-btn.export.excel{background:#16a34a;border-color:#16a34a;color:#fff}
+  .lr-btn.export.pdf:hover{background:#dc2626;border-color:#dc2626}
+  .lr-btn.export.excel:hover{background:#15803d;border-color:#15803d}
+  .lr-btn:disabled{opacity:.6;cursor:not-allowed}
+
+  .lr-paper{margin-top:12px;background:#fff;border:1px solid #111827;border-radius:8px;overflow:auto}
+  .lr-head{padding:12px 10px;border-bottom:2px solid #111827;text-align:center}
+  .lr-head .t1{font-weight:950;font-size:14px}
+  .lr-head .t2{font-weight:950;font-size:13px;margin-top:4px}
+  .lr-head .t3{font-weight:900;font-size:12px;margin-top:4px}
+
+  .lr-pills{margin-top:10px}
+
+  table.lr-table .sortable-header{cursor:pointer;user-select:none}
+  table.lr-table .sortable-header:hover{background:#facc15}
+  table.lr-table .sortable-header i{font-size:10px;opacity:.7}
+
+  table.lr-table{width:100%;border-collapse:collapse;min-width:980px}
+  table.lr-table th, table.lr-table td{border:1px solid #111827;padding:4px 6px;font-size:11px;font-weight:800;white-space:nowrap}
+  table.lr-table thead th{background:#ffeb3b;color:#b91c1c;font-weight:950}
+  table.lr-table td.num{direction:ltr;text-align:center;font-variant-numeric:tabular-nums lining-nums}
+  table.lr-table td.money{direction:ltr;text-align:right;font-variant-numeric:tabular-nums lining-nums}
+  table.lr-table td.name{max-width:240px;overflow:hidden;text-overflow:ellipsis}
+
+  tr.lr-row-selectable{cursor:pointer}
+  tr.lr-row-selectable:hover td{background:rgba(37,99,235,.08)}
+  tr.lr-row-selected td{background:rgba(37,99,235,.34);box-shadow: inset 0 0 0 9999px rgba(37,99,235,.06)}
+
+  tr.lr-total-row td{background:#16a34a;color:#fff;font-weight:950}
+  tr.lr-total-row td.money, tr.lr-total-row td.num{color:#fff}
+
+  tr.lr-row-paid{background:#cfe9c8}
+  tr.lr-row-partial{background:#b9dbf5}
+  tr.lr-row-overdue{background:#fee2e2}
+  .lr-principal{color:#2563eb}
+  .lr-interest{color:#b45309}
+
+  @@media (max-width: 520px){
+    .lr-field{flex:1 1 100%}
+    .lr-input{width:100%}
+    table.lr-table{min-width:1040px}
+  }
+</style>
+
+<div class="lr-wrap">
+  <div class="lr-card">
+    <div class="lr-filters">
+      <div class="lr-field">
+        <label>تا تاریخ (مبنای معوق)</label>
+        <input class="lr-input" value="@_asOfText" @onchange="OnAsOfChanged" data-jdp="true" data-jdp-only-date="true" placeholder="1402/12/29" />
+      </div>
+      <div class="lr-actions">
+        <button class="lr-btn export pdf" @onclick="DownloadPdf" disabled="@(!_rows.Any())"><i class="fa-solid fa-file-pdf"></i><span>خروجی PDF</span></button>
+        <button class="lr-btn export excel" @onclick="DownloadExcel" disabled="@(!_rows.Any())"><i class="fa-solid fa-file-excel"></i><span>خروجی Excel</span></button>
+      </div>
+    </div>
+
+    <div class="lr-pills">
+      <DsPillGroup Mode="filter" Items="@_filterPills" ActiveKey="@_filterKey" ActiveKeyChanged="OnFilterChanged" />
+    </div>
+  </div>
+
+  <div class="lr-paper" style="margin-top:12px">
+    <div class="lr-head">
+      <div class="t1">صندوق همیاری امام علی (ع)</div>
+      <div class="t2">گزارش خلاصه وام‌ها</div>
+      <div class="t3">@_rangeTitle</div>
+    </div>
+
+    <table class="lr-table">
+      <thead>
+        <tr>
+          <th>ردیف</th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.LoanId)">
+            شماره وام
+            @if (_sortColumn == LoanSortColumn.LoanId)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.LoanId)" style="margin-right:5px"></i>
+            }
+          </th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.Member)">
+            وام گیرنده
+            @if (_sortColumn == LoanSortColumn.Member)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.Member)" style="margin-right:5px"></i>
+            }
+          </th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.TotalLoanAmount)">
+            مبلغ وام (اصل + سود)
+            @if (_sortColumn == LoanSortColumn.TotalLoanAmount)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.TotalLoanAmount)" style="margin-right:5px"></i>
+            }
+          </th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.RemainingTotal)">
+            مانده
+            @if (_sortColumn == LoanSortColumn.RemainingTotal)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.RemainingTotal)" style="margin-right:5px"></i>
+            }
+          </th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.TotalInstallments)">
+            اقساط
+            @if (_sortColumn == LoanSortColumn.TotalInstallments)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.TotalInstallments)" style="margin-right:5px"></i>
+            }
+          </th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.PaidInstallments)">
+            وصول شده
+            @if (_sortColumn == LoanSortColumn.PaidInstallments)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.PaidInstallments)" style="margin-right:5px"></i>
+            }
+          </th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.LastPaidInstallmentDate)">
+            تاریخ پرداخت
+            @if (_sortColumn == LoanSortColumn.LastPaidInstallmentDate)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.LastPaidInstallmentDate)" style="margin-right:5px"></i>
+            }
+          </th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.OverdueInstallments)">
+            تعداد معوق
+            @if (_sortColumn == LoanSortColumn.OverdueInstallments)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.OverdueInstallments)" style="margin-right:5px"></i>
+            }
+          </th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.OverdueAmount)">
+           قسطِ معوق
+            @if (_sortColumn == LoanSortColumn.OverdueAmount)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.OverdueAmount)" style="margin-right:5px"></i>
+            }
+          </th>
+          <th>
+            سود قسط جاری
+          </th>
+          <th class="sortable-header" @onclick="() => SortByColumn(LoanSortColumn.OverdueDueDate)">
+            تاریخ معوق
+            @if (_sortColumn == LoanSortColumn.OverdueDueDate)
+            {
+              <i class="@GetSortIconClass(LoanSortColumn.OverdueDueDate)" style="margin-right:5px"></i>
+            }
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (_loading)
+        {
+          <tr><td colspan="12" style="text-align:center;padding:18px">در حال بارگذاری...</td></tr>
+        }
+        else if (!_rows.Any())
+        {
+          <tr><td colspan="12" style="text-align:center;padding:18px">موردی یافت نشد.</td></tr>
+        }
+        else
+        {
+          var idx = 0;
+          foreach (var r in _sortedRows)
+          {
+            idx++;
+            var cls = r.Status == (byte)LoanStatus.Settled
+              ? "lr-row-paid"
+              : (r.OverdueInstallments > 0
+                ? "lr-row-overdue"
+                : (r.PaidInstallments > 0 ? "lr-row-partial" : null));
+            var selCls = _selectedLoanId == r.LoanId ? "lr-row-selected" : null;
+            <tr class="@(string.Join(" ", new[] { cls, selCls, "lr-row-selectable" }.Where(x => !string.IsNullOrWhiteSpace(x))))" @onclick="(() => OnRowSelected(r.LoanId))">
+              <td class="num">@idx</td>
+              <td class="num">@r.LoanId</td>
+              <td class="name">@r.MemberFullName</td>
+              <td class="money">
+                <div>@r.TotalLoanAmount.ToString("N0")</div>
+                <div style="font-size:10px;font-weight:900;display:flex;gap:12px;justify-content:flex-end">
+                  <span class="lr-principal">اصل: @r.PrincipalAmount.ToString("N0")</span>
+                  <span class="lr-interest">سود: @r.InterestAmount.ToString("N0")</span>
+                </div>
+              </td>
+              <td class="money">@r.RemainingTotal.ToString("N0")</td>
+              <td class="num">@r.TotalInstallments</td>
+              <td class="num">@r.PaidInstallments</td>
+              <td class="num">@(r.LastPaidInstallmentDueDate.HasValue ? r.LastPaidInstallmentDueDate.Value.ToPersianDate() : "-")</td>
+              <td class="num">@r.OverdueInstallments</td>
+              <td class="num">@r.OverdueAmountNoPenalty.ToString("N0")</td>
+              <td class="num" style="white-space:pre-line;min-width:110px">
+                <div>@r.CurrentInstallmentInterest.ToString("N0")</div>
+                <div style="font-size:10px;font-weight:900;opacity:.85">جمع: @r.CurrentAndOverdueInstallmentsInterest.ToString("N0")</div>
+              </td>
+              <td class="num" style="white-space:pre-line;min-width:140px">@(FormatOverdueDates(r.OverdueDueDatesText))</td>
+            </tr>
+          }
+
+          <tr class="lr-total-row">
+            <td colspan="3" style="text-align:center">جمع</td>
+            <td class="money">@_sortedRows.Sum(x => x.TotalLoanAmount).ToString("N0")</td>
+            <td class="money">@_sortedRows.Sum(x => x.RemainingTotal).ToString("N0")</td>
+            <td class="num">@_sortedRows.Sum(x => x.TotalInstallments)</td>
+            <td class="num">@_sortedRows.Sum(x => x.PaidInstallments)</td>
+            <td class="num">-</td>
+            <td class="num">@_sortedRows.Sum(x => x.OverdueInstallments)</td>
+            <td class="num">@_sortedRows.Sum(x => x.OverdueAmountNoPenalty).ToString("N0")</td>
+            <td class="num">@_sortedRows.Sum(x => x.CurrentInstallmentInterest).ToString("N0")</td>
+            <td class="num">-</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+@code {
+  private bool _loading;
+  private string _asOfText = string.Empty;
+  private string _rangeTitle = string.Empty;
+  private string _filterKey = "all";
+
+  private readonly List<LoanReportsRepository.LoanSummaryReportRow> _rows = new();
+
+  private readonly List<DsPillGroup.DsPillItem> _filterPills = new()
+  {
+    new DsPillGroup.DsPillItem { Key = "all", Text = "همه" },
+    new DsPillGroup.DsPillItem { Key = "inprogress", Text = "در جریان" },
+    new DsPillGroup.DsPillItem { Key = "settled", Text = "تسویه شده" },
+    new DsPillGroup.DsPillItem { Key = "overdue", Text = "معوق" },
+  };
+
+  private LoanSortColumn _sortColumn = LoanSortColumn.LoanId;
+  private bool _sortAscending;
+
+  private long? _selectedLoanId;
+
+  private IReadOnlyList<LoanReportsRepository.LoanSummaryReportRow> _filteredRows => ApplyFilter(_rows, _filterKey);
+  private IReadOnlyList<LoanReportsRepository.LoanSummaryReportRow> _sortedRows => ApplySort(_filteredRows, _sortColumn, _sortAscending);
+
+  protected override async Task OnInitializedAsync()
+  {
+    _asOfText = DateTime.Now.ToPersianDate();
+    _rangeTitle = GetHeaderTitle();
+    await Load();
+  }
+
+  private async Task OnAsOfChanged(ChangeEventArgs e)
+  {
+    _asOfText = e?.Value?.ToString() ?? string.Empty;
+    _rangeTitle = GetHeaderTitle();
+    await Load();
+  }
+
+  private async Task Load()
+  {
+    _loading = true;
+    try
+    {
+      _rows.Clear();
+      var asOf = DateTimeExtensions.FromPersianDate(_asOfText);
+      var list = await Repo.GetLoansSummaryReportAsync(asOf);
+      _rows.AddRange(list);
+      _selectedLoanId = null;
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private void OnRowSelected(long loanId)
+  {
+    _selectedLoanId = _selectedLoanId == loanId ? null : loanId;
+  }
+
+  private void OnFilterChanged(string key)
+  {
+    _filterKey = key;
+    _rangeTitle = GetHeaderTitle();
+  }
+
+  private string GetHeaderTitle()
+    => $"تا تاریخ {_asOfText} | {FilterTitle(_filterKey)}";
+
+  private static string FilterTitle(string key)
+  {
+    if (string.Equals(key, "overdue", StringComparison.Ordinal)) return "معوق";
+    if (string.Equals(key, "settled", StringComparison.Ordinal)) return "تسویه شده ها";
+    if (string.Equals(key, "inprogress", StringComparison.Ordinal)) return "در جریان";
+    return "همه";
+  }
+
+  private enum LoanSortColumn
+  {
+    LoanId,
+    Member,
+    TotalLoanAmount,
+    RemainingTotal,
+    TotalInstallments,
+    PaidInstallments,
+    LastPaidInstallmentDate,
+    OverdueInstallments,
+    OverdueAmount,
+    OverdueDueDate,
+  }
+
+  private void SortByColumn(LoanSortColumn column)
+  {
+    if (_sortColumn == column)
+      _sortAscending = !_sortAscending;
+    else
+    {
+      _sortColumn = column;
+      _sortAscending = false;
+    }
+  }
+
+  private string GetSortIconClass(LoanSortColumn column)
+  {
+    if (_sortColumn != column) return string.Empty;
+    return _sortAscending ? "fas fa-sort-up" : "fas fa-sort-down";
+  }
+
+  private static IReadOnlyList<LoanReportsRepository.LoanSummaryReportRow> ApplySort(
+    IReadOnlyList<LoanReportsRepository.LoanSummaryReportRow> rows,
+    LoanSortColumn sortColumn,
+    bool asc)
+  {
+    if (rows.Count == 0)
+      return rows;
+
+    IEnumerable<LoanReportsRepository.LoanSummaryReportRow> q = rows;
+
+    q = sortColumn switch
+    {
+      LoanSortColumn.Member => q.OrderBy(x => x.MemberFullName),
+      LoanSortColumn.TotalLoanAmount => q.OrderBy(x => x.TotalLoanAmount),
+      LoanSortColumn.RemainingTotal => q.OrderBy(x => x.RemainingTotal),
+      LoanSortColumn.TotalInstallments => q.OrderBy(x => x.TotalInstallments),
+      LoanSortColumn.PaidInstallments => q.OrderBy(x => x.PaidInstallments),
+      LoanSortColumn.LastPaidInstallmentDate => q.OrderBy(x => x.LastPaidInstallmentDueDate ?? DateTime.MinValue),
+      LoanSortColumn.OverdueInstallments => q.OrderBy(x => x.OverdueInstallments),
+      LoanSortColumn.OverdueAmount => q.OrderBy(x => x.OverdueAmountNoPenalty),
+      LoanSortColumn.OverdueDueDate => q.OrderBy(x => GetMinOverdueDate(x.OverdueDueDatesText) ?? DateTime.MaxValue),
+      _ => q.OrderBy(x => x.LoanId),
+    };
+
+    if (!asc)
+      q = q.Reverse();
+
+    return q.ToList();
+  }
+
+  private static DateTime? GetMinOverdueDate(string? text)
+  {
+    if (string.IsNullOrWhiteSpace(text))
+      return null;
+
+    var lines = text
+      .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+      .Select(x => x.Trim())
+      .Where(x => !string.IsNullOrWhiteSpace(x))
+      .ToList();
+
+    DateTime? min = null;
+    foreach (var l in lines)
+    {
+      if (TryParseOverdueDate(l, out var dt))
+      {
+        min = min.HasValue ? (dt < min.Value ? dt : min.Value) : dt;
+      }
+    }
+
+    return min;
+  }
+
+  private void DownloadPdf()
+  {
+    var sort = GetSortKey(_sortColumn);
+    var dir = _sortAscending ? "asc" : "desc";
+    var u = $"/api/reports/loans/pdf?asOf={Uri.EscapeDataString(_asOfText)}&filter={Uri.EscapeDataString(_filterKey)}&sort={Uri.EscapeDataString(sort)}&sortDir={Uri.EscapeDataString(dir)}";
+    Nav.NavigateTo(u, forceLoad: true);
+  }
+
+  private void DownloadExcel()
+  {
+    var sort = GetSortKey(_sortColumn);
+    var dir = _sortAscending ? "asc" : "desc";
+    var u = $"/api/reports/loans/excel?asOf={Uri.EscapeDataString(_asOfText)}&filter={Uri.EscapeDataString(_filterKey)}&sort={Uri.EscapeDataString(sort)}&sortDir={Uri.EscapeDataString(dir)}";
+    Nav.NavigateTo(u, forceLoad: true);
+  }
+
+  private static string GetSortKey(LoanSortColumn column)
+    => column switch
+    {
+      LoanSortColumn.Member => "member",
+      LoanSortColumn.TotalLoanAmount => "totalLoanAmount",
+      LoanSortColumn.RemainingTotal => "remainingTotal",
+      LoanSortColumn.TotalInstallments => "totalInstallments",
+      LoanSortColumn.PaidInstallments => "paidInstallments",
+      LoanSortColumn.LastPaidInstallmentDate => "lastPaidInstallmentDate",
+      LoanSortColumn.OverdueInstallments => "overdueInstallments",
+      LoanSortColumn.OverdueAmount => "overdueAmount",
+      LoanSortColumn.OverdueDueDate => "overdueDueDate",
+      _ => "loanId",
+    };
+
+  private static IReadOnlyList<LoanReportsRepository.LoanSummaryReportRow> ApplyFilter(
+    IReadOnlyList<LoanReportsRepository.LoanSummaryReportRow> rows,
+    string filterKey)
+  {
+    if (rows.Count == 0)
+      return rows;
+
+    if (string.Equals(filterKey, "overdue", StringComparison.Ordinal))
+      return rows.Where(x => x.OverdueInstallments > 0).ToList();
+
+    if (string.Equals(filterKey, "settled", StringComparison.Ordinal))
+      return rows.Where(x => x.Status == (byte)LoanStatus.Settled).ToList();
+
+    if (string.Equals(filterKey, "inprogress", StringComparison.Ordinal))
+      return rows.Where(x => x.Status == (byte)LoanStatus.Active || x.Status == (byte)LoanStatus.Disbursed).ToList();
+
+    return rows;
+  }
+
+  private static string FormatOverdueDates(string? text)
+  {
+    if (string.IsNullOrWhiteSpace(text))
+      return "-";
+
+    var lines = text
+      .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+      .Select(x => x.Trim())
+      .Where(x => !string.IsNullOrWhiteSpace(x))
+      .ToList();
+
+    if (lines.Count == 0)
+      return "-";
+
+    var converted = new List<string>(lines.Count);
+    foreach (var l in lines)
+    {
+      if (TryParseOverdueDate(l, out var dt))
+      {
+        converted.Add(dt.ToPersianDate());
+      }
+      else
+      {
+        converted.Add(l);
+      }
+    }
+
+    return string.Join("\n", converted);
+  }
+
+  private static bool TryParseOverdueDate(string input, out DateTime dt)
+  {
+    dt = default;
+    if (string.IsNullOrWhiteSpace(input))
+      return false;
+
+    var s = input.Trim();
+    var formats = new[] { "yyyy-MM-dd", "yyyy/MM/dd", "yyyy/M/d", "yyyy/M/dd", "yyyy/MM/d" };
+    return DateTime.TryParseExact(
+      s,
+      formats,
+      System.Globalization.CultureInfo.InvariantCulture,
+      System.Globalization.DateTimeStyles.None,
+      out dt);
+  }
+}

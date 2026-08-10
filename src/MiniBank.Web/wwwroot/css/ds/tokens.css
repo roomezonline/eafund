@@ -1,0 +1,121 @@
+:root {
+  /* Primary Colors */
+  --ds-primary-50: #eff6ff;
+  --ds-primary-100: #dbeafe;
+  --ds-primary-200: #bfdbfe;
+  --ds-primary-300: #93c5fd;
+  --ds-primary-400: #60a5fa;
+  --ds-primary-500: #0ea5e9;
+  --ds-primary-600: #0284c7;
+  --ds-primary-700: #0369a1;
+  --ds-primary-800: #075985;
+  --ds-primary-900: #0c4a6e;
+  
+  /* Semantic Colors */
+  --ds-success-50: #f0fdf4;
+  --ds-success-500: #16a34a;
+  --ds-success-600: #15803d;
+  --ds-success-700: #166534;
+  
+  --ds-danger-50: #fef2f2;
+  --ds-danger-500: #ef4444;
+  --ds-danger-600: #dc2626;
+  --ds-danger-700: #b91c1c;
+  
+  --ds-warning-50: #fffbeb;
+  --ds-warning-500: #f59e0b;
+  --ds-warning-600: #d97706;
+  --ds-warning-700: #b45309;
+  
+  --ds-info-50: #eff6ff;
+  --ds-info-500: #3b82f6;
+  --ds-info-600: #2563eb;
+  --ds-info-700: #1d4ed8;
+  
+  /* Neutral Colors */
+  --ds-gray-50: #f9fafb;
+  --ds-gray-100: #f3f4f6;
+  --ds-gray-200: #e5e7eb;
+  --ds-gray-300: #d1d5db;
+  --ds-gray-400: #9ca3af;
+  --ds-gray-500: #6b7280;
+  --ds-gray-600: #4b5563;
+  --ds-gray-700: #374151;
+  --ds-gray-800: #1f2937;
+  --ds-gray-900: #111827;
+  
+  /* Surface Colors */
+  --ds-surface: #ffffff;
+  --ds-surface-variant: #f8fafc;
+  --ds-surface-container: #f1f5f9;
+  --ds-outline: #e5e7eb;
+  --ds-outline-variant: #f1f5f9;
+  
+  /* Text Colors */
+  --ds-text-primary: #111827;
+  --ds-text-secondary: #6b7280;
+  --ds-text-disabled: #9ca3af;
+  --ds-text-inverse: #ffffff;
+
+  /* Border Radius */
+  --ds-radius-xs: 4px;
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 10px;
+  --ds-radius-lg: 12px;
+  --ds-radius-xl: 16px;
+  --ds-radius-2xl: 20px;
+  --ds-radius-full: 9999px;
+
+  /* Shadows */
+  --ds-shadow-xs: 0 1px 2px rgba(15,23,42,.05);
+  --ds-shadow-sm: 0 3px 10px rgba(15,23,42,.08);
+  --ds-shadow-md: 0 10px 24px rgba(15,23,42,.10);
+  --ds-shadow-lg: 0 12px 28px rgba(15,23,42,.12);
+  --ds-shadow-xl: 0 20px 40px rgba(15,23,42,.15);
+
+  /* Spacing */
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 20px;
+  --ds-space-6: 24px;
+  --ds-space-8: 32px;
+  --ds-space-10: 40px;
+  --ds-space-12: 48px;
+  --ds-space-16: 64px;
+
+  /* Typography */
+  --ds-font-size-xs: 11px;
+  --ds-font-size-sm: 12px;
+  --ds-font-size-md: 14px;
+  --ds-font-size-lg: 16px;
+  --ds-font-size-xl: 18px;
+  --ds-font-size-2xl: 20px;
+  
+  --ds-font-weight-normal: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 700;
+  --ds-font-weight-extrabold: 800;
+  
+  --ds-line-height-tight: 1.25;
+  --ds-line-height-normal: 1.5;
+  --ds-line-height-relaxed: 1.75;
+
+  /* Z-Index Scale */
+  --ds-z-dropdown: 1000;
+  --ds-z-sticky: 1020;
+  --ds-z-fixed: 1030;
+  --ds-z-modal-backdrop: 1040;
+  --ds-z-modal: 1050;
+  --ds-z-popover: 1060;
+  --ds-z-tooltip: 1070;
+  --ds-z-toast: 1080;
+  --ds-z-confirm: 2000;
+
+  /* Transitions */
+  --ds-transition-fast: 150ms ease;
+  --ds-transition-normal: 200ms ease;
+  --ds-transition-slow: 300ms ease;
+}

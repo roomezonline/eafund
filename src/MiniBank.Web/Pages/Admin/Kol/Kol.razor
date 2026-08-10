@@ -1,0 +1,331 @@
+@page "/admin/kol"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject MiniBank.Web.Infrastructure.Repositories.AccountTypeRepository AccountTypeRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+@inject NavigationManager Navigation
+
+<div class="kol-duo">
+  <!-- Header -->
+  <DsPageHeader Icon="fa-solid fa-layer-group" 
+                Title="کل‌های حسابداری" 
+                Subtitle="مدیریت کل‌ها (سطح 2) - G.KK.MMSS"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="کل جدید"
+                OnRefreshClick="LoadKolAccounts"
+                OnAddClick="Add">
+    <ChildContent>
+    </ChildContent>
+  </DsPageHeader>
+
+  <!-- Controls -->
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="searchTerm" 
+                  Placeholder="جستجو در کل‌ها..." />
+  </div>
+  
+  <div class="duo-filters">
+    <DsPillGroup Mode="filter" 
+                 Items="@filterItems" 
+                 @bind-ActiveKey="activeFilter" 
+                 OnFilterChanged="OnFilterChanged" />
+  </div>
+
+  <div class="duo-sort">
+    <DsPillGroup Mode="sort" 
+                 Items="@sortItems" 
+                 @bind-ActiveKey="activeSortKey" 
+                 @bind-Desc="sortDesc"
+                 OnSortChanged="OnSortChanged" />
+  </div>
+
+  <!-- Main -->
+  <div class="duo-main">
+    @if (loading)
+    {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <div>در حال بارگذاری...</div>
+      </div>
+    }
+    else if (!filteredKolAccounts.Any())
+    {
+      <div class="empty-state">
+        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.7;">📊</div>
+        <div>هیچ کلی یافت نشد</div>
+        <div style="margin-top: 8px; opacity: 0.7;">ابتدا گروه‌های حسابداری را تعریف کنید</div>
+      </div>
+    }
+    else
+    {
+      <div class="items-grid">
+        @foreach (var kol in filteredKolAccounts)
+        {
+          <div class="item-card @(kol.IsActive ? "" : "inactive")" @onclick="() => Edit(kol)">
+            <div class="item-header">
+              <div class="item-info compact">
+                <div class="item-title">@kol.Name</div>
+                <div class="id-chip">کد: @kol.Code</div>
+              </div>
+              <div class="item-status">
+                <div class="status-chip @(kol.IsActive ? "active" : "inactive")">
+                  @(kol.IsActive ? "فعال" : "غیرفعال")
+                </div>
+                <div class="account-type-badge type-@kol.AccountType">
+                  @GetAccountTypeName(kol.AccountType)
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- FAB -->
+  <DsFab Title="کل جدید" Icon="fa-plus" OnClick="Add" />
+
+  <!-- FAB Navigation -->
+  <DsFabNavigation @bind-IsOpen="fabMenuOpen" />
+
+  @if (showEditSheet)
+  {
+    <KolIOSSheet Model="selectedKol" 
+                 IsNew="isNewKol"
+                 @bind-IsOpen="showEditSheet"
+                 OnClose="HandleSheetClose"
+                 OnDeleteRequest="@HandleDeleteRequest" />
+  }
+
+<!-- Delete Confirmation Dialog -->
+<DsConfirm Show="@_showDeleteConfirm"
+           Title="حذف کل"
+           Message="@_deleteConfirmMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           Loading="@_deleting"
+           OnConfirm="ConfirmDelete"
+           OnCancel="CancelDelete" />
+</div>
+
+@code {
+  private List<Account> kolAccounts = new();
+  private List<Account> filteredKolAccounts = new();
+  private List<AccountType> accountTypes = new();
+  private Dictionary<long, string> parentGroupNames = new();
+  private bool loading = true;
+  private string searchTerm = string.Empty;
+  private string activeFilter = "all";
+  private string activeSortKey = "code";
+  private bool sortDesc = false;
+
+  private bool showEditSheet = false;
+  private bool isNewKol = false;
+  private (long AccountId, string Code, string Name, long? ParentAccountId, byte AccountType, bool IsActive) selectedKol = default;
+
+  private readonly List<DsPillGroup.DsPillItem> filterItems = new()
+  {
+    new() { Key = "all", Text = "همه", Icon = "fa-list" },
+    new() { Key = "active", Text = "فعال", Icon = "fa-check-circle" },
+    new() { Key = "inactive", Text = "غیرفعال", Icon = "fa-times-circle" },
+    new() { Key = "asset", Text = "دارایی", Icon = "fa-coins" },
+    new() { Key = "liability", Text = "بدهی", Icon = "fa-credit-card" },
+    new() { Key = "equity", Text = "حقوق", Icon = "fa-balance-scale" },
+    new() { Key = "income", Text = "درآمد", Icon = "fa-arrow-up" },
+    new() { Key = "expense", Text = "هزینه", Icon = "fa-arrow-down" }
+  };
+
+  private readonly List<DsPillGroup.DsPillItem> sortItems = new()
+  {
+    new() { Key = "code", Text = "کد", Icon = "fa-hashtag" },
+    new() { Key = "name", Text = "نام", Icon = "fa-font" },
+    new() { Key = "group", Text = "گروه", Icon = "fa-layer-group" }
+  };
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAccountTypes();
+    await LoadKolAccounts();
+  }
+
+  private async Task LoadAccountTypes()
+  {
+    try
+    {
+      accountTypes = (await AccountTypeRepo.GetAllAsync(false)).ToList();
+      
+      // Build parent group names dictionary (Level 1 = Groups)
+      parentGroupNames.Clear();
+      var groups = await AccountsRepo.SearchAsync("", 1, true);
+      foreach (var group in groups)
+      {
+        parentGroupNames[group.AccountId] = group.Name;
+      }
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در دریافت گروه‌ها: {ex.Message}");
+    }
+  }
+
+  private async Task LoadKolAccounts()
+  {
+    loading = true;
+    try
+    {
+      // Load Level 2 accounts (Kol)
+      kolAccounts = (await AccountsRepo.SearchAsync("", 2, true)).ToList();
+      ApplyFiltersAndSort();
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در دریافت کل‌ها: {ex.Message}");
+    }
+    finally
+    {
+      loading = false;
+    }
+  }
+
+  private void OnFilterChanged(string filterKey)
+  {
+    activeFilter = filterKey;
+    ApplyFiltersAndSort();
+  }
+
+  private void OnSortChanged((string key, bool desc) sort)
+  {
+    activeSortKey = sort.key;
+    sortDesc = sort.desc;
+    ApplyFiltersAndSort();
+  }
+
+  private void ApplyFiltersAndSort()
+  {
+    var filtered = kolAccounts.AsEnumerable();
+
+    // Apply search
+    if (!string.IsNullOrWhiteSpace(searchTerm))
+    {
+      filtered = filtered.Where(k => 
+        k.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+        k.Code.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Apply filter
+    filtered = activeFilter switch
+    {
+      "active" => filtered.Where(k => k.IsActive),
+      "inactive" => filtered.Where(k => !k.IsActive),
+      "asset" => filtered.Where(k => k.AccountType == 1),
+      "liability" => filtered.Where(k => k.AccountType == 2),
+      "equity" => filtered.Where(k => k.AccountType == 3),
+      "income" => filtered.Where(k => k.AccountType == 4),
+      "expense" => filtered.Where(k => k.AccountType == 5),
+      _ => filtered
+    };
+
+    // Apply sort
+    filtered = activeSortKey switch
+    {
+      "name" => sortDesc ? filtered.OrderByDescending(k => k.Name) : filtered.OrderBy(k => k.Name),
+      "group" => sortDesc ? filtered.OrderByDescending(k => GetParentGroupName(k.ParentAccountId)) : filtered.OrderBy(k => GetParentGroupName(k.ParentAccountId)),
+      _ => sortDesc ? filtered.OrderByDescending(k => k.Code) : filtered.OrderBy(k => k.Code)
+    };
+
+    filteredKolAccounts = filtered.ToList();
+    StateHasChanged();
+  }
+
+  private string GetParentGroupName(long? parentAccountId)
+  {
+    if (parentAccountId.HasValue && parentGroupNames.ContainsKey(parentAccountId.Value))
+    {
+      return parentGroupNames[parentAccountId.Value];
+    }
+    return "نامشخص";
+  }
+
+  private string GetAccountTypeName(int accountType)
+  {
+    return accountType switch
+    {
+      1 => "دارایی",
+      2 => "بدهی",
+      3 => "حقوق صاحبان سهام",
+      4 => "درآمد",
+      5 => "هزینه",
+      _ => "نامشخص"
+    };
+  }
+
+  private void Add()
+  {
+    selectedKol = (0, string.Empty, string.Empty, null, 1, true);
+    isNewKol = true;
+    showEditSheet = true;
+  }
+
+  private void Edit(Account kol)
+  {
+    selectedKol = (kol.AccountId, kol.Code, kol.Name, kol.ParentAccountId, kol.AccountType, kol.IsActive);
+    isNewKol = false;
+    showEditSheet = true;
+  }
+
+  private async Task HandleSheetClose(bool hasChanges)
+  {
+    showEditSheet = false;
+    if (hasChanges)
+    {
+      await LoadKolAccounts();
+    }
+  }
+
+  // Delete confirmation
+  private bool _showDeleteConfirm = false;
+  private string _deleteConfirmMessage = string.Empty;
+  private bool _deleting = false;
+  private long _accountToDeleteId;
+
+  // Delete handling methods
+  private async Task HandleDeleteRequest((long AccountId, string Code, string Name, string Message) args)
+  {
+    _accountToDeleteId = args.AccountId;
+    _deleteConfirmMessage = args.Message;
+    _showDeleteConfirm = true;
+  }
+
+  private async Task ConfirmDelete()
+  {
+    _showDeleteConfirm = false;
+    _deleting = true;
+    
+    try
+    {
+      await AccountsRepo.DeleteAsync(_accountToDeleteId);
+      Toast.Success("کل با موفقیت حذف شد");
+      await LoadKolAccounts();
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در حذف کل: {ex.Message}");
+    }
+    finally
+    {
+      _deleting = false;
+    }
+  }
+
+  private void CancelDelete()
+  {
+    _showDeleteConfirm = false;
+  }
+
+  // FAB Navigation
+  private bool fabMenuOpen = false;
+}

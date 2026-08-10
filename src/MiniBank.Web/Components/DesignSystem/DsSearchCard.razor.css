@@ -1,0 +1,66 @@
+/* Design System Search Card */
+.ds-search-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border, #d1d5db);
+  background: var(--card, #fff);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  color: var(--muted, #6b7280);
+  direction: rtl;
+}
+
+.ds-search-card .search-input {
+  height: 38px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  padding: 0 8px;
+  font-weight: 600;
+  color: var(--text, #111827);
+  text-align: right;
+  outline: none;
+}
+
+.ds-search-card .search-input::placeholder {
+  color: var(--muted, #6b7280);
+  opacity: 1;
+}
+
+.ds-search-card .clear {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted, #6b7280);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ds-search-card .clear:hover {
+  background: var(--gray-100, #f3f4f6);
+  color: var(--text, #111827);
+}
+
+.ds-search-card .clear:active {
+  transform: scale(0.95);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .ds-search-card {
+    padding: 12px;
+    gap: 10px;
+  }
+  
+  .ds-search-card .search-input {
+    height: 36px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}

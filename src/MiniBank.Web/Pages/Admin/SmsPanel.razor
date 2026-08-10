@@ -1,0 +1,338 @@
+@page "/admin/sms-panel"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Models.Sms
+@using System.Linq
+@inject DsToastService Toasts
+@inject SmsPanelRepository Repo
+
+<PageTitle>پنل پیامک</PageTitle>
+
+<DsPageHeader Title="پنل پیامک"
+             Icon="fa-solid fa-message"
+             Subtitle="مدیریت قابلیت‌ها و تنظیمات پیامک" 
+             ShowBackButton="true" />
+
+<section class="page" dir="rtl">
+    <div class="card" style="padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div style="display:grid; gap:4px;">
+                <div style="font-weight:900;">اعتبار پیامک (دستی)</div>
+                <div style="font-size:12px; opacity:.75;">مقدارها به ریال ذخیره می‌شوند و بعد از هر ارسال، بر اساس تعداد پارت کم می‌شود.</div>
+            </div>
+            <div style="font-weight:900; font-size:16px;">@_settings.CreditRial.ToString("N0") ریال</div>
+        </div>
+
+        @if (_settings.PartCostRial > 0)
+        {
+            <div style="margin-top:8px; font-size:12px; opacity:.8;">هزینه هر پارت: @_settings.PartCostRial.ToString("N0") ریال</div>
+        }
+        @if (_settings.LowCreditThresholdRial > 0 && _settings.CreditRial < _settings.LowCreditThresholdRial)
+        {
+            <div style="margin-top:10px; padding:10px; border-radius:12px; background:#fff7ed; border:1px solid #fdba74; color:#9a3412; font-weight:900;">
+                هشدار: اعتبار کمتر از @_settings.LowCreditThresholdRial.ToString("N0") ریال است. لطفاً شارژ کنید.
+            </div>
+        }
+
+        <div style="margin-top:12px; display:grid; gap:10px;">
+            <DsToggle Label="فعال بودن کلی پیامک" Description="اگر خاموش باشد، هیچ پیامکی ارسال نمی‌شود." Icon="fa-solid fa-toggle-on" Value="_settings.IsEnabled" ValueChanged="OnGlobalEnabledChanged" />
+
+            <div style="display:grid; gap:6px;">
+                <label style="font-weight:900; font-size:12px;">مبلغ شارژ (ریال)</label>
+                <input class="input" style="height:40px; border-radius:10px; border:1px solid #cbd5e1; padding:0 10px; font-weight:900;" value="@_topupAmountText" @oninput="OnTopupAmountChanged" placeholder="مثلاً 100000" />
+            </div>
+
+            <div style="display:grid; gap:6px;">
+                <label style="font-weight:900; font-size:12px;">هزینه ارسال یک پارت (ریال)</label>
+                <input class="input" style="height:40px; border-radius:10px; border:1px solid #cbd5e1; padding:0 10px; font-weight:900;" value="@_partCostRialText" @oninput="OnPartCostRialChanged" placeholder="مثلاً 2000" />
+            </div>
+
+            <div style="display:grid; gap:6px;">
+                <label style="font-weight:900; font-size:12px;">آستانه هشدار کمبود اعتبار (ریال)</label>
+                <input class="input" style="height:40px; border-radius:10px; border:1px solid #cbd5e1; padding:0 10px; font-weight:900;" value="@_lowCreditThresholdRialText" @oninput="OnLowCreditThresholdRialChanged" placeholder="مثلاً 20000" />
+            </div>
+
+            <div style="display:grid; gap:6px;">
+                <label style="font-weight:900; font-size:12px;">نام سرویس‌دهنده (فعلاً دستی)</label>
+                <input class="input" style="height:40px; border-radius:10px; border:1px solid #cbd5e1; padding:0 10px; font-weight:900;" value="@_settings.ProviderName" @oninput="OnProviderChanged" placeholder="مثلاً sms.ir" />
+            </div>
+
+            <div style="display:grid; gap:6px;">
+                <label style="font-weight:900; font-size:12px;">شناسه تمپلیت (verify) در سرویس‌دهنده</label>
+                <input class="input" style="height:40px; border-radius:10px; border:1px solid #cbd5e1; padding:0 10px; font-weight:900;" value="@_settings.VerifyTemplateId" @oninput="OnVerifyTemplateIdChanged" placeholder="مثلاً 828043" />
+                <div style="font-size:12px; opacity:.75;">این همان templateId واحدی است که با پارامترهای {PRICE} {BABAT} {MANBAB} {MANPRICE} کنترل می‌کنید.</div>
+            </div>
+
+            <button class="btn" style="height:40px; border-radius:10px; border:1px solid #0ea5e9; background:#0ea5e9; color:#fff; font-weight:900;" @onclick="SaveSettingsAsync" disabled="@_saving">
+                @(_saving ? "در حال ذخیره..." : "ذخیره تنظیمات")
+            </button>
+
+            <button class="btn" style="height:40px; border-radius:10px; border:1px solid #10b981; background:#10b981; color:#fff; font-weight:900;" @onclick="TopupAsync" disabled="@_saving">
+                ثبت شارژ
+            </button>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+        <div style="font-weight:900; margin-bottom:10px;">تاریخچه شارژ</div>
+
+        @if (_loading)
+        {
+            <div>در حال بارگذاری...</div>
+        }
+        else if (_topups.Count == 0)
+        {
+            <div style="font-size:12px; opacity:.75;">موردی ثبت نشده است.</div>
+        }
+        else
+        {
+            <div style="display:grid; gap:8px;">
+                @foreach (var t in _topups)
+                {
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid #e5e7eb; border-radius:12px; padding:10px; background:#f8fafc;">
+                        <div style="display:grid; gap:2px;">
+                            <div style="font-weight:900;">@t.AmountRial.ToString("N0") ریال</div>
+                            <div style="font-size:12px; opacity:.75;">@t.CreatedAt.ToString("yyyy-MM-dd HH:mm")</div>
+                        </div>
+                        <button class="btn" style="height:34px; border-radius:10px; border:1px solid #ef4444; background:#fff; color:#ef4444; font-weight:900; padding:0 12px;" @onclick="(() => AskDeleteTopup(t))" disabled="@_saving">حذف</button>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <DsConfirm Show="@_showDeleteTopupConfirm"
+               Title="تایید حذف شارژ"
+               Message="@_deleteTopupConfirmMessage"
+               Variant="danger"
+               ConfirmText="حذف"
+               CancelText="انصراف"
+               OnConfirm="ConfirmDeleteTopupAsync"
+               OnCancel="CancelDeleteTopup" />
+
+    <div class="card" style="margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+        <div style="font-weight:900; margin-bottom:10px;">قابلیت‌ها</div>
+
+        @if (_loading)
+        {
+            <div>در حال بارگذاری...</div>
+        }
+        else
+        {
+            <div style="display:grid; gap:10px;">
+                @foreach (var f in _features)
+                {
+                    <DsToggle Label="@f.Title" Description="@($"کلید: {f.FeatureKey}")" Icon="fa-solid fa-bolt" Value="f.IsEnabled" ValueChanged="(v) => OnFeatureToggleChangedAsync(f, v)" />
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private bool _loading = true;
+    private bool _saving = false;
+
+    private SmsSettings _settings = new SmsSettings { SettingsId = 1 };
+    private List<SmsFeature> _features = new();
+    private List<SmsCreditTopup> _topups = new();
+
+    private bool _showDeleteTopupConfirm;
+    private long _deleteTopupId;
+    private string _deleteTopupConfirmMessage = string.Empty;
+
+    private string _topupAmountText = string.Empty;
+    private string _partCostRialText = string.Empty;
+    private string _lowCreditThresholdRialText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _settings = await Repo.GetSettingsAsync();
+            _features = (await Repo.GetFeaturesAsync()).ToList();
+            _topups = (await Repo.GetTopupsAsync(50)).ToList();
+
+            _partCostRialText = _settings.PartCostRial.ToString("N0");
+            _lowCreditThresholdRialText = _settings.LowCreditThresholdRial.ToString("N0");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری پنل پیامک: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnGlobalEnabledChanged(bool v)
+    {
+        _settings.IsEnabled = v;
+        await SaveSettingsAsync();
+    }
+
+    private void OnProviderChanged(ChangeEventArgs e)
+    {
+        _settings.ProviderName = e?.Value?.ToString();
+    }
+
+    private void OnTopupAmountChanged(ChangeEventArgs e)
+    {
+        _topupAmountText = FormatThousands(e?.Value?.ToString());
+    }
+
+    private void OnPartCostRialChanged(ChangeEventArgs e)
+    {
+        _partCostRialText = FormatThousands(e?.Value?.ToString());
+    }
+
+    private void OnLowCreditThresholdRialChanged(ChangeEventArgs e)
+    {
+        _lowCreditThresholdRialText = FormatThousands(e?.Value?.ToString());
+    }
+
+    private void OnVerifyTemplateIdChanged(ChangeEventArgs e)
+    {
+        _settings.VerifyTemplateId = e?.Value?.ToString();
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        try
+        {
+            _saving = true;
+
+            var partCostRial = (int)ParseLong(_partCostRialText);
+            var lowThresholdRial = ParseLong(_lowCreditThresholdRialText);
+            if (lowThresholdRial <= 0) lowThresholdRial = 20000;
+
+            _settings.PartCostRial = partCostRial;
+            _settings.LowCreditThresholdRial = lowThresholdRial;
+
+            await Repo.UpsertSettingsAsync(_settings.IsEnabled, _settings.ProviderName, _settings.VerifyTemplateId, _settings.CreditRial, partCostRial, lowThresholdRial);
+            Toasts.Success("تنظیمات ذخیره شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره تنظیمات: {ex.Message}");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task OnFeatureToggleChangedAsync(SmsFeature f, bool v)
+    {
+        try
+        {
+            f.IsEnabled = v;
+            await Repo.UpdateFeatureAsync(f.FeatureKey, v);
+            Toasts.Success("تغییر قابلیت ذخیره شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره قابلیت: {ex.Message}");
+        }
+    }
+
+    private async Task TopupAsync()
+    {
+        var amount = ParseLong(_topupAmountText);
+        if (amount <= 0)
+        {
+            Toasts.Warning("مبلغ شارژ را وارد کنید.");
+            return;
+        }
+
+        try
+        {
+            _saving = true;
+            await Repo.AddTopupAsync(amount);
+            _topupAmountText = string.Empty;
+            await LoadAsync();
+            Toasts.Success("شارژ ثبت شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ثبت شارژ: {ex.Message}");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteTopupAsync(long topupId)
+    {
+        try
+        {
+            _saving = true;
+            await Repo.DeleteTopupAsync(topupId);
+            _topups = (await Repo.GetTopupsAsync(50)).ToList();
+            Toasts.Success("حذف شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در حذف: {ex.Message}");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void AskDeleteTopup(SmsCreditTopup t)
+    {
+        _deleteTopupId = t.TopupId;
+        _deleteTopupConfirmMessage = $"آیا از حذف شارژ {t.AmountRial:N0} ریال مطمئن هستید؟";
+        _showDeleteTopupConfirm = true;
+    }
+
+    private Task CancelDeleteTopup()
+    {
+        _showDeleteTopupConfirm = false;
+        _deleteTopupId = 0;
+        _deleteTopupConfirmMessage = string.Empty;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmDeleteTopupAsync()
+    {
+        var id = _deleteTopupId;
+        _showDeleteTopupConfirm = false;
+        StateHasChanged();
+
+        if (id <= 0)
+            return;
+
+        await DeleteTopupAsync(id);
+        _deleteTopupId = 0;
+        _deleteTopupConfirmMessage = string.Empty;
+    }
+
+    private static string FormatThousands(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(digits)) return string.Empty;
+        return long.TryParse(digits, out var n) ? n.ToString("N0") : string.Empty;
+    }
+
+    private static long ParseLong(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return 0;
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(digits)) return 0;
+        return long.TryParse(digits, out var n) ? n : 0;
+    }
+
+}

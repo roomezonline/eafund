@@ -1,0 +1,1640 @@
+@page "/admin/reports/trial-balance"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Services
+@using Dapper
+@using System.Text.Json
+@inject TrialBalanceRepository TrialBalanceRepo
+@inject IJSRuntime JSRuntime
+@inject DsToastService Toast
+@inject NavigationManager Nav
+@inject IConfiguration Configuration
+@inject FiscalYearRepository FiscalYearRepo
+
+<PageTitle>مرور حسابها</PageTitle>
+
+<style>
+    .report-container { max-width: 1200px; margin: 0 auto; background: white; padding-bottom: 110px; }
+    .report-header { 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+        padding: 25px; 
+        text-align: center; 
+        border-radius: 12px 12px 0 0; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    .report-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.15"/><circle cx="20" cy="80" r="0.5" fill="white" opacity="0.15"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        pointer-events: none;
+    }
+    .report-title { 
+        font-size: 24px; 
+        font-weight: 700; 
+        margin: 0 0 8px 0; 
+        color: #ffffff; 
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        position: relative;
+        z-index: 1;
+    }
+    .report-subtitle { 
+        font-size: 16px; 
+        margin: 0 0 12px 0; 
+        color: #f0f4f8; 
+        font-weight: 500;
+        position: relative;
+        z-index: 1;
+    }
+    .date-range { 
+        font-size: 13px; 
+        margin: 0; 
+        color: #e2e8f0; 
+        background: rgba(255,255,255,0.15);
+        padding: 8px 16px;
+        border-radius: 20px;
+        display: inline-block;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+        position: relative;
+        z-index: 1;
+    }
+    .level-nav-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;
+        margin: 10px 0;
+    }
+    .level-nav-item {
+        flex: 1;
+        min-width: 0;
+        padding: 10px 16px;
+        background: #f0f0f0;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        text-decoration: none;
+        color: #000;
+        cursor: pointer;
+        text-align: center;
+        font-weight: 700;
+        font-size: 13px;
+        white-space: nowrap;
+        transition: all 0.15s ease;
+    }
+    .level-nav-item.active { background: #FFD700; border-color: #DAA520; }
+    .level-nav-item:hover { background: #ddd; }
+    .nav-sidebar { float: right; width: 150px; margin: 10px; }
+    .nav-sidebar .nav-item { display: block; padding: 8px 12px; margin: 2px 0; background: #f0f0f0; border: 1px solid #ccc; text-decoration: none; color: #000; cursor: pointer; }
+    .nav-sidebar .nav-item.active { background: #FFD700; }
+    .nav-sidebar .nav-item:hover { background: #ddd; }
+    .filter-section { margin: 10px 0; }
+    .filter-checkbox { margin-right: 5px; }
+    .col-mode-section { margin: 10px 0; }
+    .col-mode-section label { display: block; margin: 6px 0; }
+
+    .filter-section label,
+    .col-mode-section label {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
+        font-size: 13px;
+        font-weight: 700;
+        color: #111827;
+        line-height: 1.25;
+    }
+    .filter-section label { margin: 8px 0; }
+    .col-mode-section label { margin: 8px 0; }
+
+    .filter-section input[type="checkbox"],
+    .col-mode-section input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: #2563eb;
+        flex: 0 0 auto;
+    }
+
+    .col-mode-section label:has(input[type="checkbox"]:checked),
+    .filter-section label:has(input[type="checkbox"]:checked) {
+        border-color: #93c5fd;
+        background: #eff6ff;
+    }
+    .date-filter-section { margin: 15px 0; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; }
+    .date-inputs { display: flex; flex-direction: column; gap: 10px; align-items: stretch; justify-content: flex-start; }
+    .date-input-group { display: flex; flex-direction: column; align-items: stretch; width: 100%; }
+    .date-input-group > * { width: 100% !important; max-width: none !important; }
+    .date-input-group label { font-size: 12px; margin-bottom: 5px; font-weight: bold; }
+    .date-input-group input { padding: 5px; border: 1px solid #ccc; border-radius: 3px; text-align: center; font-family: 'Vazir'; }
+    /* Force DsJalaliDatePicker to fill the card width */
+    .date-filter-section .ds-jalali-datepicker { display: block; width: 100%; }
+    .date-filter-section .ds-jalali-datepicker .ds-datepicker-input {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+        display: block;
+        margin: 0;
+    }
+    .apply-filter-btn { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; margin: 12px auto 0; display: block; min-width: 140px; }
+    .apply-filter-btn:hover { background: #0056b3; }
+    
+    /* Error Message Styling */
+    .date-error-message {
+        background: #f8d7da;
+        border: 2px solid #dc3545;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin: 10px 0;
+        color: #721c24;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
+        animation: errorPulse 0.5s ease-in-out;
+    }
+    
+    .date-error-message i {
+        color: #dc3545;
+        font-size: 16px;
+        animation: shake 0.5s ease-in-out;
+    }
+    
+    @@keyframes errorPulse {
+        0% { transform: scale(0.95); opacity: 0.8; }
+        50% { transform: scale(1.02); }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    
+    @@keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-2px); }
+        75% { transform: translateX(2px); }
+    }
+    /* Desktop: keep Jalali datepicker popup inside the sidebar box */
+    @@media (min-width: 769px) {
+        .nav-sidebar { position: relative; overflow: visible; }
+        .date-filter-section { position: relative; overflow: visible; }
+        .date-filter-section jdp-container { position: absolute !important; inset-inline-start: 0; top: 100%; z-index: 4000 !important; }
+        .date-filter-section jdp-overlay { display: none !important; }
+    }
+    .main-content { margin-right: 170px; }
+    
+    /* Mobile Responsive Styles */
+    @@media (max-width: 768px) {
+        .nav-sidebar { float: none; width: 100%; margin: 0; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; }
+        .nav-sidebar .nav-items-container { display: block; }
+        .nav-sidebar .nav-item { display: block; width: 100%; margin: 6px 0; padding: 10px 12px; font-size: 13px; text-align: center; }
+        .filter-section { text-align: right; margin: 10px 0; }
+        .date-filter-section { margin: 10px 0; }
+        .date-inputs { flex-direction: row; gap: 10px; }
+        .date-input-group { width: 100%; flex: 1 1 0; }
+        .date-input-group input { width: 100%; max-width: none; }
+        .date-input-group label { text-align: right; }
+        .apply-filter-btn { width: 100%; max-width: none; }
+
+        .filter-section label,
+        .col-mode-section label {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+            line-height: 1.25;
+        }
+        .filter-section label { margin: 8px 0; }
+        .col-mode-section { margin: 10px 0; }
+        .col-mode-section label { margin: 8px 0; }
+
+        .filter-section input[type="checkbox"],
+        .col-mode-section input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: #2563eb;
+            flex: 0 0 auto;
+        }
+
+        .col-mode-section label:has(input[type="checkbox"]:checked),
+        .filter-section label:has(input[type="checkbox"]:checked) {
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+        /* اعداد لاتین و خواناتر در موبایل */
+        .amount-debit, .amount-credit { 
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif; 
+            font-variant-numeric: tabular-nums lining-nums; 
+            font-feature-settings: 'tnum' 1, 'lnum' 1; 
+            direction: ltr; 
+            font-size: 15px; 
+            letter-spacing: .2px; 
+        }
+        .account-name { font-size: 15px; font-weight: 700; }
+        /* روی موبایل، خود محتوای صفحه اسکرول‌پذیر عمودی و افقی باشد تا لمس روی جدول نیز اسکرول کند */
+        .main-content { 
+            margin-right: 0; 
+            padding-bottom: 120px; 
+            overflow: visible; /* اسکرول را به ظرف داخلی می‌سپاریم */
+            height: calc(100vh - 300px); /* ارتفاع ثابت برای محتوا (با درنظر گرفتن ناو پایین) */
+        }
+        .table-scroll {
+            /* فقط افقی اسکرول کند؛ عمودی به والد واگذار شود */
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+            height: 100%; /* پر کردن کامل فضای والد */
+            width: 100%;
+            position: relative;
+            touch-action: pan-x pan-y; /* اجازه ژست‌های طبیعی هر دو محور بدون مداخله JS */
+        }
+        .report-container { padding-bottom: 120px; }
+        .report-table { font-size: 13px; width: -moz-max-content; width: max-content; table-layout: auto; }
+        .report-table th, .report-table td { padding: 6px 4px; font-size: 12px; }
+
+        /* Grid-based table (mobile replacement) */
+        .grid-scroll { overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100vh - 190px); }
+        .grid-table { display: block; width: max-content; font-size: 13px; }
+        .grid-header, .grid-row {
+            display: grid;
+            grid-template-columns: 60px 110px auto 150px 150px;
+            align-items: center;
+            column-gap: 0;
+        }
+        .grid-header { background: #87CEEB; font-weight: 800; text-align: center; border: 1px solid #000; }
+        .grid-header .cell { padding: 10px 12px; border-left: 1px solid #000; white-space: nowrap; }
+        .grid-header .cell:first-child { border-inline-start: none; }
+        .grid-body { display: block; border-inline: 1px solid #000; }
+        .grid-row { border-bottom: 1px solid #000; }
+        .grid-row .cell { padding: 8px 12px; border-left: 1px solid #000; white-space: nowrap; }
+        .grid-row .cell:first-child { border-inline-start: none; text-align: center; }
+        .cell.account-code { text-align: center; width: 110px; }
+        .cell.account-name { white-space: nowrap; font-size: 14px; }
+        .cell.amount { text-align: right; width: 150px; font-family: monospace; direction: ltr; font-weight: 800; font-size: 13px; }
+        .grid-row.total { background: #FFD700; font-weight: 800; }
+        .row-number { width: auto; min-width: 30px; }
+        .account-code { width: auto; min-width: 50px; }
+        .account-name { width: auto; min-width: 0 !important; max-width: none; white-space: nowrap; font-size: 14px; }
+        .account-name, .account-name * { white-space: nowrap !important; overflow-wrap: normal; word-break: keep-all; hyphens: none; }
+        .account-name > span { display: inline-flex; align-items: center; gap: 6px; }
+        .transaction-btn { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 8px; }
+        .amount-debit, .amount-credit { width: auto; min-width: 70px; font-size: 13px; font-weight: 800; text-align: left; }
+        .report-container { margin: 0; padding: 5px; }
+        .report-header { padding: 10px; }
+        .report-title { font-size: 16px; }
+        .report-subtitle { font-size: 12px; }
+        .total-row { background: #FFD700 !important; }
+    }
+    
+    @@media (min-width: 769px) {
+        .nav-items-container { display: block; }
+    }
+    .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 15px; }
+    .report-table th { background: #FFD700; border: 1px solid #DAA520; padding: 10px 12px; text-align: center; font-weight: 800; font-size: 16px; white-space: nowrap; color: #8B4513; }
+    .report-table td { border: 1px solid #000; padding: 8px 12px; white-space: nowrap; font-size: 15px; }
+    .report-table td.account-name { white-space: normal; }
+    .row-number { text-align: center; width: 50px; }
+    .account-code { text-align: center; width: 100px; }
+    .account-name { text-align: right; min-width: 300px; font-size: 16px; font-weight: 700; }
+    .account-name > span { display: inline-flex; align-items: center; gap: 6px; line-height: 1.45; }
+    .account-name .fa-plus-circle, .account-name .fa-minus-circle { 
+        font-size: 18px; 
+        line-height: 1; 
+        position: relative !important; 
+        z-index: 100 !important; 
+        display: inline-block !important;
+        visibility: visible !important;
+    }
+    .amount-debit, .amount-credit { 
+        text-align: right; width: 150px; 
+        font-family: 'Segoe UI', Roboto, Arial, sans-serif; 
+        font-variant-numeric: tabular-nums lining-nums; 
+        font-feature-settings: 'tnum' 1, 'lnum' 1; 
+        direction: ltr; font-weight: 800; font-size: 18px; 
+        letter-spacing: .2px;
+    }
+    .total-row { font-weight: bold; }
+    .expand-btn { background: none; border: none; cursor: pointer; padding: 2px; }
+    .transaction-btn { background: #e3f2fd; border: 1px solid #90caf9; padding: 2px 6px; cursor: pointer; font-size: 11px; }
+
+    .th-yellow { background: #fff200 !important; color: #111827 !important; border: 1px solid #000 !important; }
+    .th-blue { background: #7dd3fc !important; color: #111827 !important; border: 1px solid #000 !important; }
+    .th-green { background: #b7f7b7 !important; color: #111827 !important; border: 1px solid #000 !important; }
+
+    .td-blue { background: #7dd3fc !important; color: #111827 !important; border: 1px solid #000 !important; }
+    .td-green { background: #b7f7b7 !important; color: #111827 !important; border: 1px solid #000 !important; }
+    .td-white { background: #ffffff !important; color: #111827 !important; border: 1px solid #000 !important; }
+
+    .tafsili-moeen-btn {
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        border-radius: 10px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .tafsili-moeen-btn:hover { background: #f1f5f9; }
+
+    .turnover-eye-btn {
+        border: none;
+        background: rgba(102, 126, 234, 0.10);
+        border-radius: 10px;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #4f46e5;
+        transition: background 120ms ease, transform 120ms ease;
+    }
+    .turnover-eye-btn:hover { background: rgba(102, 126, 234, 0.18); transform: translateY(-1px); }
+    .turnover-eye-btn i { font-size: 15px; }
+</style>
+
+<div class="report-container">
+    <!-- هدر گزارش -->
+    <div class="report-header">
+        <div class="report-title">صندوق همیاری امام علی (ع)</div>
+        <div class="report-subtitle">مرور حسابها</div>
+        <div class="date-range">گزارش تهیه شده از تاریخ @fromDate تا تاریخ @toDate</div>
+    </div>
+
+    <!-- ردیف دکمه‌های سطح -->
+    <div class="level-nav-row">
+        <div class="level-nav-item @(currentLevel == 1 ? "active" : "")" @onclick="() => LoadLevel(1)">گروه</div>
+        <div class="level-nav-item @(currentLevel == 2 ? "active" : "")" @onclick="() => LoadLevel(2)">کل</div>
+        <div class="level-nav-item @(currentLevel == 3 ? "active" : "")" @onclick="() => LoadLevel(3)">معین</div>
+        <div class="level-nav-item @(currentLevel == 4 ? "active" : "")" @onclick="() => LoadLevel(4)">تفصیلی</div>
+    </div>
+
+    <!-- ناوبری و فیلترها -->
+    <div class="nav-sidebar">
+        
+        <div class="date-filter-section">
+            <div class="date-inputs">
+                <div class="date-input-group">
+                    <DsJalaliDatePicker Label="از تاریخ:" Value="@fromDate" ValueChanged="OnFromDateChanged" />
+                </div>
+                <div class="date-input-group">
+                    <DsJalaliDatePicker Label="تا تاریخ:" Value="@toDate" ValueChanged="OnToDateChanged" />
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(dateValidationError))
+            {
+                <div class="date-error-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    @dateValidationError
+                </div>
+            }
+        </div>
+        
+        <div class="col-mode-section">
+            <label>
+                <input type="checkbox" class="filter-checkbox" checked="@isBalanceTwoColumn" @onchange="() => SelectReportMode(ReportMode.TwoColumnBalance)" />
+                ۲ ستونی (مانده)
+            </label>
+            <label style="display:none">
+                <input type="checkbox" class="filter-checkbox" checked="@isTurnoverTwoColumn" @onchange="() => SelectReportMode(ReportMode.TwoColumnTurnover)" />
+                ۲ ستونی (گردش)
+            </label>
+            <label>
+                <input type="checkbox" class="filter-checkbox" checked="@isFourColumn" @onchange="() => SelectReportMode(ReportMode.FourColumnTurnoverBalance)" />
+                ۴ ستونی (گردش + مانده)
+            </label>
+        </div>
+
+        <div class="filter-section">
+            <label>
+                <input type="checkbox" class="filter-checkbox" @bind="showOnlyWithBalance" @bind:after="OnBalanceFilterChanged" />
+                حساب‌های با مانده
+            </label>
+        </div>
+    </div>
+
+    <!-- محتوای اصلی -->
+    <div class="main-content">
+        <div class="date-inputs" style="margin-bottom: 10px;">
+            <div class="date-input-group">
+                <label>جستجو (کد/نام/تفصیلی):</label>
+                <input type="text" value="@searchTerm" @oninput="OnLiveSearchInput" placeholder="مثال: 11012 یا علی یا 60101001" style="padding: 12px 16px; border: 1px solid #e5e5ea; border-radius: 8px; text-align: center; width: 100%; box-sizing: border-box;" />
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div style="text-align: center; padding: 50px;">در حال بارگیری...</div>
+        }
+        else if (nodes?.Any() == true)
+        {
+            <div class="table-scroll">
+            <table class="report-table" id="trial-balance-table" @ref="reportTableRef">
+                <thead>
+                        @if (isFourColumn)
+                        {
+                            <tr>
+                                <th class="row-number th-yellow" rowspan="2">ردیف</th>
+                                <th class="account-code th-yellow" rowspan="2">کدینگ</th>
+                                @if (currentLevel >= 1 && currentLevel <= 4)
+                                {
+                                    <th class="th-yellow" rowspan="2">گردش</th>
+                                }
+                                <th class="account-name th-yellow" rowspan="2">شرح حساب</th>
+                                <th class="th-blue" colspan="2">گردش حساب</th>
+                                <th class="th-green" colspan="2">مانده حساب</th>
+                            </tr>
+                            <tr>
+                                <th class="amount-debit th-blue" style="font-family: 'Vazir', 'Segoe UI', Tahoma, Arial, sans-serif;">گردش بدهکار</th>
+                                <th class="amount-credit th-blue" style="font-family: 'Vazir', 'Segoe UI', Tahoma, Arial, sans-serif;">گردش بستانکار</th>
+                                <th class="amount-debit th-green" style="font-family: 'Vazir', 'Segoe UI', Tahoma, Arial, sans-serif;">مانده بدهکار</th>
+                                <th class="amount-credit th-green" style="font-family: 'Vazir', 'Segoe UI', Tahoma, Arial, sans-serif;">مانده بستانکار</th>
+                            </tr>
+                        }
+                        else if (isBalanceTwoColumn)
+                        {
+                            <tr>
+                                <th class="row-number th-yellow">ردیف</th>
+                                <th class="account-code th-yellow">کدینگ</th>
+                                @if (currentLevel >= 1 && currentLevel <= 4)
+                                {
+                                    <th class="th-yellow">گردش</th>
+                                }
+                                <th class="account-name th-yellow">شرح حساب</th>
+                                <th class="amount-debit th-green" style="font-family: 'Vazir', 'Segoe UI', Tahoma, Arial, sans-serif;">مانده بدهکار</th>
+                                <th class="amount-credit th-green" style="font-family: 'Vazir', 'Segoe UI', Tahoma, Arial, sans-serif;">مانده بستانکار</th>
+                            </tr>
+                        }
+                        else
+                        {
+                            <tr>
+                                <th class="row-number th-yellow">ردیف</th>
+                                <th class="account-code th-yellow">کدینگ</th>
+                                @if (currentLevel >= 1 && currentLevel <= 4)
+                                {
+                                    <th class="th-yellow">گردش</th>
+                                }
+                                <th class="account-name th-yellow">شرح حساب</th>
+                                <th class="amount-debit th-blue" style="font-family: 'Vazir', 'Segoe UI', Tahoma, Arial, sans-serif;">گردش بدهکار</th>
+                                <th class="amount-credit th-blue" style="font-family: 'Vazir', 'Segoe UI', Tahoma, Arial, sans-serif;">گردش بستانکار</th>
+                            </tr>
+                        }
+                    </thead>
+                    <tbody>
+                        @{int rowNumber = 1;}
+                        @foreach (var node in filteredNodes)
+                        {
+                            @RenderTableRow(node, rowNumber++)
+                        }
+                        <!-- ردیف جمع -->
+                        <tr class="total-row">
+                            <td class="account-name td-white" colspan="@(3 + (currentLevel >= 1 && currentLevel <= 4 ? 1 : 0))" style="text-align: center; font-weight: 800;">
+                                جمع و موازنه
+                            </td>
+                            <td class="amount-debit @(isBalanceTwoColumn ? "td-green" : "td-blue")">@(isBalanceTwoColumn ? ComputeTotalDebtorBalance(filteredNodes).ToString("N0") : totalDebit.ToString("N0"))</td>
+                            <td class="amount-credit @(isBalanceTwoColumn ? "td-green" : "td-blue")">@(isBalanceTwoColumn ? ComputeTotalCreditorBalance(filteredNodes).ToString("N0") : totalCredit.ToString("N0"))</td>
+                            @if (isFourColumn)
+                            {
+                                <td class="amount-debit td-green">@ComputeTotalDebtorBalance(filteredNodes).ToString("N0")</td>
+                                <td class="amount-credit td-green">@ComputeTotalCreditorBalance(filteredNodes).ToString("N0")</td>
+                            }
+                        </tr>
+                    </tbody>
+            </table>
+            </div>
+        }
+        else
+        {
+            <div style="text-align: center; padding: 50px;">هیچ حسابی یافت نشد</div>
+        }
+    </div>
+</div>
+
+<!-- مدال جزئیات تراکنش -->
+@if (showTransactionModal && selectedTransaction != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.7); z-index: 1050;">
+        <div class="modal-dialog modal-lg" style="z-index: 1051;">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-receipt me-2"></i>
+                        رسید حسابداری - شماره @(selectedTransaction.DocumentNumber?.ToString() ?? $"P-{selectedTransaction.JournalId}")
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseTransactionModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- اطلاعات کلی -->
+                        <div class="col-md-6">
+                            <div class="card border-primary mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>اطلاعات کلی</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm table-borderless">
+                                        <tr>
+                                            <td class="fw-bold">شماره ژورنال:</td>
+                                            <td>@(selectedTransaction.DocumentNumber?.ToString() ?? $"P-{selectedTransaction.JournalId}")</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">شماره خط:</td>
+                                            <td>@selectedTransaction.LineNo</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">تاریخ:</td>
+                                            <td>@selectedTransaction.DisplayDate</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">ایجاد شده توسط:</td>
+                                            <td>@selectedTransaction.CreatedBy</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- اطلاعات عضو -->
+                        <div class="col-md-6">
+                            <div class="card border-success mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-user me-2"></i>اطلاعات عضو</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm table-borderless">
+                                        <tr>
+                                            <td class="fw-bold">نام عضو:</td>
+                                            <td>@selectedTransaction.DisplayMember</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">نوع سپرده:</td>
+                                            <td>@selectedTransaction.DisplayPurpose</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">مبلغ کل تراکنش:</td>
+                                            <td class="fw-bold text-primary">@selectedTransaction.TransactionAmount?.ToString("N0") ریال</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- الگوی حسابداری -->
+                    <div class="card border-warning mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>الگوی حسابداری</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <strong>@selectedTransaction.DisplayPostingTemplate</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- جدول حساب‌ها -->
+                    <div class="card border-dark">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-table me-2"></i>جزئیات حسابداری</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-bordered">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>کد حساب</th>
+                                        <th>نام حساب</th>
+                                        <th>بدهکار</th>
+                                        <th>بستانکار</th>
+                                        <th>نوع</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="@(selectedTransaction.IsDebit ? "table-success" : "table-danger")">
+                                        <td>@selectedTransaction.AccountCode</td>
+                                        <td>@selectedTransaction.AccountName</td>
+                                        <td class="text-end">
+                                            @if (selectedTransaction.IsDebit)
+                                            {
+                                                <strong>@selectedTransaction.Debit.ToString("N0")</strong>
+                                            }
+                                            else
+                                            {
+                                                <span>-</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            @if (selectedTransaction.IsCredit)
+                                            {
+                                                <strong>@selectedTransaction.Credit.ToString("N0")</strong>
+                                            }
+                                            else
+                                            {
+                                                <span>-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="@selectedTransaction.TypeBadgeClass">@selectedTransaction.TransactionType</span>
+                                        </td>
+                                    </tr>
+                                    @if (!string.IsNullOrWhiteSpace(selectedTransaction.CounterpartName))
+                                    {
+                                        <tr class="@(!selectedTransaction.IsDebit ? "table-success" : "table-danger")">
+                                            <td>@selectedTransaction.CounterpartCode</td>
+                                            <td>@selectedTransaction.CounterpartName</td>
+                                            <td class="text-end">
+                                                @if (!selectedTransaction.IsDebit)
+                                                {
+                                                    <strong>@selectedTransaction.Amount.ToString("N0")</strong>
+                                                }
+                                                else
+                                                {
+                                                    <span>-</span>
+                                                }
+                                            </td>
+                                            <td class="text-end">
+                                                @if (selectedTransaction.IsDebit)
+                                                {
+                                                    <strong>@selectedTransaction.Amount.ToString("N0")</strong>
+                                                }
+                                                else
+                                                {
+                                                    <span>-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="@(!selectedTransaction.IsDebit ? "badge bg-success" : "badge bg-danger")">
+                                                    @(!selectedTransaction.IsDebit ? "بدهکار" : "بستانکار")
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-secondary">
+                                    <tr>
+                                        <th colspan="2">جمع کل:</th>
+                                        <th class="text-end">@selectedTransaction.Amount.ToString("N0")</th>
+                                        <th class="text-end">@selectedTransaction.Amount.ToString("N0")</th>
+                                        <th>متعادل</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(selectedTransaction.Notes))
+                    {
+                        <div class="card border-info mt-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-sticky-note me-2"></i>توضیحات</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-0">@selectedTransaction.Notes</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseTransactionModal">
+                        <i class="fas fa-times me-2"></i>بستن
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="PrintTransaction">
+                        <i class="fas fa-print me-2"></i>چاپ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<script>
+    window.mbtb = window.mbtb || {
+        attach: function (tableId) {
+            if (!tableId) return;
+            const recalc = () => window.mbtb.recalcAccountNameWidth(tableId);
+            window.addEventListener('resize', recalc);
+
+            // Observe DOM changes to re-measure after expand/collapse renders
+            const table = document.getElementById(tableId);
+            if (table && !table._mbtbObserved) {
+                const mo = new MutationObserver(() => window.mbtb.deferRecalc(tableId));
+                mo.observe(table.tBodies[0] || table, { childList: true, subtree: true, attributes: true });
+                table._mbtbObserved = true;
+            }
+        },
+        deferRecalc: function (tableId) {
+            // wait for layout to settle
+            requestAnimationFrame(() => requestAnimationFrame(() => window.mbtb.recalcAccountNameWidth(tableId)));
+        },
+        recalcAccountNameWidth: function (tableId) {
+            try {
+                if (window.innerWidth > 768) return; // فقط موبایل
+                const table = document.getElementById(tableId);
+                if (!table) return;
+                const header = table.querySelector('th.account-name');
+                const allCells = Array.from(table.querySelectorAll('td.account-name'));
+                const visibleCells = Array.from(table.querySelectorAll('tbody tr'))
+                    .filter(tr => tr.offsetParent !== null)
+                    .map(tr => tr.querySelector('td.account-name'))
+                    .filter(Boolean);
+
+                // ریست کامل همه سلول‌ها (visible و غیر قابل مشاهده)
+                [header, ...allCells].forEach(el => {
+                    if (!el) return;
+                    el.style.width = 'auto';
+                    el.style.minWidth = '0px';
+                    el.style.maxWidth = '';
+                });
+
+                // اگر هیچ ردیفی قابل مشاهده نبود، خروج
+                if (!visibleCells.length) return;
+
+                // محاسبه بیشینه عرض محتوای قابل مشاهده (فقط سلول‌های قابل مشاهده؛ هدر لحاظ نمی‌شود)
+                let max = 0;
+                visibleCells.forEach(td => { max = Math.max(max, td.scrollWidth); });
+
+                // محاسبه عرض در دسترس با کسر سایر ستون‌ها در اولین ردیف قابل مشاهده
+                const firstVisibleRow = Array.from(table.tBodies[0]?.rows || []).find(tr => tr.offsetParent !== null);
+                let otherWidth = 0;
+                if (firstVisibleRow) {
+                    const tds = Array.from(firstVisibleRow.cells);
+                    tds.forEach(td => {
+                        if (!td.classList.contains('account-name')) {
+                            const styles = getComputedStyle(td);
+                            const w = td.getBoundingClientRect().width
+                                + parseFloat(styles.marginLeft) + parseFloat(styles.marginRight);
+                            otherWidth += w;
+                        }
+                    });
+                }
+                // حداقل را پایین می‌آوریم تا ستون کوچک شود وقتی متن کوتاه است
+                // در عین حال اجازه می‌دهیم جدول با اسکرول افقی بزرگ شود (بدون سقف به اندازه container)
+                const minPx = 60;
+                const target = Math.max(max + 4, minPx);
+
+                if (header) header.style.width = target + 'px';
+                allCells.forEach(td => td.style.width = target + 'px');
+            } catch (e) {
+                // ignore
+            }
+        },
+        // removed mediateVerticalScroll: rely on native scrolling
+        stateSet: function (key, json) {
+            try {
+                if (!key) return;
+                sessionStorage.setItem(key, json || '');
+            } catch (e) { }
+        },
+        stateGet: function (key) {
+            try {
+                if (!key) return null;
+                return sessionStorage.getItem(key);
+            } catch (e) { return null; }
+        },
+        stateRemove: function (key) {
+            try {
+                if (!key) return;
+                sessionStorage.removeItem(key);
+            } catch (e) { }
+        },
+    };
+</script>
+
+@code {
+    private const string TrialBalanceStateKey = "mb.tb.state.v1";
+
+    private static string BuildTransactionNodeTitle(JournalLineDetail t)
+    {
+        var p = TransactionPresentationService.Build(
+            new TransactionPresentationService.PresentationInput
+            {
+                JournalId = t.JournalId,
+                Notes = t.Notes ?? string.Empty,
+                DocumentType = t.DocumentType,
+                TransactionType = t.TransactionTypeCode,
+                PayChannel = t.PayChannel,
+                CounterpartyName = t.CounterpartyName,
+                DisplayName = t.DisplayName
+            },
+            null);
+
+        var title = !string.IsNullOrWhiteSpace(p.TransactionTypeName) && p.TransactionTypeName != "-" ? p.TransactionTypeName : t.TransactionType;
+        var counterparty = !string.IsNullOrWhiteSpace(p.DisplayName) ? p.DisplayName : t.DisplayMember;
+        var amount = t.Amount;
+        return $"{title} - {counterparty} - {amount:N0}";
+    }
+
+    private class TrialBalanceViewState
+    {
+        public byte Level { get; set; }
+        public byte CurrentLevel { get; set; }
+        public byte PreviousLevel { get; set; }
+        public bool ShowOnlyWithBalance { get; set; }
+        public bool IsFourColumn { get; set; }
+        public bool IsTurnoverTwoColumn { get; set; }
+        public bool IsBalanceTwoColumn { get; set; }
+        public string FromDate { get; set; } = string.Empty;
+        public string ToDate { get; set; } = string.Empty;
+        public long? MoeenId { get; set; }
+    }
+
+    private List<TrialBalanceNode> nodes = new();
+    private List<TrialBalanceNode> filteredNodes => FilterNodes(nodes);
+    private TrialBalanceSummary summary = new();
+    private byte currentLevel = 1;
+    private byte previousLevel = 1; // ذخیره آخرین سطح قبل از جستجو
+    private bool isLoading = false;
+    private string searchTerm = string.Empty;
+    private bool showOnlyWithBalance = true;
+    private long? _currentMoeenId;
+
+    private bool isFourColumn = false;
+    private bool isTurnoverTwoColumn = false;
+    private bool isBalanceTwoColumn = true;
+    
+    // محاسبه مجاميع
+    private decimal totalDebit => filteredNodes.Sum(n => n.DebitBalance);
+    private decimal totalCredit => filteredNodes.Sum(n => n.CreditBalance);
+    
+    // مدال تراکنش
+    private bool showTransactionModal = false;
+    private JournalLineDetail? selectedTransaction = null;
+    private string fromDate = "";
+    private string toDate = "";
+    private DateTime? fromDateG;
+    private DateTime? toDateG;
+    private string dateValidationError = "";
+    private ElementReference reportTableRef;
+    private readonly string tableDomId = "trial-balance-table";
+
+    private CancellationTokenSource? _liveSearchCts;
+    private CancellationTokenSource? _filtersCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var restored = await TryRestoreStateAsync();
+        if (!restored)
+        {
+            // تنظیم تاریخ پیش‌فرض به ابتدا و انتهای سال مالی جاری
+            await InitializeDefaultDatesAsync();
+
+            // بعد از تنظیم تاریخ‌ها، داده‌ها را بر اساس بازه پیش‌فرض لود کن
+            await LoadLevel(3);
+        }
+        await LoadSummary();
+    }
+
+    private async Task<bool> TryRestoreStateAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("mbtb.stateGet", TrialBalanceStateKey);
+            if (string.IsNullOrWhiteSpace(json)) return false;
+
+            var state = JsonSerializer.Deserialize<TrialBalanceViewState>(json);
+            if (state == null) return false;
+
+            currentLevel = state.CurrentLevel;
+            previousLevel = state.PreviousLevel;
+            showOnlyWithBalance = state.ShowOnlyWithBalance;
+
+            isFourColumn = state.IsFourColumn;
+            isTurnoverTwoColumn = state.IsTurnoverTwoColumn;
+            isBalanceTwoColumn = state.IsBalanceTwoColumn;
+
+            fromDate = state.FromDate ?? string.Empty;
+            toDate = state.ToDate ?? string.Empty;
+            fromDateG = ParseJalaliToGregorian(fromDate);
+            var toG = ParseJalaliToGregorian(toDate);
+            toDateG = toG?.Date;
+
+            _currentMoeenId = state.MoeenId;
+
+            await JSRuntime.InvokeVoidAsync("mbtb.stateRemove", TrialBalanceStateKey);
+
+            if (_currentMoeenId.HasValue)
+                await LoadMoeenDrillDown(_currentMoeenId.Value);
+            else
+                await LoadLevel(currentLevel);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void OnLiveSearchInput(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        _ = DebouncedLiveSearchAsync();
+    }
+
+    private Task OnFromDateChanged(string? v)
+    {
+        fromDate = v ?? string.Empty;
+        _ = DebouncedApplyDateFilterAsync();
+        return Task.CompletedTask;
+    }
+
+    private Task OnToDateChanged(string? v)
+    {
+        toDate = v ?? string.Empty;
+        _ = DebouncedApplyDateFilterAsync();
+        return Task.CompletedTask;
+    }
+
+    private async Task DebouncedApplyDateFilterAsync(int delayMs = 250)
+    {
+        _filtersCts?.Cancel();
+        _filtersCts = new CancellationTokenSource();
+        var token = _filtersCts.Token;
+
+        try
+        {
+            await Task.Delay(delayMs, token);
+            if (!token.IsCancellationRequested)
+                await ApplyDateFilter();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private async Task DebouncedLiveSearchAsync(int delayMs = 120)
+    {
+        _liveSearchCts?.Cancel();
+        _liveSearchCts = new CancellationTokenSource();
+        var token = _liveSearchCts.Token;
+
+        try
+        {
+            await Task.Delay(delayMs, token);
+            if (!token.IsCancellationRequested)
+                StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private List<TrialBalanceNode> FilterNodes(List<TrialBalanceNode> source)
+    {
+        var q = (searchTerm ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(q))
+            return source;
+
+        var kw = q.ToLowerInvariant();
+        return source
+            .Where(n =>
+                (!string.IsNullOrWhiteSpace(n.Code) && n.Code.ToLowerInvariant().Contains(kw))
+                || (!string.IsNullOrWhiteSpace(n.Name) && n.Name.ToLowerInvariant().Contains(kw)))
+            .ToList();
+    }
+
+    private async Task InitializeDefaultDatesAsync()
+    {
+        try
+        {
+            var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
+            if (fy != null)
+            {
+                fromDate = fy.StartDate.ToPersianDate();
+                toDate = fy.EndDate.ToPersianDate();
+            }
+            else
+            {
+                var r = DateTimeExtensions.CurrentJalaliYearRange();
+                fromDate = r.From;
+                toDate = r.To;
+            }
+        }
+        catch
+        {
+            var r = DateTimeExtensions.CurrentJalaliYearRange();
+            fromDate = r.From;
+            toDate = r.To;
+        }
+        fromDateG = ParseJalaliToGregorian(fromDate);
+        var toG = ParseJalaliToGregorian(toDate);
+        toDateG = toG?.Date;
+    }
+
+    private DateTime? ParseJalaliToGregorian(string? jalali)
+        => Components.Extensions.DateTimeExtensions.TryParseJalaliDate(jalali, out var dt) ? dt : null;
+
+    private async Task LoadLevel(byte level)
+    {
+        isLoading = true;
+        _currentMoeenId = null;
+        // ذخیره سطح قبلی فقط اگر در حالت عادی باشیم
+        previousLevel = currentLevel;
+        currentLevel = level;
+        StateHasChanged();
+
+        try
+        {
+            nodes = (await TrialBalanceRepo.GetByLevelAsync(level, null, showOnlyWithBalance, fromDateG, toDateG, null)).ToList();
+        }
+        catch (Exception ex)
+        {
+            // Log error
+            nodes = new List<TrialBalanceNode>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+            await RecalcAccountNameWidthAsync();
+        }
+    }
+
+    private async Task LoadMoeenDrillDown(long moeenId)
+    {
+        isLoading = true;
+        _currentMoeenId = moeenId;
+        previousLevel = currentLevel;
+        currentLevel = 4;
+        StateHasChanged();
+
+        try
+        {
+            nodes = (await TrialBalanceRepo.GetMoeenTafsiliListAsync(moeenId, showOnlyWithBalance, fromDateG, toDateG)).ToList();
+        }
+        catch (Exception ex)
+        {
+            nodes = new List<TrialBalanceNode>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+            await RecalcAccountNameWidthAsync();
+        }
+    }
+
+    private async Task LoadDrillDown(byte parentLevel, long parentId)
+    {
+        var targetLevel = (byte)(parentLevel + 1);
+        isLoading = true;
+        _currentMoeenId = null;
+        previousLevel = currentLevel;
+        currentLevel = targetLevel;
+        StateHasChanged();
+
+        try
+        {
+            nodes = (await TrialBalanceRepo.GetByLevelAsync(targetLevel, parentId, showOnlyWithBalance, fromDateG, toDateG, null)).ToList();
+        }
+        catch (Exception ex)
+        {
+            nodes = new List<TrialBalanceNode>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+            await RecalcAccountNameWidthAsync();
+        }
+    }
+
+    private async Task LoadSummary()
+    {
+        try
+        {
+            summary = await TrialBalanceRepo.GetSummaryAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log error
+            summary = null;
+        }
+        StateHasChanged();
+        await RecalcAccountNameWidthAsync();
+    }
+
+    private async Task DebugTransactions()
+    {
+        try
+        {
+            var analysis = await TrialBalanceRepo.GetTransactionAnalysisAsync();
+            var debugInfo = string.Join("\n", analysis.Select(a => 
+                $"ID: {a.AccountId}, Code: {a.Code}, Name: {a.Name}, Level: {a.Level}, " +
+                $"Parent: {a.ParentAccountId}, Transactions: {a.TransactionCount}, " +
+                $"Debit: {a.TotalDebit}, Credit: {a.TotalCredit}, Net: {a.NetBalance}"));
+            
+            await JSRuntime.InvokeVoidAsync("alert", $"تحلیل تراکنش‌ها:\n{debugInfo}");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"خطا در تحلیل: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleExpand(TrialBalanceNode node)
+    {
+        if (node.IsExpanded)
+        {
+            node.IsExpanded = false;
+            node.Children.Clear();
+        }
+        else
+        {
+            try
+            {
+                // ابتدا سعی کن فرزندان حساب را پیدا کنی
+                IEnumerable<TrialBalanceNode> children;
+                
+                children = await TrialBalanceRepo.GetChildrenAsync(node.AccountId, fromDateG, toDateG, null);
+                
+                if (children.Any())
+                {
+                    // اگر فرزند داشت، آن‌ها را به عنوان children اضافه کن
+                    node.Children = children.ToList();
+                    node.IsExpanded = true;
+                }
+                else
+                {
+                    // اگر فرزند نداشت، تراکنش‌ها را بارگیری کن
+                    IEnumerable<JournalLineDetail> transactions;
+                    
+                    transactions = await TrialBalanceRepo.GetAccountTransactionsAsync(node.AccountId, fromDateG, toDateG);
+                    
+                    if (transactions.Any())
+                    {
+                        // تبدیل تراکنش‌ها به نودهای فرزند
+                        var transactionNodes = transactions.Select(t => new TrialBalanceNode
+                        {
+                            AccountId = t.JournalLineId, // استفاده از JournalLineId به عنوان شناسه منحصر به فرد
+                            Code = $"T{t.JournalLineId}",
+                            Name = BuildTransactionNodeTitle(t),
+                            Level = 5, // سطح تراکنش
+                            DebitBalance = t.Debit,
+                            CreditBalance = t.Credit,
+                            HasChildren = false,
+                            IsExpanded = false,
+                            Children = new List<TrialBalanceNode>(),
+                            ParentAccountId = node.AccountId
+                        }).ToList();
+                        
+                        node.Children = transactionNodes;
+                        node.IsExpanded = true;
+                    }
+                    else
+                    {
+                        // اگر تراکنشی هم نداشت، یک پیام نمایش بده
+                        node.Children = new List<TrialBalanceNode>
+                        {
+                            new TrialBalanceNode
+                            {
+                                AccountId = -1,
+                                Code = "---",
+                                Name = "هیچ تراکنش یا فرزندی یافت نشد",
+                                Level = 5,
+                                AccountType = node.AccountType,
+                                ParentAccountId = node.AccountId,
+                                DebitBalance = 0,
+                                CreditBalance = 0,
+                                HasChildren = false
+                            }
+                        };
+                        node.IsExpanded = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error silently
+            }
+        }
+        StateHasChanged();
+        await RecalcAccountNameWidthAsync();
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadLevel(currentLevel);
+        await LoadSummary();
+    }
+
+    private enum ReportMode
+    {
+        TwoColumnBalance = 1,
+        TwoColumnTurnover = 2,
+        FourColumnTurnoverBalance = 3
+    }
+
+    private void SelectReportMode(ReportMode mode)
+    {
+        isBalanceTwoColumn = mode == ReportMode.TwoColumnBalance;
+        isTurnoverTwoColumn = mode == ReportMode.TwoColumnTurnover;
+        isFourColumn = mode == ReportMode.FourColumnTurnoverBalance;
+        StateHasChanged();
+    }
+
+    private decimal ComputeDebtorBalance(TrialBalanceNode node)
+    {
+        var net = node.DebitBalance - node.CreditBalance;
+        return net > 0 ? net : 0m;
+    }
+
+    private decimal ComputeCreditorBalance(TrialBalanceNode node)
+    {
+        var net = node.DebitBalance - node.CreditBalance;
+        return net < 0 ? Math.Abs(net) : 0m;
+    }
+
+    private decimal ComputeTotalDebtorBalance(IEnumerable<TrialBalanceNode> list)
+        => list.Sum(n => ComputeDebtorBalance(n));
+
+    private decimal ComputeTotalCreditorBalance(IEnumerable<TrialBalanceNode> list)
+        => list.Sum(n => ComputeCreditorBalance(n));
+
+    private void ExpandAll()
+    {
+        // TODO: Implement expand all functionality
+    }
+
+    private void CollapseAll()
+    {
+        foreach (var node in nodes)
+        {
+            CollapseNodeRecursive(node);
+        }
+        StateHasChanged();
+    }
+
+    private void CollapseNodeRecursive(TrialBalanceNode node)
+    {
+        node.IsExpanded = false;
+        node.Children.Clear();
+        foreach (var child in node.Children)
+        {
+            CollapseNodeRecursive(child);
+        }
+    }
+
+    private async Task OnBalanceFilterChanged()
+    {
+        if (_currentMoeenId.HasValue)
+            await LoadMoeenDrillDown(_currentMoeenId.Value);
+        else
+            await LoadLevel(currentLevel);
+    }
+
+    private async Task ExportToExcel()
+    {
+        // TODO: Implement Excel export
+        await JSRuntime.InvokeVoidAsync("alert", "قابلیت خروجی Excel به زودی اضافه خواهد شد");
+    }
+
+    private async Task TestRollupLogic()
+    {
+        try
+        {
+            // تست منطق تجمیعی برای تمام سطوح
+            var level1 = await TrialBalanceRepo.GetByLevelAsync(1);
+            var level2 = await TrialBalanceRepo.GetByLevelAsync(2);
+            var level3 = await TrialBalanceRepo.GetByLevelAsync(3);
+            var level4 = await TrialBalanceRepo.GetByLevelAsync(4);
+
+            var message = "تست منطق Roll-up:\n" +
+                $"سطح 1: {level1.Count()} حساب - مجموع بدهکار: {level1.Sum(x => x.DebitBalance):N0} - مجموع بستانکار: {level1.Sum(x => x.CreditBalance):N0}\n" +
+                $"سطح 2: {level2.Count()} حساب - مجموع بدهکار: {level2.Sum(x => x.DebitBalance):N0} - مجموع بستانکار: {level2.Sum(x => x.CreditBalance):N0}\n" +
+                $"سطح 3: {level3.Count()} حساب - مجموع بدهکار: {level3.Sum(x => x.DebitBalance):N0} - مجموع بستانکار: {level3.Sum(x => x.CreditBalance):N0}\n" +
+                $"سطح 4: {level4.Count()} حساب - مجموع بدهکار: {level4.Sum(x => x.DebitBalance):N0} - مجموع بستانکار: {level4.Sum(x => x.CreditBalance):N0}\n\n" +
+                "نمونه حساب‌های سطح 1:\n" +
+                string.Join("\n", level1.Take(3).Select(x => $"- {x.Code}: {x.Name} | بدهکار: {x.DebitBalance:N0} | بستانکار: {x.CreditBalance:N0}"));
+
+            await JSRuntime.InvokeVoidAsync("alert", message);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"خطا در تست Roll-up: {ex.Message}");
+        }
+    }
+
+    private async Task DebugChildren()
+    {
+        try
+        {
+            // تست GetChildrenAsync برای حساب‌های سطح 3 و 4
+            var level3Accounts = await TrialBalanceRepo.GetByLevelAsync(3);
+            var level4Accounts = await TrialBalanceRepo.GetByLevelAsync(4);
+
+            var debugInfo = "Debug فرزندان:\n\n";
+            
+            // تست یک حساب سطح 3
+            var sampleLevel3 = level3Accounts.FirstOrDefault();
+            if (sampleLevel3 != null)
+            {
+                var children3 = await TrialBalanceRepo.GetChildrenAsync(sampleLevel3.AccountId);
+                debugInfo += "حساب سطح 3: " + sampleLevel3.Code + " - " + sampleLevel3.Name + "\n";
+                debugInfo += "تعداد فرزندان: " + children3.Count() + "\n";
+                debugInfo += "فرزندان: " + string.Join(", ", children3.Take(3).Select(x => x.Code)) + "\n\n";
+            }
+
+            // تست یک حساب سطح 4
+            var sampleLevel4 = level4Accounts.FirstOrDefault();
+            if (sampleLevel4 != null)
+            {
+                var children4 = await TrialBalanceRepo.GetChildrenAsync(sampleLevel4.AccountId);
+                debugInfo += "حساب سطح 4: " + sampleLevel4.Code + " - " + sampleLevel4.Name + "\n";
+                debugInfo += "تعداد فرزندان: " + children4.Count() + "\n";
+                debugInfo += "HasChildren: " + sampleLevel4.HasChildren + "\n";
+                if (children4.Any())
+                {
+                    debugInfo += "فرزندان: " + string.Join(", ", children4.Take(3).Select(x => x.Code)) + "\n";
+                }
+                else
+                {
+                    // اگر فرزند نداشت، تراکنش‌ها را بررسی کن
+                    var transactions = await TrialBalanceRepo.GetAccountTransactionsAsync(sampleLevel4.AccountId);
+                    debugInfo += "تعداد تراکنش‌ها: " + transactions.Count() + "\n";
+                }
+            }
+
+            await JSRuntime.InvokeVoidAsync("alert", debugInfo);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"خطا در Debug: {ex.Message}");
+        }
+    }
+
+    private RenderFragment RenderTableRow(TrialBalanceNode node, int rowNumber) => __builder =>
+    {
+        var debitDisplay = isBalanceTwoColumn ? ComputeDebtorBalance(node) : node.DebitBalance;
+        var creditDisplay = isBalanceTwoColumn ? ComputeCreditorBalance(node) : node.CreditBalance;
+
+        <tr>
+            <td class="row-number">@rowNumber</td>
+            <td class="account-code">
+                @if (node.Level == 3 && currentLevel == 3)
+                {
+                    <a href="javascript:void(0)" style="font-weight:900; text-decoration: underline;" @onclick="() => LoadMoeenDrillDown(node.AccountId)">@node.Code</a>
+                }
+                else if (node.Level == 4 && currentLevel == 4)
+                {
+                    <a href="javascript:void(0)" style="font-weight:900; text-decoration: underline;" @onclick="() => GoToTafsiliMoeenAsync(node)">@node.Code</a>
+                }
+                else if (node.Level <= 2 && currentLevel == node.Level)
+                {
+                    <a href="javascript:void(0)" style="font-weight:900; text-decoration: underline;" @onclick="() => LoadDrillDown(node.Level, node.AccountId)">@node.Code</a>
+                }
+                else
+                {
+                    <span>@node.Code</span>
+                }
+            </td>
+            @if (currentLevel >= 1 && currentLevel <= 4)
+            {
+                <td style="text-align: center;">
+                    <button type="button" class="turnover-eye-btn" @onclick="() => OnTurnoverClick(node)">
+                        <i class="fas fa-receipt"></i>
+                    </button>
+                </td>
+            }
+            <td class="account-name">
+                <span>@OneLine(node.Name)</span>
+            </td>
+            <td class="amount-debit">
+                <span>@debitDisplay.ToString("N0")</span>
+            </td>
+            <td class="amount-credit">
+                <span>@creditDisplay.ToString("N0")</span>
+            </td>
+            @if (isFourColumn)
+            {
+                <td class="amount-debit">
+                    <span>@(ComputeDebtorBalance(node) > 0 ? ComputeDebtorBalance(node).ToString("N0") : "-")</span>
+                </td>
+                <td class="amount-credit">
+                    <span>@(ComputeCreditorBalance(node) > 0 ? ComputeCreditorBalance(node).ToString("N0") : "-")</span>
+                </td>
+            }
+        </tr>
+    };
+
+    private async Task GoToTurnoverAsync(TrialBalanceNode node)
+    {
+        await SaveStateAsync();
+        var fromQ = Uri.EscapeDataString(fromDate ?? string.Empty);
+        var toQ = Uri.EscapeDataString(toDate ?? string.Empty);
+        var includeChildrenQ = currentLevel == 4 ? "" : "&includeChildren=true";
+        Nav.NavigateTo($"/admin/reports/subsidiary-transactions/{node.AccountId}?fromDate={fromQ}&toDate={toQ}&level={node.Level}{includeChildrenQ}");
+    }
+
+    private void OnTurnoverClick(TrialBalanceNode node)
+    {
+        _ = GoToTurnoverAsync(node);
+    }
+
+    private async Task SaveStateAsync()
+    {
+        var state = new TrialBalanceViewState
+        {
+            CurrentLevel = currentLevel,
+            PreviousLevel = previousLevel,
+            ShowOnlyWithBalance = showOnlyWithBalance,
+            IsFourColumn = isFourColumn,
+            IsTurnoverTwoColumn = isTurnoverTwoColumn,
+            IsBalanceTwoColumn = isBalanceTwoColumn,
+            FromDate = fromDate,
+            ToDate = toDate,
+            MoeenId = _currentMoeenId
+        };
+
+        var json = JsonSerializer.Serialize(state);
+        await JSRuntime.InvokeVoidAsync("mbtb.stateSet", TrialBalanceStateKey, json);
+    }
+
+    private async Task GoToTafsiliMoeenAsync(TrialBalanceNode node)
+    {
+        await SaveStateAsync();
+        var fromQ = Uri.EscapeDataString(fromDate ?? string.Empty);
+        var toQ = Uri.EscapeDataString(toDate ?? string.Empty);
+        Nav.NavigateTo($"/admin/reports/tafsili-moeen/{node.AccountId}?fromDate={fromQ}&toDate={toQ}");
+    }
+
+    private async Task OnFilterChange()
+    {
+        StateHasChanged();
+    }
+
+    private async Task ApplyDateFilter()
+    {
+        try
+        {
+            // پاک کردن خطای قبلی
+            dateValidationError = "";
+            
+            // اعتبارسنجی تاریخ‌ها
+            if (string.IsNullOrWhiteSpace(fromDate) || string.IsNullOrWhiteSpace(toDate))
+            {
+                dateValidationError = "لطفاً هر دو تاریخ شروع و پایان را وارد کنید";
+                StateHasChanged();
+                return;
+            }
+
+            // پارس تاریخ‌های انتخاب شده کاربر
+            var fromG = ParseJalaliToGregorian(fromDate);
+            var toG = ParseJalaliToGregorian(toDate);
+            
+            if (fromG == null || toG == null)
+            {
+                dateValidationError = "فرمت تاریخ نامعتبر است. لطفاً از فرمت yyyy/mm/dd استفاده کنید";
+                StateHasChanged();
+                return;
+            }
+
+            // بررسی اینکه تاریخ پایان از تاریخ شروع کمتر نباشد
+            if (toG < fromG)
+            {
+                dateValidationError = "تاریخ پایان نمی‌تواند از تاریخ شروع کمتر باشد";
+                StateHasChanged();
+                return;
+            }
+
+            // اعمال به بازه فیلتر
+            fromDateG = fromG;
+            toDateG = toG?.Date;
+
+            // بازخوانی داده‌ها بر اساس بازه جدید
+            if (_currentMoeenId.HasValue)
+                await LoadMoeenDrillDown(_currentMoeenId.Value);
+            else
+                await LoadLevel(currentLevel);
+        }
+        catch (Exception ex)
+        {
+            dateValidationError = $"خطا در اعمال فیلتر تاریخی: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("mbtb.attach", tableDomId);
+        }
+        await RecalcAccountNameWidthAsync();
+    }
+
+    private async Task RecalcAccountNameWidthAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("mbtb.recalcAccountNameWidth", tableDomId);
+        }
+        catch { }
+    }
+
+    private string GetRowBackgroundColor(byte level)
+    {
+        return level switch
+        {
+            1 => "rgba(13, 110, 253, 0.05)",  // آبی خیلی روشن
+            2 => "rgba(25, 135, 84, 0.05)",   // سبز خیلی روشن  
+            3 => "rgba(255, 193, 7, 0.05)",   // زرد خیلی روشن
+            4 => "rgba(220, 53, 69, 0.05)",   // قرمز خیلی روشن
+            5 => "rgba(108, 117, 125, 0.03)", // خاکستری خیلی روشن برای تراکنش‌ها
+            _ => "transparent"
+        };
+    }
+
+    private string OneLine(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+        var s = input.Replace("\r", " ").Replace("\n", " ");
+        // فشرده‌سازی فاصله‌های پشت‌سرهم
+        while (s.Contains("  ")) s = s.Replace("  ", " ");
+        return s.Trim();
+    }
+
+    private async Task ShowTransactionDetails(long journalLineId)
+    {
+        try
+        {
+            // پیدا کردن تراکنش از تراکنش‌های بارگیری شده
+            selectedTransaction = null;
+            
+            // جستجو در تمام نودهای باز شده برای پیدا کردن تراکنش
+            foreach (var node in nodes)
+            {
+                selectedTransaction = await FindTransactionInNode(node, journalLineId);
+                if (selectedTransaction != null) break;
+            }
+            
+            if (selectedTransaction != null)
+            {
+                showTransactionModal = true;
+                StateHasChanged();
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "تراکنش یافت نشد");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"خطا در بارگیری جزئیات تراکنش: {ex.Message}");
+        }
+    }
+
+    private async Task<JournalLineDetail?> FindTransactionInNode(TrialBalanceNode node, long journalLineId)
+    {
+        if (node.Level == 4 && node.IsExpanded && node.Children.Any())
+        {
+            // بارگیری تراکنش‌های این حساب
+            IEnumerable<JournalLineDetail> transactions;
+            
+            // در حالت عادی، تمام تراکنش‌ها
+            transactions = await TrialBalanceRepo.GetAccountTransactionsAsync(node.AccountId, fromDateG, toDateG);
+            
+            return transactions.FirstOrDefault(t => t.JournalLineId == journalLineId);
+        }
+        
+        // جستجو در فرزندان
+        foreach (var child in node.Children)
+        {
+            var result = await FindTransactionInNode(child, journalLineId);
+            if (result != null) return result;
+        }
+        
+        return null;
+    }
+
+    private void CloseTransactionModal()
+    {
+        showTransactionModal = false;
+        selectedTransaction = null;
+        StateHasChanged();
+    }
+
+    private async Task PrintTransaction()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}

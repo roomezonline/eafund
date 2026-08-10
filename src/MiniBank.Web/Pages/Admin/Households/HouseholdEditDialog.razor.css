@@ -1,0 +1,186 @@
+/* Mobile-inspired dialog styling for Household edit/create */
+::deep .household-sheet.mud-paper,
+::deep .household-sheet .mud-paper {
+  border-radius: 22px;
+  padding: 8px 8px 14px;
+  background: var(--card, var(--mud-palette-surface)) !important;
+  color: var(--text, var(--mud-palette-text-primary));
+  border: 1px solid var(--border, rgba(0,0,0,.08));
+}
+
+:root[data-theme="dark"] ::deep .household-sheet.mud-paper,
+:root[data-theme="dark"] ::deep .household-sheet .mud-paper {
+  background: var(--card, var(--mud-palette-surface)) !important;
+  color: var(--text, var(--mud-palette-text-primary));
+  border-color: color-mix(in srgb, var(--border, rgba(255,255,255,.12)) 80%, transparent);
+}
+
+/* Hero area */
+.dialog-hero { text-align: center; padding: 14px 10px 6px; }
+.dialog-hero .art {
+  width: 88px; height: 88px; margin: 8px auto 6px; border-radius: 22px;
+  display: grid; place-items: center;
+  background: linear-gradient(145deg, rgba(124,58,237,.18), rgba(14,165,233,.18));
+  color: #6f37ff; border: 1px solid rgba(111,55,255,.25);
+}
+.dialog-hero .art i { font-size: 32px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.18)); }
+.dialog-hero .title { margin: 8px 0 4px; font-weight: 900; letter-spacing: .2px; }
+.dialog-hero .subtitle { margin: 0 0 6px; font-size: 13px; color: var(--muted, #6b7280); }
+
+/* Divider spacing */
+.divider { margin: 6px 10px 0; opacity: .6; }
+
+/* Form area */
+.form-card {
+  background: var(--card, #fff);
+  border: 1px solid var(--card-border, var(--border, #e5e7eb));
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: var(--shadow, 0 10px 24px rgba(15,23,42,.08));
+  margin: 10px 8px;
+}
+.form { display: grid; gap: 12px; }
+
+/* Underlined inputs look */
+.underlined.mud-input-root { border-radius: 0 !important; background: transparent !important; }
+.underlined.mud-input-root .mud-input-slot { background: transparent !important; }
+.underlined.mud-input-root .mud-input-slot input { text-align: right; }
+.underlined.mud-input-root .mud-input-slot::after { content: ""; display: block; height: 2px; background: #e5e7eb; margin-top: 6px; border-radius: 2px; }
+:root[data-theme="dark"] .underlined.mud-input-root .mud-input-slot::after { background: rgba(255,255,255,.2); }
+
+/* Inline row for switch */
+.inline-row { display: flex; justify-content: flex-end; padding-top: 2px; }
+
+/* Actions */
+.dialog-actions { display: grid; gap: 10px; padding: 4px 10px 10px; }
+.dialog-actions .cta {
+  background: linear-gradient(45deg, #6f37ff, #8b5cf6, #22c2e8);
+  color: #fff; font-weight: 800; letter-spacing: .2px; border-radius: 14px; padding: 10px 14px;
+  box-shadow: 0 10px 24px rgba(15,23,42,.18);
+}
+.dialog-actions .mud-button:not(.cta) { color: var(--text); opacity: .9; }
+
+/* Android bottom-sheet styling */
+::deep .household-sheet.mud-paper,
+::deep .household-sheet .mud-paper { border-radius: 20px 20px 0 0; padding: 6px 8px 12px; }
+
+.sheet-grabber { width: 44px; height: 4px; border-radius: 999px; background: var(--border, #e5e7eb); margin: 6px auto 8px; }
+.sheet-header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; padding: 0 8px 6px; }
+.sheet-header h3 { margin: 0; font-weight: 900; font-size: 16px; }
+.icon-close { width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); display: grid; place-items: center; }
+
+.sheet-body { display: grid; gap: 12px; padding: 6px 8px 10px; }
+/* New RTL outlined style with embedded label notch */
+.duo-field { position: relative; padding-top: 10px; }
+.duo-field .duo-label { position: absolute; top: 0; inset-inline-end: 18px; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--muted, #6b7280); background: #faf7ff; padding: 0 6px; border-radius: 999px; }
+
+::deep .duo-input.mud-input-root {
+  border: 1.5px solid #c7b8ff !important;
+  border-radius: 12px !important;
+  background: #faf7ff !important;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+::deep .duo-input .mud-input-slot { padding-top: 10px; padding-bottom: 10px; box-shadow: none !important; background: transparent !important; }
+::deep .duo-input .mud-input-slot input { text-align: right; background: transparent !important; box-shadow: none !important; }
+::deep .field .mud-input-slot textarea { background: transparent !important; box-shadow: none !important; }
+::deep .field .mud-input { box-shadow: none !important; background: transparent !important; }
+::deep .field .mud-input-adornment { background: transparent !important; }
+/* Remove MudBlazor underline and outlined default borders to avoid double borders */
+/* Remove default Mud underline/outline and focus line */
+::deep .duo-input.mud-input-root.mud-input-underline { box-shadow: none !important; }
+::deep .duo-input.mud-input-root.mud-input-underline .mud-input-slot::before,
+::deep .duo-input.mud-input-root.mud-input-underline .mud-input-slot::after,
+::deep .duo-input .mud-input-slot::before,
+::deep .duo-input .mud-input-slot::after { content: none !important; display: none !important; }
+::deep .duo-input .mud-input-outlined-border { display: none !important; }
+/* Focus: purple accent, no gray outline */
+::deep .duo-input.mud-input-root:focus-within { 
+  outline: 0 !important; 
+  border-color: #6d28d9 !important; 
+  box-shadow: none !important; 
+}
+/* Remove any focus ring/outline from MudBlazor */
+::deep .duo-input.mud-input-root:focus-within .mud-input-slot,
+::deep .duo-input.mud-input-root:focus-within .mud-input,
+::deep .duo-input.mud-input-root:focus-within input {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Error: red border */
+::deep .duo-input.mud-input-root.mud-input-error { border-color: #ef4444 !important; }
+::deep .duo-input.mud-input-root.mud-input-error .mud-input-slot::before,
+::deep .duo-input.mud-input-root.mud-input-error .mud-input-slot::after { content: none !important; display: none !important; }
+
+/* Valid field styling */
+::deep .duo-input.valid.mud-input-root { 
+  border-color: #22c55e !important; 
+  background: #f0fdf4 !important;
+}
+::deep .duo-input.valid.mud-input-root:focus-within { 
+  border-color: #16a34a !important; 
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1) !important; 
+}
+
+/* Separator for start adornment icon (RTL aware using logical properties) */
+::deep .duo-input .mud-input-adornment {
+  border-inline-end: 1px solid var(--border, #e5e7eb);
+  padding-inline-end: 10px;
+  margin-inline-end: 8px;
+}
+
+.row-end { display: flex; justify-content: flex-end; padding-top: 2px; }
+
+.sheet-actions { display: grid; gap: 8px; width: 100%; padding: 4px 8px 8px; }
+.sheet-actions .primary { background: linear-gradient(45deg, #0ea5e9, #7c3aed); box-shadow: 0 8px 20px rgba(124,58,237,.25); border-radius: 12px; }
+.sheet-actions .primary:disabled { /* temporarily neutralized per user request */
+  background: linear-gradient(45deg, #0ea5e9, #7c3aed) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 20px rgba(124,58,237,.25) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Force-enable MudBlazor disabled class inside this dialog during development */
+::deep .sheet-actions .mud-button.mud-disabled,
+::deep .sheet-actions .mud-button:disabled {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  filter: none !important;
+}
+
+/* Align labels to opposite side (end) */
+.duo-field > .duo-label { text-align: end; justify-self: end; }
+
+/* Center align for status field (label + switch) */
+.duo-field.center { text-align: center; }
+.duo-field.center > .duo-label { text-align: center; justify-self: center; }
+.duo-field.center .row-end { justify-content: center; }
+
+/* Enhanced header and grouping */
+.sheet-header { background: linear-gradient(135deg, rgba(14,165,233,.12), rgba(124,58,237,.12)); border: 1px solid color-mix(in srgb, var(--border, #e5e7eb) 70%, transparent); border-radius: 14px; margin: 0 6px 8px; padding: 8px; }
+.sheet-header .brand { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+.sheet-header .brand .icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #0ea5e9; background: rgba(14,165,233,.15); border: 1px solid rgba(14,165,233,.25); }
+.sheet-header .brand .text .title { font-weight: 900; letter-spacing: .2px; }
+.sheet-header .brand .text .subtitle { font-size: 12px; color: var(--muted, #6b7280); margin-top: 2px; }
+
+.group { display: grid; gap: 10px; border: 1px solid var(--border, #e5e7eb); border-radius: 14px; padding: 10px; background: var(--card, #fff); box-shadow: 0 6px 18px rgba(15,23,42,.06); }
+.group + .group { margin-top: 8px; }
+.group-title { font-size: 12px; color: var(--muted, #6b7280); font-weight: 700; }
+
+/* Inputs focus/validation */
+.field.mud-input-root.mud-input-underline { box-shadow: none; }
+.field.mud-input-root .mud-input-slot { padding-top: 8px; padding-bottom: 8px; }
+.mud-input.mud-input-error .mud-input-slot input { border-color: #ef4444; }
+.mud-input .mud-input-helper-text { opacity: .85; }
+
+/* Duo-like card and fields */
+.duo-card { border-radius: 16px; background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb); box-shadow: 0 10px 30px rgba(15,23,42,.06); }
+.duo-content { padding: 12px; display: grid; gap: 12px; }
+.duo-field { display: grid; gap: 6px; }
+.duo-label { font-size: 12px; font-weight: 700; color: var(--muted, #6b7280); }
+.duo-label span { opacity: .8; font-weight: 600; font-size: 11px; }
+.duo-input.mud-input-root { border-radius: 12px; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff) !important; }
+.duo-input:focus-within { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,.18); }

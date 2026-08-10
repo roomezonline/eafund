@@ -1,0 +1,365 @@
+@page "/admin/loan-rates"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@using System.Threading
+@inject MiniBank.Web.Services.LoanRateService LoanRateService
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@using MiniBank.Web.Components.DesignSystem
+
+<div class="members-duo">
+  <DsPageHeader Icon="fa-solid fa-hand-holding-dollar" 
+                Title="نرخ سود وام" 
+                Subtitle="@($"تعداد کل: {_items.Count}")"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="افزودن نرخ وام"
+                OnRefreshClick="Refresh"
+                OnAddClick="ShowCreate">
+  </DsPageHeader>
+
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="_keyword" Placeholder="جستجو در نرخ وام (درصد/تاریخ/یادداشت)..." />
+  </div>
+
+  <div class='duo-filters'>
+    <DsPillGroup Mode="filter"
+                 Items="@_filterItems"
+                 ActiveKey="@_filter"
+                 OnFilterChanged="OnFilterChanged" />
+  </div>
+  <div class='duo-sort'>
+    <DsPillGroup Mode="sort"
+                 Items="@_sortItems"
+                 ActiveKey="@_sortKey"
+                 ActiveKeyChanged="@(k => _sortKey = k)"
+                 Desc="@_sortDesc"
+                 DescChanged="@(d => _sortDesc = d)"
+                 OnSortChanged="OnSortChanged" />
+  </div>
+
+  <main class="duo-main">
+    @if (_loading)
+    {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>در حال بارگذاری نرخ‌ها...</p>
+      </div>
+    }
+    else if (!_items.Any())
+    {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <i class="fa-solid fa-hand-holding-dollar"></i>
+        </div>
+        <h3>هیچ نرخی ثبت نشده</h3>
+        <p>برای شروع، اولین نرخ سود وام را اضافه کنید</p>
+        <button class="btn-primary" @onclick="ShowCreate">
+          <i class="fa-solid fa-plus"></i>
+          افزودن نرخ وام جدید
+        </button>
+      </div>
+    }
+    else
+    {
+      <div class="items-grid">
+        @foreach (var item in _items)
+        {
+          var expanded = _expanded.Contains(item.PlanId);
+          var inactive = !item.IsActive;
+          <div id="loan-rate-plan-@item.PlanId" class="item-card @(expanded ? "expanded" : null) @(inactive ? "inactive" : null)" @onclick="(() => ToggleExpand(item.PlanId))" style="cursor: pointer;">
+            <div class="item-header">
+              <div class="item-info compact">
+                <button class="btn-caret" title="نمایش جزئیات" @onclick="(() => ToggleExpand(item.PlanId))" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-chevron-down @(expanded ? "open" : null)"></i>
+                </button>
+                <span class="id-chip" title="شناسه">#@item.PlanId</span>
+                <div class="title-stack">
+                  <h3 class="item-title">@ToRateTitle(item)</h3>
+                  <span class="item-subtitle">@ToDateRangeText(item)</span>
+                </div>
+              </div>
+              <div class="item-actions">
+                <button class="btn-icon btn-edit" title="ویرایش" @onclick="() => Edit(item)" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-edit"></i>
+                </button>
+                <button class="btn-icon btn-delete" title="حذف" @onclick="() => Delete(item)" @onclick:stopPropagation="true">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+
+            @if (expanded)
+            {
+              <div class="item-details">
+                <div class="details-section">
+                  <div class="section-title">
+                    <i class="fa-solid fa-tag"></i>
+                    <span>جزئیات نرخ</span>
+                  </div>
+                  <div class="details-grid">
+                    <div class="detail">
+                      <div class="label">نرخ سود سالانه</div>
+                      <div class="value chip chip-blue">@item.AnnualRatePercent.ToString("0")%</div>
+                    </div>
+
+                    <div class="detail">
+                      <div class="label">نرخ دیرکرد سالانه</div>
+                      <div class="value chip chip-blue">@item.PenaltyAnnualRatePercent.ToString("0")%</div>
+                    </div>
+
+                    <div class="detail">
+                      <div class="label">بازه اعتبار</div>
+                      <div class="value chip chip-blue">@ToDateRangeText(item)</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="details-footer">
+                  <div class="item-toggle toggle-left">
+                    <label class="toggle-switch">
+                      <input type="checkbox" checked="@item.IsActive" @onchange="(e) => ToggleActive(item, (bool)e.Value!)" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label @(item.IsActive ? "on" : "off")">@(item.IsActive ? "فعال" : "غیرفعال")</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </main>
+
+  <DsFab Title="افزودن" Icon="fa-plus" OnClick="ShowCreate" />
+</div>
+
+@if (_showSheet)
+{
+  <LoanRatePlanIOSSheet Model="_current" IsNew="_isNew" OnClose="OnSheetClose" />
+}
+
+<DsConfirm Show="_showDeleteConfirm"
+           Title="@_deleteConfirmTitle"
+           Message="@_deleteConfirmMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           OnConfirm="ConfirmDelete"
+           OnCancel="CancelDelete" />
+
+@code {
+  private List<LoanRatePlan> _items = new();
+  private List<LoanRatePlan> _all = new();
+  private bool _loading;
+  private string _kw = string.Empty;
+  private string _keyword
+  {
+    get => _kw;
+    set { _kw = value ?? string.Empty; _ = DebouncedApplyFilterAsync(); }
+  }
+
+  private bool _showSheet;
+  private LoanRatePlan _current = new();
+  private bool _isNew;
+  private string _filter = "all"; // all|active|inactive
+  private string _sortKey = "from"; // from|active
+  private bool _sortDesc = false;
+  private CancellationTokenSource? _searchCts;
+  private HashSet<long> _expanded = new();
+  private List<DsPillGroup.DsPillItem> _filterItems = new()
+  {
+    new() { Key = "all", Text = "همه" },
+    new() { Key = "active", Text = "فعال" },
+    new() { Key = "inactive", Text = "غیرفعال" },
+  };
+  private List<DsPillGroup.DsPillItem> _sortItems = new()
+  {
+    new() { Key = "from", Text = "تاریخ شروع" },
+    new() { Key = "active", Text = "فعال‌ها" },
+  };
+
+  private bool _showDeleteConfirm;
+  private string _deleteConfirmTitle = "تأیید حذف";
+  private string _deleteConfirmMessage = string.Empty;
+  private LoanRatePlan? _pendingDelete;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAsync();
+  }
+
+  private async Task LoadAsync()
+  {
+    _loading = true;
+    StateHasChanged();
+
+    try
+    {
+      _all = (await LoanRateService.GetPlansAsync()).ToList();
+      ApplyFilter();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+      StateHasChanged();
+    }
+  }
+
+  private void ApplyFilter()
+  {
+    IEnumerable<LoanRatePlan> q = _all;
+
+    if (_filter == "active") q = q.Where(x => x.IsActive);
+    else if (_filter == "inactive") q = q.Where(x => !x.IsActive);
+
+    var key = (_keyword ?? string.Empty).Trim();
+    if (!string.IsNullOrEmpty(key))
+    {
+      var kw = key.ToLowerInvariant();
+      q = q.Where(x =>
+        ToDateRangeText(x).ToLowerInvariant().Contains(kw) ||
+        x.AnnualRatePercent.ToString().ToLowerInvariant().Contains(kw) ||
+        x.PenaltyAnnualRatePercent.ToString().ToLowerInvariant().Contains(kw) ||
+        (x.Notes ?? string.Empty).ToLowerInvariant().Contains(kw)
+      );
+    }
+
+    q = (_sortKey, _sortDesc) switch
+    {
+      ("active", false) => q.OrderBy(x => x.IsActive).ThenByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.PlanId),
+      ("active", true) => q.OrderByDescending(x => x.IsActive).ThenByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.PlanId),
+      ("from", true) => q.OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.PlanId),
+      _ => q.OrderBy(x => x.EffectiveFrom).ThenBy(x => x.PlanId)
+    };
+
+    _items = q.ToList();
+    StateHasChanged();
+  }
+
+  private async Task DebouncedApplyFilterAsync(int delayMs = 180)
+  {
+    _searchCts?.Cancel();
+    _searchCts = new CancellationTokenSource();
+    var token = _searchCts.Token;
+    try
+    {
+      await Task.Delay(delayMs, token);
+      if (!token.IsCancellationRequested) ApplyFilter();
+    }
+    catch (TaskCanceledException) { }
+  }
+
+  private async Task OnFilterChanged(string key)
+  { if (_filter == key) return; _filter = key; ApplyFilter(); await Task.CompletedTask; }
+  private Task OnSortChanged((string key, bool desc) s)
+  { _sortKey = s.key; _sortDesc = s.desc; ApplyFilter(); return Task.CompletedTask; }
+
+  private async Task ShowCreate()
+  {
+    _current = new LoanRatePlan { IsActive = false, EffectiveFrom = DateTime.Today, AnnualRatePercent = 0, PenaltyAnnualRatePercent = 0 };
+    _isNew = true; _showSheet = true; StateHasChanged(); await Task.CompletedTask;
+  }
+
+  private async Task Edit(LoanRatePlan m)
+  {
+    var plan = await LoanRateService.GetByIdAsync(m.PlanId);
+    _current = plan ?? m;
+    _isNew = false; _showSheet = true; StateHasChanged(); await Task.CompletedTask;
+  }
+
+  private async Task OnSheetClose(bool success)
+  {
+    _showSheet = false; StateHasChanged();
+    if (success)
+    {
+      await LoadAsync();
+      Toasts.Success("با موفقیت ذخیره شد");
+    }
+  }
+
+  private async Task ToggleActive(LoanRatePlan m, bool newValue)
+  {
+    var old = m.IsActive;
+    m.IsActive = newValue;
+    StateHasChanged();
+
+    try
+    {
+      await LoanRateService.SaveAsync(m);
+      ApplyFilter();
+      Toasts.Success($"وضعیت نرخ #{m.PlanId} به {(newValue ? "فعال" : "غیرفعال")} تغییر کرد");
+    }
+    catch (Exception ex)
+    {
+      m.IsActive = old;
+      StateHasChanged();
+      Toasts.Error($"خطا: {ex.Message}");
+    }
+  }
+
+  private async Task Delete(LoanRatePlan m)
+  {
+    _pendingDelete = m;
+    _deleteConfirmTitle = "حذف نرخ وام";
+    _deleteConfirmMessage = $"آیا از حذف نرخ وام '<strong>#{m.PlanId}</strong>' اطمینان دارید؟<br/><small>این عمل قابل بازگشت نیست.</small>";
+    _showDeleteConfirm = true;
+    StateHasChanged();
+    await Task.CompletedTask;
+  }
+
+  private async Task ConfirmDelete()
+  {
+    var m = _pendingDelete;
+    _showDeleteConfirm = false; StateHasChanged();
+    if (m is null) return;
+
+    try
+    {
+      await LoanRateService.DeleteAsync(m.PlanId);
+      _expanded.Remove(m.PlanId);
+      await LoadAsync();
+      Toasts.Success("نرخ وام با موفقیت حذف شد");
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در حذف: {ex.Message}");
+    }
+    finally
+    {
+      _pendingDelete = null;
+    }
+  }
+
+  private Task CancelDelete()
+  {
+    _showDeleteConfirm = false; _pendingDelete = null; StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private void ToggleExpand(long id)
+  {
+    if (_expanded.Contains(id)) _expanded.Remove(id);
+    else _expanded.Add(id);
+    StateHasChanged();
+  }
+
+  private async Task Refresh() => await LoadAsync();
+
+  private static string ToDateRangeText(LoanRatePlan p)
+  {
+    var from = p.EffectiveFrom.ToPersianDate();
+    var to = p.EffectiveTo?.ToPersianDate() ?? "∞";
+    return $"{from} تا {to}";
+  }
+
+  private static string ToRateTitle(LoanRatePlan p)
+  {
+    return $"سود {p.AnnualRatePercent:0}% | دیرکرد {p.PenaltyAnnualRatePercent:0}%";
+  }
+}

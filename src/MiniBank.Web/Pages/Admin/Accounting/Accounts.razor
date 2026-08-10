@@ -1,0 +1,261 @@
+@page "/admin/accounting/accounts"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+
+<div class="accounts-duo">
+  <DsPageHeader Icon="fa-solid fa-list-ol" 
+                Title="کل" 
+                Subtitle="@($"تعداد کل: {_items.Count}")"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="افزودن"
+                OnRefreshClick="LoadAsync"
+                OnAddClick="ShowCreate">
+  </DsPageHeader>
+
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="_keyword" 
+                  Placeholder="جستجو در کد یا نام..." />
+  </div>
+  
+  <div class="duo-filters">
+    <DsPillGroup Mode="filter"
+                 Items="@_filterItems"
+                 ActiveKey="@_activeFilter"
+                 OnFilterChanged="@OnFilterChanged" />
+  </div>
+  <div class="duo-sort">
+    <DsPillGroup Mode="sort"
+                 Items="@_sortItems"
+                 ActiveKey="@_sortKey"
+                 ActiveKeyChanged="@(k => _sortKey = k)"
+                 Desc="@_sortDesc"
+                 DescChanged="@(d => _sortDesc = d)"
+                 OnSortChanged="@(EventCallback.Factory.Create<(string, bool)>(this, args => OnSortChanged(args.Item1, args.Item2)))" />
+  </div>
+
+  <main class="duo-content">
+    @if (_loading)
+    {
+      <div class="duo-list">
+        @for (int i = 0; i < 6; i++)
+        {
+          <div class="duo-item skeleton"></div>
+        }
+      </div>
+    }
+    else if (_items.Count == 0)
+    {
+      <div class="duo-empty">
+        <div class="emoji">📊</div>
+        <div>موردی یافت نشد</div>
+      </div>
+    }
+    else
+    {
+      <div class="duo-list">
+        @foreach (var account in _items)
+        {
+          <article class="duo-item" @onclick="@(()=> Edit(account))">
+            <div class="top">
+              <div class="name">@account.Name</div>
+              <span class="account-type @GetAccountTypeClass(account.AccountType)">@GetAccountTypeText(account.AccountType)</span>
+            </div>
+            <div class="bottom">
+              <div class="code"><span class="label">کد:</span> @account.Code</div>
+              <div class="type-badge">@GetAccountTypeText(account.AccountType)</div>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </main>
+
+  <DsFab Title="افزودن" Icon="fa-plus" OnClick="ShowCreate" />
+</div>
+
+@if (_showSheet)
+{
+  <AccountIOSSheet Model="_currentModel" IsNew="_isNewSheet" OnClose="OnSheetClose" />
+}
+
+@code {
+  private List<(long AccountId, string Code, string Name, byte AccountType)> _items = new();
+  private List<(long AccountId, string Code, string Name, byte AccountType)> _allItems = new();
+  private bool _loading;
+  private string _kw = string.Empty;
+  private string _keyword
+  {
+    get => _kw;
+    set
+    {
+      _kw = value;
+      ApplyFiltersAndSort();
+    }
+  }
+
+  private bool _showSheet;
+  private bool _isNewSheet;
+  private (long AccountId, string Code, string Name, byte AccountType) _currentModel;
+
+  // Filter & Sort
+  private string _activeFilter = "all";
+  private string _sortKey = "code";
+  private bool _sortDesc = false;
+
+  private readonly List<DsPillGroup.DsPillItem> _filterItems = new()
+  {
+    new() { Key = "all", Text = "همه", Icon = "fa-solid fa-list" },
+    new() { Key = "asset", Text = "دارایی", Icon = "fa-solid fa-coins" },
+    new() { Key = "liability", Text = "بدهی", Icon = "fa-solid fa-credit-card" },
+    new() { Key = "equity", Text = "حقوق صاحبان", Icon = "fa-solid fa-building-columns" },
+    new() { Key = "income", Text = "درآمد", Icon = "fa-solid fa-arrow-trend-up" },
+    new() { Key = "expense", Text = "هزینه", Icon = "fa-solid fa-arrow-trend-down" }
+  };
+
+  private readonly List<DsPillGroup.DsPillItem> _sortItems = new()
+  {
+    new() { Key = "code", Text = "کد", Icon = "fa-solid fa-hashtag" },
+    new() { Key = "name", Text = "نام", Icon = "fa-solid fa-font" }
+  };
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAsync();
+  }
+
+  private async Task LoadAsync()
+  {
+    _loading = true;
+    try
+    {
+      _allItems = (await AccountsRepo.GetAllAsync()).ToList();
+      ApplyFiltersAndSort();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری کل‌ها: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private void ApplyFiltersAndSort()
+  {
+    var filtered = _allItems.AsEnumerable();
+
+    // Apply search filter
+    if (!string.IsNullOrWhiteSpace(_keyword))
+    {
+      filtered = filtered.Where(x => 
+        x.Code.Contains(_keyword, StringComparison.OrdinalIgnoreCase) ||
+        x.Name.Contains(_keyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Apply type filter
+    if (_activeFilter != "all")
+    {
+      byte filterType = _activeFilter switch
+      {
+        "asset" => 1,
+        "liability" => 2,
+        "equity" => 3,
+        "income" => 4,
+        "expense" => 5,
+        _ => 0
+      };
+      if (filterType > 0)
+        filtered = filtered.Where(x => x.AccountType == filterType);
+    }
+
+    // Apply sorting
+    filtered = _sortKey switch
+    {
+      "code" => _sortDesc ? filtered.OrderByDescending(x => x.Code) : filtered.OrderBy(x => x.Code),
+      "name" => _sortDesc ? filtered.OrderByDescending(x => x.Name) : filtered.OrderBy(x => x.Name),
+      _ => filtered.OrderBy(x => x.Code)
+    };
+
+    _items = filtered.ToList();
+    StateHasChanged();
+  }
+
+  private void OnFilterChanged(string key)
+  {
+    _activeFilter = key;
+    ApplyFiltersAndSort();
+  }
+
+  private void OnSortChanged(string key, bool desc)
+  {
+    _sortKey = key;
+    _sortDesc = desc;
+    ApplyFiltersAndSort();
+  }
+
+
+  private void ShowCreate()
+  {
+    // diagnostic toast to verify click handler
+    Toasts.Info("افزودن کل جدید");
+    _currentModel = (0, "", "", 1);
+    _isNewSheet = true;
+    _showSheet = true;
+  }
+
+  private void Edit((long AccountId, string Code, string Name, byte AccountType) account)
+  {
+    // diagnostic toast to verify click handler
+    Toasts.Info($"ویرایش کل: {account.Name}");
+    _currentModel = account;
+    _isNewSheet = false;
+    _showSheet = true;
+  }
+
+  private async Task OnSheetClose(bool hasChanges)
+  {
+    _showSheet = false;
+    if (hasChanges)
+    {
+      await LoadAsync();
+    }
+  }
+
+  private async Task Back()
+  {
+    await JS.InvokeVoidAsync("history.back");
+  }
+
+  private string GetAccountTypeText(byte accountType)
+  {
+    return accountType switch
+    {
+      1 => "دارایی",
+      2 => "بدهی", 
+      3 => "حقوق صاحبان",
+      4 => "درآمد",
+      5 => "هزینه",
+      _ => "نامشخص"
+    };
+  }
+
+  private string GetAccountTypeClass(byte accountType)
+  {
+    return accountType switch
+    {
+      1 => "asset",
+      2 => "liability",
+      3 => "equity", 
+      4 => "income",
+      5 => "expense",
+      _ => "unknown"
+    };
+  }
+}

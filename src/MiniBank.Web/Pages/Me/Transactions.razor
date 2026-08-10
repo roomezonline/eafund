@@ -1,0 +1,707 @@
+@page "/me/transactions"
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using MiniBank.Web.Models.Reports
+@using Microsoft.AspNetCore.WebUtilities
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Models
+@using MiniBank.Web.Core.Interfaces
+@using MiniBank.Web.Utilities
+
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository AuthRepo
+@inject MiniBank.Web.Services.MemberService MemberService
+@inject MiniBank.Web.Infrastructure.Repositories.TransactionReportRepository TxReports
+@inject IHouseholdRepository HouseholdRepo
+@using MiniBank.Web.Components.Member
+
+<MemberSelector OnMemberChanged="OnMemberSelectorChanged" />
+
+<style>
+  :root{--c-bg:#f7f9fc;--c-card:#ffffff;--c-border:#e5e7eb;--c-text:#0f172a;--c-muted:#64748b;--c-brand:#0ea5e9;--c-ok:#16a34a;--c-warn:#f59e0b;--c-bad:#dc2626}
+  .me-shell{max-width:980px;margin:0 auto;padding:16px 14px 80px;direction:rtl}
+  .tx{background:var(--c-card);border:1px solid var(--c-border);border-radius:16px;padding:12px;margin-bottom:10px}
+  .card.accent{border-color:#bae6fd;background:linear-gradient(180deg,#ffffff,#f0f9ff)}
+  .title{font-weight:950;color:#0f172a;margin-bottom:8px}
+  .muted{color:#64748b;font-weight:800;font-size:12px}
+
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+  .fg{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .lab{font-weight:800;color:#64748b;font-size:12px}
+  .inp{border:1px solid #e5e7eb;border-radius:12px;padding:8px 10px;font-weight:900;font-size:12px;color:#0f172a;background:#fff}
+  .btn{border:1px solid #0ea5e9;background:#0ea5e9;color:#fff;border-radius:12px;padding:9px 12px;font-weight:950;font-size:12px;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn2{border:1px solid #e5e7eb;background:#fff;color:#0f172a;border-radius:12px;padding:9px 12px;font-weight:950;font-size:12px;cursor:pointer}
+
+  .actions-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .actions-row .btn,.actions-row .btn2{flex:1}
+  @@media (min-width: 700px){.actions-row .btn,.actions-row .btn2{flex:0}}
+
+  @@media (max-width: 700px){
+    .filters{grid-template-columns:1fr 1fr}
+    .actions-row{flex-wrap:wrap}
+  }
+
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg button{border:1px solid #e5e7eb;background:#fff;color:#0f172a;border-radius:12px;padding:9px 12px;font-weight:950;font-size:12px;cursor:pointer}
+  .seg button.active{border-color:#0ea5e9;background:#e0f2fe;color:#0369a1}
+
+  .memberbar{display:flex;gap:8px;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin-bottom:10px;align-items:center}
+  .chip{border:1px solid #e5e7eb;background:#fff;color:#0f172a;border-radius:999px;padding:8px 10px;font-weight:950;font-size:12px;cursor:pointer}
+  .chip.active{border-color:#0ea5e9;background:#e0f2fe;color:#0369a1}
+
+  @@media (max-width: 700px){
+    .memberbar{display:grid;grid-template-columns:1fr;gap:10px;overflow:visible;padding-bottom:0}
+    .chip{width:100%;border-style:dashed;border-color:#cbd5e1;background:linear-gradient(180deg,#ffffff,#f8fafc);border-radius:14px;padding:10px 12px;text-align:center}
+    .chip.active{border-color:#0ea5e9;background:linear-gradient(180deg,#e0f2fe,#ffffff);color:#0369a1}
+  }
+
+  .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;font-weight:950;font-size:11px;border:1px solid transparent;white-space:nowrap}
+  .b-brand{background:#e0f2fe;border-color:#bae6fd;color:#0369a1}
+
+  .amt{font-variant-numeric:tabular-nums}
+  .amt.pos{color:var(--c-ok)}
+  .amt.neg{color:var(--c-bad)}
+  .amt.zero{color:var(--c-text)}
+
+  .list{display:flex;flex-direction:column;gap:10px}
+  .tx{border:1px solid #eef2f7;border-radius:16px;padding:12px;background:linear-gradient(180deg,#ffffff,#f8fafc)}
+  .tx-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .tx-type{font-weight:950;color:#0f172a;font-size:13px}
+  .tx-date{font-weight:900;color:#64748b;font-size:11px;white-space:nowrap}
+  .tx-amt{font-weight:950;color:#0f172a;font-size:14px;white-space:nowrap}
+  .tx-sub{margin-top:8px;display:grid;grid-template-columns:1fr;gap:8px}
+  @@media (min-width: 700px){.tx-sub{grid-template-columns:1fr 1fr}}
+  .kv{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:#fff;border:1px solid #eef2f7}
+  .k{font-weight:800;color:#64748b;font-size:12px}
+  .v{font-weight:950;color:#0f172a;font-size:12px;white-space:nowrap}
+  .note{margin-top:10px;font-weight:800;color:#334155;font-size:12px;white-space:pre-wrap}
+
+  .tx-table{width:100%;border-collapse:separate;border-spacing:0}
+  .tx-table th,.tx-table td{padding:10px 12px;border-bottom:1px solid #eef2f7;font-weight:800;font-size:12px;vertical-align:middle}
+  .tx-table th{background:#f8fafc;color:#475569;text-align:right;position:sticky;top:0;z-index:1}
+  .tx-table tr:last-child td{border-bottom:none}
+  .tx-table td:last-child{font-weight:800;color:#334155;line-height:1.9;min-width:420px}
+  .tx-table tbody tr{cursor:pointer}
+  .tx-table tbody tr:hover{background:#f8fafc}
+
+  .tx-mobile{display:none}
+  .txm-card{border:1px solid #e5e7eb;border-radius:18px;background:linear-gradient(180deg,#ffffff,#f8fafc);padding:12px}
+  .txm-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .txm-amt{font-weight:950;font-size:18px;white-space:nowrap}
+  .txm-op{font-weight:950;font-size:12px;border-radius:999px;padding:6px 10px;border:1px solid #e5e7eb;background:#fff}
+  .txm-op.pos{border-color:#86efac;background:#dcfce7;color:#166534}
+  .txm-op.neg{border-color:#fecaca;background:#fee2e2;color:#991b1b}
+  .txm-meta{margin-top:10px;display:grid;grid-template-columns:1fr;gap:8px}
+  .txm-row{display:flex;justify-content:space-between;gap:10px}
+  .txm-k{color:#64748b;font-weight:900;font-size:12px;white-space:nowrap}
+  .txm-v{color:#0f172a;font-weight:950;font-size:12px;text-align:left}
+  .txm-desc{margin-top:10px;border-top:1px dashed #e2e8f0;padding-top:10px;color:#334155;line-height:1.9;font-weight:800;font-size:12px;white-space:normal}
+
+  .load-more-wrap{display:flex;justify-content:center;margin-top:12px}
+  .load-more{border:1px solid #e5e7eb;background:#fff;color:#0f172a;border-radius:14px;padding:10px 14px;font-weight:950;font-size:12px;cursor:pointer;min-width:220px}
+  .load-more:hover{box-shadow:0 10px 25px rgba(15,23,42,.08)}
+
+  .tx-dialog-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:3000;display:flex;align-items:flex-end;justify-content:center;padding:14px}
+  .tx-dialog{width:min(95vw,520px);border-radius:18px;background:#fff;border:1px solid rgba(226,232,240,.95);box-shadow:0 24px 70px rgba(15,23,42,.25);overflow:hidden}
+  .txd-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff}
+  .txd-title{font-weight:950}
+  .txd-close{border:0;background:rgba(255,255,255,.18);color:#fff;border-radius:12px;width:38px;height:38px;display:grid;place-items:center;cursor:pointer}
+  .txd-body{padding:12px 14px}
+  .txd-receipt{border:1px solid #e5e7eb;border-radius:24px;padding:0;background:#ffffff;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.05)}
+  .txd-r-top{padding:24px 24px 16px;background:#ffffff;border-bottom:1px solid rgba(226,232,240,.6)}
+  .txd-r-brand{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .txd-r-fund{font-weight:950;color:#0f172a;font-size:18px}
+  .txd-r-sub{font-weight:800;color:#64748b;font-size:13px;margin-top:4px}
+  .txd-r-badge{font-weight:900;font-size:12px;color:#1e293b;background:#f8fafc;border:1px solid #e2e8f0;padding:6px 14px;border-radius:12px;white-space:nowrap}
+  .txd-r-amt{margin-top:24px;display:flex;flex-direction:column;gap:12px}
+  .txd-r-op-wrap{display:flex;justify-content:center;padding:4px 0}
+  .txd-r-op{font-weight:950;color:#0ea5e9;font-size:18px;background:rgba(14,165,233,.08);padding:4px 20px;border-radius:999px}
+  .txd-r-money-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9}
+  .txd-r-money-label{color:#94a3b8;font-weight:800;font-size:13px}
+  .txd-r-money{font-weight:950;font-size:24px;color:#0f172a;font-family:Vazir, Tahoma, sans-serif}
+  .txd-r-body{padding:16px 24px 24px}
+  .txd-row{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #f1f5f9}
+  .txd-row:last-child{border-bottom:none}
+  .txd-k{color:#94a3b8;font-weight:800;font-size:13px;white-space:nowrap}
+  .txd-v{color:#0f172a;font-weight:950;font-size:14px;text-align:left;font-family:Vazir, Tahoma, sans-serif}
+  .txd-footer{padding:12px;text-align:center;background:#f8fafc;border-top:1px solid #f1f5f9;color:#94a3b8;font-weight:850;font-size:12px}
+  .txd-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .txd-actions button{flex:1}
+
+  @@media (max-width: 700px){
+    .tx-desktop{display:none}
+    .tx-mobile{display:flex;flex-direction:column;gap:10px}
+  }
+</style>
+
+<div class="me-shell">
+  <div class="card accent" style="margin-bottom:12px">
+    <div class="title">تراکنش‌ها</div>
+    <div class="muted" style="margin-bottom:10px">
+      @if (_selectedMemberId.HasValue)
+      {
+        <span class="badge b-brand">تراکنش‌های عضو</span>
+      }
+      else
+      {
+        <span class="badge b-brand">تراکنش‌های خانوار</span>
+      }
+    </div>
+    @if (_members.Count > 0)
+    {
+      <div class="memberbar">
+        <button class="chip @(!_selectedMemberId.HasValue ? "active" : null)" @onclick="(()=>SelectMember(null))">همه اعضا (خانوار)</button>
+        @foreach (var m in _members)
+        {
+          <button class="chip @(_selectedMemberId == m.MemberId ? "active" : null)" @onclick="(()=>SelectMember(m.MemberId))">@m.MemberName</button>
+        }
+      </div>
+    }
+    <div class="filters">
+      <div class="fg">
+        <div class="lab">از تاریخ</div>
+        <DsJalaliDatePicker Label="" @bind-Value="_fromJ" Placeholder="مثال: 1403/01/01" />
+      </div>
+      <div class="fg">
+        <div class="lab">تا تاریخ</div>
+        <DsJalaliDatePicker Label="" @bind-Value="_toJ" Placeholder="مثال: 1403/12/29" />
+      </div>
+    </div>
+    <div class="actions-row">
+      <button class="btn" @onclick="LoadAsync" disabled="@_loading">بارگیری</button>
+      <button class="btn2" @onclick="ClearAsync" disabled="@_loading">پاک کردن فیلتر</button>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+      <div style="margin-top:10px;font-weight:950;color:#b91c1c">@_error</div>
+    }
+  </div>
+
+  @if (_loading)
+  {
+    <div class="card"><div class="muted">در حال بارگذاری...</div></div>
+  }
+  else if (_rows.Count == 0)
+  {
+    <div class="card"><div class="muted">تراکنشی یافت نشد.</div></div>
+  }
+  else
+  {
+    <div class="tx-desktop card" style="padding:0; overflow:hidden">
+      <div style="overflow:auto">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th style="width:70px">ردیف</th>
+              <th style="width:240px">عضو</th>
+              <th style="width:180px">مبلغ</th>
+              <th style="width:120px">عملیات</th>
+              <th style="width:190px">تاریخ/ساعت</th>
+              <th>توضیحات</th>
+            </tr>
+          </thead>
+          <tbody>
+            @{
+              var idx = 0;
+            }
+            @foreach (var r in _rows)
+            {
+              idx++;
+              <tr @onclick="(()=>OpenTx(r))">
+                <td>@idx</td>
+                <td>@MemberNameByCode(r.MemberCode)</td>
+                <td class="amt @AmtClass(r.Net)">@FmtMoney(r.Amount)</td>
+                <td>@(!string.IsNullOrWhiteSpace(r.Operation) ? r.Operation : OpLabel(r.Net))</td>
+                <td style="white-space:nowrap">@FmtDateTime(r.OccurredAt)</td>
+                <td style="white-space:normal">@(!string.IsNullOrWhiteSpace(r.Description) ? r.Description : r.Notes)</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tx-mobile">
+      @{
+        var idxMobile = 0;
+      }
+      @foreach (var r in _rows)
+      {
+        idxMobile++;
+        var txText = TxText(r, idxMobile);
+        var cls = AmtClass(r.Net);
+        <div class="txm-card" @onclick="(()=>OpenTx(r))" style="cursor:pointer">
+          <div class="txm-top">
+            <div class="txm-amt amt @cls">@FmtMoney(r.Amount)</div>
+            <div class="txm-op @cls">@(!string.IsNullOrWhiteSpace(r.Operation) ? r.Operation : OpLabel(r.Net))</div>
+          </div>
+
+          <div class="txm-meta">
+            <div class="txm-row"><div class="txm-k">ردیف</div><div class="txm-v">@idxMobile</div></div>
+            <div class="txm-row"><div class="txm-k">عضو</div><div class="txm-v">@MemberNameByCode(r.MemberCode)</div></div>
+            <div class="txm-row"><div class="txm-k">تاریخ/ساعت</div><div class="txm-v">@FmtDateTime(r.OccurredAt)</div></div>
+          </div>
+
+          <div class="txm-desc">@(!string.IsNullOrWhiteSpace(r.Description) ? r.Description : r.Notes)</div>
+        </div>
+      }
+    </div>
+
+    @if (_hasMore)
+    {
+      <div class="load-more-wrap">
+        <button class="load-more" @onclick="LoadMoreAsync" disabled="@_loadingMore">@(_loadingMore ? "در حال دریافت..." : "نمایش بیشتر")</button>
+      </div>
+    }
+  }
+</div>
+
+@if (_showTxDialog && _selectedTx != null)
+{
+  <div class="tx-dialog-backdrop" @onclick="CloseTx">
+    <div class="tx-dialog" @onclick:stopPropagation="true">
+      <div class="txd-head">
+        <div>
+          <div class="txd-title">جزئیات تراکنش</div>
+          <div style="opacity:.9;font-weight:800;font-size:12px;margin-top:2px">صندوق امام علی (ع)</div>
+        </div>
+        <button class="txd-close" @onclick="CloseTx" title="بستن"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="txd-body">
+        <div class="txd-receipt" id="tx-receipt">
+          <div class="txd-r-top">
+            <div class="txd-r-brand">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <img src="/icons/logo_emam_ali.png" alt="لوگو" style="width:44px;height:44px;object-fit:contain" />
+                <div>
+                  <div class="txd-r-fund">صندوق امام علی (ع)</div>
+                  <div class="txd-r-sub">رسید تراکنش</div>
+                </div>
+              </div>
+              <div class="txd-r-badge">@FmtDateTime(_selectedTx.OccurredAt)</div>
+            </div>
+
+            <div class="txd-r-amt">
+              <div class="txd-r-op-wrap">
+                <div class="txd-r-op">@(!string.IsNullOrWhiteSpace(_selectedTx.Operation) ? _selectedTx.Operation : OpLabel(_selectedTx.Net))</div>
+              </div>
+              <div class="txd-r-money-row">
+                <div class="txd-r-money-label">مبلغ</div>
+                <div class="txd-r-money amt @AmtClass(_selectedTx.Net)">
+                  <span>@FmtMoney(_selectedTx.Amount)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="txd-r-body">
+            <div class="txd-row"><div class="txd-k">عضو</div><div class="txd-v">@MemberNameByCode(_selectedTx.MemberCode)</div></div>
+            @if (_selectedTx.TransactionId.HasValue) { <div class="txd-row"><div class="txd-k">شناسه تراکنش</div><div class="txd-v">@_selectedTx.TransactionId</div></div> }
+            @if (_selectedTx.JournalId.HasValue) { <div class="txd-row"><div class="txd-k">شناسه سند</div><div class="txd-v">@_selectedTx.JournalId</div></div> }
+            <div class="txd-row"><div class="txd-k">توضیحات</div><div class="txd-v" style="max-width:240px; line-height:1.6">@(!string.IsNullOrWhiteSpace(_selectedTx.Description) ? _selectedTx.Description : _selectedTx.Notes)</div></div>
+          </div>
+          <div class="txd-footer">سامانه مالی امام علی (ع)</div>
+        </div>
+
+        <div class="txd-actions">
+          <button class="btn2" @onclick="CopyTxAsync">کپی متن</button>
+          <button class="btn" @onclick="ShareTextAsync">اشتراک متن</button>
+          <button class="btn" @onclick="ShareImageAsync">اشتراک عکس</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+  private bool _loading;
+  private bool _loadingMore;
+  private string? _error;
+  private string? _fromJ;
+  private string? _toJ;
+  private int _pageSize = 60;
+  private List<MemberSimpleTransactionRow> _rows = new();
+  private long? _targetMemberId;
+  private long? _targetHouseholdId;
+  private List<MemberBankingBalanceRow> _members = new();
+  private long? _selectedMemberId;
+  
+  // Member selector for admin/staff
+  private long? _adminSelectedMemberId;
+
+  private List<string> _currentCodes = new();
+  private DateTime? _cursorOccurredAt;
+  private long? _cursorTransactionId;
+  private long? _cursorJournalId;
+  private bool _hasMore;
+
+  private bool _showTxDialog;
+  private MemberSimpleTransactionRow? _selectedTx;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAsync();
+  }
+
+  private async Task SelectMember(long? memberId)
+  {
+    _selectedMemberId = memberId;
+    await LoadAsync();
+  }
+
+  private async Task ClearAsync()
+  {
+    _fromJ = null;
+    _toJ = null;
+    _pageSize = 60;
+    await LoadAsync();
+  }
+
+  private async Task LoadAsync()
+  {
+    if (_loading) return;
+    try
+    {
+      _loading = true;
+      _error = null;
+      _rows = new();
+      _currentCodes = new();
+      _cursorOccurredAt = null;
+      _cursorTransactionId = null;
+      _cursorJournalId = null;
+      _hasMore = false;
+
+      // Force reload selection from selector if we are admin
+      if (_adminSelectedMemberId == null)
+      {
+          var state = await AuthStateProvider.GetAuthenticationStateAsync();
+          var role = state.User?.FindFirst("role")?.Value ?? state.User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+          if (!string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase))
+          {
+              // We are admin/staff, let's try to get the ID from JS session storage if selector hasn't pushed it yet
+              try {
+                  var saved = await JS.InvokeAsync<string>("sessionStorage.getItem", "memberSelector_selectedMemberId");
+                  if (!string.IsNullOrWhiteSpace(saved) && long.TryParse(saved, out var sid)) {
+                      _adminSelectedMemberId = sid;
+                      
+                      // Also sync _selectedMemberId to match what's in the selector
+                      _selectedMemberId = sid;
+                  }
+              } catch {}
+          }
+      }
+
+      var meId = await ResolveMemberIdAsync();
+      if (meId <= 0)
+      {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var role = state.User?.FindFirst("role")?.Value ?? state.User?.FindFirst(ClaimTypes.Role)?.Value;
+        var isMemberRole = string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase);
+
+        if (!isMemberRole)
+        {
+          _rows = new();
+          _hasMore = false;
+          _error = "برای مشاهده تراکنش‌ها، ابتدا یک عضو را از لیست بالا انتخاب کنید.";
+          return;
+        }
+
+        _error = "اطلاعات عضویت برای این کاربر ثبت نشده است.";
+        return;
+      }
+
+      var requested = GetRequestedMemberId();
+      var allowedId = await ResolveAllowedMemberIdAsync(meId, requested);
+      _targetMemberId = allowedId;
+
+      var me = await MemberService.GetByIdAsync(meId);
+      if (me == null)
+      {
+        _error = "عضو یافت نشد.";
+        return;
+      }
+      _targetHouseholdId = await ResolveHouseholdIdAsync(me);
+
+      // load household members for selector
+      if (!string.IsNullOrWhiteSpace(me.HouseholdCode))
+      {
+        _members = (await TxReports.GetHouseholdMemberBankingBalancesAsync(me.HouseholdCode)).ToList();
+      }
+      else
+      {
+        _members = new();
+      }
+
+      // initial selection from querystring if valid
+      if (_selectedMemberId == null && requested.HasValue && _members.Any(x => x.MemberId == requested.Value))
+        _selectedMemberId = requested.Value;
+
+      var fromDate = ParseJalali(_fromJ);
+      var toDate = ParseJalali(_toJ);
+
+      // Build subsidiary code list (M-xxxx) for member/household
+      List<string> codes;
+      if (!_selectedMemberId.HasValue)
+      {
+        codes = _members.Select(x => x.BankAccountNumber).Where(x => !string.IsNullOrWhiteSpace(x)).ToList()!;
+      }
+      else
+      {
+        var effectiveMemberId = await ResolveAllowedMemberIdAsync(meId, _selectedMemberId);
+        _selectedMemberId = effectiveMemberId;
+        var code = _members.FirstOrDefault(x => x.MemberId == _selectedMemberId.Value)?.BankAccountNumber;
+        codes = string.IsNullOrWhiteSpace(code) ? new List<string>() : new List<string> { code! };
+      }
+
+      _currentCodes = codes;
+      await LoadMoreInternalAsync(fromDate, toDate);
+    }
+    catch (Exception ex)
+    {
+      _error = $"خطا در بارگذاری تراکنش‌ها: {ex.Message}";
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private async Task LoadMoreAsync()
+  {
+    if (_loading || _loadingMore) return;
+    try
+    {
+      _loadingMore = true;
+      var fromDate = ParseJalali(_fromJ);
+      var toDate = ParseJalali(_toJ);
+      await LoadMoreInternalAsync(fromDate, toDate);
+    }
+    catch (Exception ex)
+    {
+      _error = $"خطا در دریافت بیشتر: {ex.Message}";
+    }
+    finally
+    {
+      _loadingMore = false;
+    }
+  }
+
+  private async Task LoadMoreInternalAsync(DateTime? fromDate, DateTime? toDate)
+  {
+    if (_currentCodes.Count == 0)
+    {
+      _rows = new();
+      _hasMore = false;
+      return;
+    }
+
+    var page = (await TxReports.GetSimpleTransactionsBySubsidiaryCodesPageAsync(
+      _currentCodes,
+      fromDate,
+      toDate,
+      _pageSize,
+      _cursorOccurredAt,
+      _cursorTransactionId,
+      _cursorJournalId)).ToList();
+
+    if (page.Count > 0)
+    {
+      _rows.AddRange(page);
+      var last = page[^1];
+      _cursorOccurredAt = last.OccurredAt;
+      _cursorTransactionId = last.TransactionId;
+      _cursorJournalId = last.JournalId;
+    }
+
+    _hasMore = page.Count >= _pageSize;
+  }
+
+  private void OpenTx(MemberSimpleTransactionRow tx)
+  {
+    _selectedTx = tx;
+    _showTxDialog = true;
+  }
+
+  private void CloseTx()
+  {
+    _showTxDialog = false;
+    _selectedTx = null;
+  }
+
+  private string TxText(MemberSimpleTransactionRow r, int index)
+  {
+    var op = !string.IsNullOrWhiteSpace(r.Operation) ? r.Operation : OpLabel(r.Net);
+    var desc = !string.IsNullOrWhiteSpace(r.Description) ? r.Description : r.Notes;
+    var txId = r.TransactionId?.ToString() ?? "-";
+    var jId = r.JournalId?.ToString() ?? "-";
+    return $"صندوق امام علی (ع)\n" +
+           $"رسید تراکنش\n" +
+           $"------------------------------\n" +
+           $"مبلغ: {FmtMoney(r.Amount)}\n" +
+           $"نوع عملیات: {op}\n" +
+           $"عضو: {MemberNameByCode(r.MemberCode)}\n" +
+           $"تاریخ/ساعت: {FmtDateTime(r.OccurredAt)}\n" +
+           $"شناسه تراکنش: {txId}\n" +
+           $"شناسه سند: {jId}\n" +
+           $"توضیحات: {desc}";
+  }
+
+  private async Task CopyTxAsync()
+  {
+    if (_selectedTx == null) return;
+    var text = TxText(_selectedTx, 0);
+    await JS.InvokeVoidAsync("txShare.copyText", text);
+  }
+
+  private async Task ShareTextAsync()
+  {
+    if (_selectedTx == null) return;
+    var text = TxText(_selectedTx, 0);
+    await JS.InvokeVoidAsync("txShare.shareText", "تراکنش صندوق امام علی (ع)", text);
+  }
+
+  private async Task ShareImageAsync()
+  {
+    if (_selectedTx == null) return;
+    var op = !string.IsNullOrWhiteSpace(_selectedTx.Operation) ? _selectedTx.Operation : OpLabel(_selectedTx.Net);
+    var desc = !string.IsNullOrWhiteSpace(_selectedTx.Description) ? _selectedTx.Description : _selectedTx.Notes;
+    await JS.InvokeVoidAsync(
+      "txShare.shareTransactionImage",
+      "صندوق امام علی (ع)",
+      op,
+      FmtMoney(_selectedTx.Amount),
+      MemberNameByCode(_selectedTx.MemberCode),
+      FmtDateTime(_selectedTx.OccurredAt),
+      desc ?? "",
+      _selectedTx.TransactionId?.ToString() ?? "",
+      _selectedTx.JournalId?.ToString() ?? "");
+  }
+
+  private async Task<long> ResolveMemberIdAsync()
+  {
+    // If admin has selected a member, prioritize that selection
+    if (_adminSelectedMemberId.HasValue && _adminSelectedMemberId.Value > 0)
+      return _adminSelectedMemberId.Value;
+
+    var state = await AuthStateProvider.GetAuthenticationStateAsync();
+    var user = state.User;
+
+    var memberIdClaim = user?.FindFirst("MemberId")?.Value;
+    if (long.TryParse(memberIdClaim, out var memberId) && memberId > 0)
+      return memberId;
+
+    var userIdClaim = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (!long.TryParse(userIdClaim, out var userId) || userId <= 0)
+      return 0;
+
+    var dbUser = await AuthRepo.GetUserByIdAsync(userId);
+    return dbUser?.MemberId ?? 0;
+  }
+
+  private long? GetRequestedMemberId()
+  {
+    try
+    {
+      var uri = Nav.ToAbsoluteUri(Nav.Uri);
+      var q = QueryHelpers.ParseQuery(uri.Query);
+      if (q.TryGetValue("memberId", out var v) && long.TryParse(v.ToString(), out var id) && id > 0)
+        return id;
+    }
+    catch { }
+    return null;
+  }
+
+  private async Task<long> ResolveAllowedMemberIdAsync(long myMemberId, long? requestedMemberId)
+  {
+    if (!requestedMemberId.HasValue || requestedMemberId.Value <= 0)
+      return myMemberId;
+
+    // allow only within same household
+    var me = await MemberService.GetByIdAsync(myMemberId);
+    if (me == null || string.IsNullOrWhiteSpace(me.HouseholdCode))
+      return myMemberId;
+
+    var rows = await TxReports.GetHouseholdMemberBankingBalancesAsync(me.HouseholdCode);
+    if (rows.Any(x => x.MemberId == requestedMemberId.Value))
+      return requestedMemberId.Value;
+    return myMemberId;
+  }
+
+  private async Task<long?> ResolveHouseholdIdAsync(Member me)
+  {
+    if (me.Household != null && me.Household.HouseholdId > 0)
+      return me.Household.HouseholdId;
+    if (!string.IsNullOrWhiteSpace(me.HouseholdCode))
+    {
+      var h = await HouseholdRepo.GetByCodeAsync(me.HouseholdCode);
+      if (h != null && h.HouseholdId > 0)
+        return h.HouseholdId;
+    }
+    return null;
+  }
+
+  private static DateTime? ParseJalali(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return null;
+    try
+    {
+      var fa = System.Globalization.CultureInfo.GetCultureInfo("fa-IR");
+      return DateTime.Parse(s, fa);
+    }
+    catch
+    {
+      return null;
+    }
+  }
+
+  private async Task OnMemberSelectorChanged(long? memberId)
+  {
+    _adminSelectedMemberId = memberId;
+    _selectedMemberId = null;
+    await LoadAsync();
+  }
+
+  private static string FmtMoney(decimal v)
+    => string.Format(System.Globalization.CultureInfo.GetCultureInfo("fa-IR"), "{0:n0}", v) + " ریال";
+
+  private static string AmtClass(decimal v)
+  {
+    if (v > 0) return "pos";
+    if (v < 0) return "neg";
+    return "zero";
+  }
+
+  private static string OpLabel(decimal net)
+  {
+    if (net > 0) return "واریز";
+    if (net < 0) return "برداشت";
+    return "-";
+  }
+
+  private string FmtDateTime(DateTime dt)
+  {
+    try
+    {
+      return $"{dt.ToShamsiDateString()} {dt.ToString("HH:mm")}";
+    }
+    catch
+    {
+      return dt.ToString("yyyy/MM/dd HH:mm");
+    }
+  }
+
+  private string MemberNameByCode(string code)
+  {
+    if (string.IsNullOrWhiteSpace(code)) return "-";
+    var m = _members.FirstOrDefault(x => string.Equals(x.BankAccountNumber, code, StringComparison.OrdinalIgnoreCase));
+    return m?.MemberName ?? code;
+  }
+
+  private static string FmtDate(DateTime dt)
+    => dt.ToShamsiDateString();
+}

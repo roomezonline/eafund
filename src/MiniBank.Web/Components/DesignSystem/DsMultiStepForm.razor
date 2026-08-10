@@ -1,0 +1,133 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+
+<div class="ds-multi-step-form">
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+        @for (int i = 1; i <= TotalSteps; i++)
+        {
+            <div class="step-item @GetStepClass(i)">
+                <div class="step-circle">
+                    @if (i < CurrentStep)
+                    {
+                        <i class="fa-solid fa-check"></i>
+                    }
+                    else
+                    {
+                        <span>@i</span>
+                    }
+                </div>
+                <div class="step-label">@GetStepLabel(i)</div>
+                @if (i < TotalSteps)
+                {
+                    <div class="step-connector @(i < CurrentStep ? "completed" : "")"></div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Step Content -->
+    <div class="step-content">
+        @ChildContent
+    </div>
+
+    <!-- Navigation Buttons -->
+    @if (ShowNavigation)
+    {
+        <div class="step-navigation">
+            @if (CurrentStep > 1)
+            {
+                <button type="button" class="btn btn-secondary btn-nav" @onclick="GoToPreviousStep" disabled="@IsNavigationDisabled">
+                    <i class="fa-solid fa-arrow-right"></i>
+                    مرحله قبل
+                </button>
+            }
+
+            <div class="nav-spacer"></div>
+
+            @if (CurrentStep < TotalSteps)
+            {
+                <button type="button" class="btn btn-primary btn-nav" @onclick="GoToNextStep" disabled="@(IsNavigationDisabled || !CanProceedToNext)">
+                    مرحله بعد
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-success btn-nav" @onclick="OnFinalSubmit" disabled="@(IsNavigationDisabled || !CanSubmit)">
+                    <i class="fa-solid fa-check"></i>
+                    تایید نهایی
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Parameter] public int CurrentStep { get; set; } = 1;
+    [Parameter] public int TotalSteps { get; set; } = 3;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool IsNavigationDisabled { get; set; } = false;
+    [Parameter] public bool ShowNavigation { get; set; } = true;
+    [Parameter] public bool CanProceedToNext { get; set; } = true;
+    [Parameter] public bool CanSubmit { get; set; } = true;
+    [Parameter] public List<string> StepLabels { get; set; } = new();
+    [Parameter] public EventCallback<int> OnStepChanged { get; set; }
+    [Parameter] public EventCallback OnFinalSubmit { get; set; }
+
+    private string GetStepClass(int stepNumber)
+    {
+        if (stepNumber < CurrentStep) return "completed";
+        if (stepNumber == CurrentStep) return "active";
+        return "pending";
+    }
+
+    private string GetStepLabel(int stepNumber)
+    {
+        if (StepLabels.Count >= stepNumber)
+            return StepLabels[stepNumber - 1];
+        
+        return stepNumber switch
+        {
+            1 => "اطلاعات پایه",
+            2 => "تسهیم مبلغ",
+            3 => "تایید نهایی",
+            _ => $"مرحله {stepNumber}"
+        };
+    }
+
+    private async Task GoToPreviousStep()
+    {
+        if (CurrentStep > 1)
+        {
+            CurrentStep--;
+            await OnStepChanged.InvokeAsync(CurrentStep);
+            await ScrollToTop();
+        }
+    }
+
+    private async Task GoToNextStep()
+    {
+        if (CurrentStep < TotalSteps && CanProceedToNext)
+        {
+            CurrentStep++;
+            await OnStepChanged.InvokeAsync(CurrentStep);
+            await ScrollToTop();
+        }
+    }
+
+    private async Task ScrollToTop()
+    {
+        try
+        {
+            // Smooth scroll to top of page
+            await JS.InvokeVoidAsync("eval", "window.scrollTo({ top: 0, behavior: 'smooth' });");
+        }
+        catch
+        {
+            // Fallback without smooth behavior
+            await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+        }
+    }
+}

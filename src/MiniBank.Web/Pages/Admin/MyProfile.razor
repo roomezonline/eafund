@@ -1,0 +1,215 @@
+@page "/admin/my-profile"
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models.Auth
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository AuthRepo
+@inject MiniBank.Web.Services.Auth.AuthService Auth
+@inject DsToastService Toasts
+@inject NavigationManager Nav
+@inject IJSRuntime JSRuntime
+
+<style>
+  :root{--c-bg:#f7f9fc;--c-card:#ffffff;--c-border:#e5e7eb;--c-text:#0f172a;--c-muted:#64748b;--c-brand:#0ea5e9}
+  .me-shell{max-width:980px;margin:0 auto;padding:16px 14px 80px;direction:rtl}
+  .card{background:var(--c-card);border:1px solid var(--c-border);border-radius:16px;padding:14px;box-shadow:0 10px 25px rgba(15,23,42,.06)}
+  .card.accent{border-color:#bae6fd;background:linear-gradient(180deg,#ffffff,#f0f9ff)}
+  .title{font-weight:950;color:#0f172a;margin-bottom:10px}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px;border-radius:14px;background:linear-gradient(180deg,#f8fafc,#ffffff);border:1px solid #eef2f7}
+  .k{font-weight:800;color:#64748b;font-size:12px}
+  .v{font-weight:950;color:#0f172a;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:left}
+  .muted{color:#64748b;font-weight:800;font-size:12px}
+  .form-grid{display:grid;gap:10px}
+  .inp{width:100%;border-radius:14px;border:1px solid #e5e7eb;background:#fff;padding:10px 12px;font-weight:800;outline:none}
+  .inp:focus{border-color:#bae6fd;box-shadow:0 0 0 4px rgba(56,189,248,.18)}
+  .pw-wrap{position:relative}
+  .pw-input{padding-left:44px}
+  .pw-eye{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:#0f172a;display:grid;place-items:center;cursor:pointer}
+  .pw-eye:active{transform:translateY(-50%) scale(.98)}
+  .btn{appearance:none;border:0;border-radius:14px;padding:10px 12px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .btn.primary{background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;box-shadow:0 10px 24px rgba(14,165,233,.18)}
+  .btn:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
+</style>
+
+<div class="me-shell">
+  @if (_loading)
+  {
+    <div class="card"><div class="muted">در حال بارگذاری...</div></div>
+  }
+  else if (!string.IsNullOrWhiteSpace(_error))
+  {
+    <div class="card"><div style="font-weight:950;color:#b91c1c">@_error</div></div>
+  }
+  else
+  {
+    <div class="card accent">
+      <div class="title">پروفایل کاربری</div>
+
+      <div class="kv"><div class="k">نام کاربری</div><div class="v">@(_user?.Username ?? "-")</div></div>
+      <div style="height:10px"></div>
+      <div class="kv"><div class="k">نام و نام خانوادگی</div><div class="v" style="direction:rtl;text-align:right">@_userFullName</div></div>
+      <div style="height:10px"></div>
+      <div class="kv"><div class="k">نقش</div><div class="v" style="direction:rtl;text-align:right">@(_user?.Role?.Name ?? "-")</div></div>
+      <div style="height:10px"></div>
+      <div class="kv"><div class="k">کد کاربر</div><div class="v">@(_user?.UserId.ToString() ?? "-")</div></div>
+      <div style="height:10px"></div>
+      <div class="kv"><div class="k">وابسته به عضو</div><div class="v">@(_user?.MemberId?.ToString() ?? "-")</div></div>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="card">
+      <div class="title">تغییر رمز عبور</div>
+      <div class="muted" style="margin-bottom:10px">برای تغییر رمز، ابتدا رمز فعلی را وارد کنید.</div>
+
+      <div class="form-grid">
+        <div class="pw-wrap">
+          <input class="inp pw-input" type="@(_showCur ? "text" : "password")" placeholder="رمز فعلی" @bind="_currentPassword" />
+          <button type="button" class="pw-eye" @onclick="(() => _showCur = !_showCur)" aria-label="نمایش/مخفی کردن رمز">
+            <i class="fa-solid @(_showCur ? "fa-eye-slash" : "fa-eye")"></i>
+          </button>
+        </div>
+        <div class="pw-wrap">
+          <input class="inp pw-input" type="@(_showNew ? "text" : "password")" placeholder="رمز جدید" @bind="_newPassword" />
+          <button type="button" class="pw-eye" @onclick="(() => _showNew = !_showNew)" aria-label="نمایش/مخفی کردن رمز">
+            <i class="fa-solid @(_showNew ? "fa-eye-slash" : "fa-eye")"></i>
+          </button>
+        </div>
+        <div class="pw-wrap">
+          <input class="inp pw-input" type="@(_showCnf ? "text" : "password")" placeholder="تکرار رمز جدید" @bind="_confirmPassword" />
+          <button type="button" class="pw-eye" @onclick="(() => _showCnf = !_showCnf)" aria-label="نمایش/مخفی کردن رمز">
+            <i class="fa-solid @(_showCnf ? "fa-eye-slash" : "fa-eye")"></i>
+          </button>
+        </div>
+        <button class="btn primary" disabled="@_changing" @onclick="ChangePasswordAsync">
+          <i class="fa-solid fa-key"></i>
+          @(_changing ? "در حال انجام..." : "ثبت تغییر رمز")
+        </button>
+      </div>
+    </div>
+  }
+</div>
+
+@code {
+  private bool _loading = true;
+  private string? _error;
+  private AuthUser? _user;
+  private string _userFullName = "-";
+
+  private string _currentPassword = string.Empty;
+  private string _newPassword = string.Empty;
+  private string _confirmPassword = string.Empty;
+  private bool _changing;
+
+  private bool _showCur;
+  private bool _showNew;
+  private bool _showCnf;
+
+  private sealed class ChangePasswordRequest
+  {
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      _loading = true;
+      _error = null;
+
+      var state = await AuthStateProvider.GetAuthenticationStateAsync();
+      var user = state.User;
+
+      var role = user?.FindFirst("role")?.Value ?? user?.FindFirst(ClaimTypes.Role)?.Value;
+      if (string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase))
+      {
+        _error = "این صفحه مخصوص کاربران غیرعضو است.";
+        return;
+      }
+
+      var userIdClaim = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+      if (!long.TryParse(userIdClaim, out var userId) || userId <= 0)
+      {
+        _error = "اطلاعات کاربری یافت نشد.";
+        return;
+      }
+
+      _user = await AuthRepo.GetUserByIdAsync(userId);
+      if (_user == null)
+      {
+        _error = "کاربر یافت نشد.";
+        return;
+      }
+
+      _userFullName = $"{(_user.MemberFirstName ?? string.Empty).Trim()} {(_user.MemberLastName ?? string.Empty).Trim()}".Trim();
+      if (string.IsNullOrWhiteSpace(_userFullName))
+        _userFullName = "-";
+    }
+    catch (Exception ex)
+    {
+      _error = $"خطا در بارگذاری پروفایل: {ex.Message}";
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private async Task ChangePasswordAsync()
+  {
+    if (_changing) return;
+
+    var cur = (_currentPassword ?? string.Empty).Trim();
+    var nw = (_newPassword ?? string.Empty).Trim();
+    var cf = (_confirmPassword ?? string.Empty).Trim();
+
+    if (string.IsNullOrWhiteSpace(cur) || string.IsNullOrWhiteSpace(nw))
+    {
+      Toasts.Error("رمز فعلی و رمز جدید را وارد کنید");
+      return;
+    }
+
+    if (!string.Equals(nw, cf, StringComparison.Ordinal))
+    {
+      Toasts.Error("تکرار رمز جدید صحیح نیست");
+      return;
+    }
+
+    _changing = true;
+    try
+    {
+      var res = await Auth.ChangePasswordForCurrentUserAsync(cur, nw);
+      if (res.ok)
+      {
+        Toasts.Success("رمز عبور با موفقیت تغییر کرد");
+
+        try
+        {
+          if (res.debug != null)
+            await JSRuntime.InvokeVoidAsync("console.log", "change-password debug:", res.debug);
+        }
+        catch { }
+
+        _currentPassword = string.Empty;
+        _newPassword = string.Empty;
+        _confirmPassword = string.Empty;
+      }
+      else
+      {
+        Toasts.Error(string.IsNullOrWhiteSpace(res.error) ? "خطا در تغییر رمز" : res.error);
+      }
+    }
+    catch
+    {
+      Toasts.Error("خطا در تغییر رمز");
+    }
+    finally
+    {
+      _changing = false;
+    }
+  }
+}

@@ -1,0 +1,32 @@
+<nav class="menu">
+    <ul>
+        <li><NavLink href="/" Match="NavLinkMatch.All">داشبورد</NavLink></li>
+        <PermittedContent Path="/customers">
+            <li><NavLink href="/customers">لیست اعضا</NavLink></li>
+        </PermittedContent>
+        <PermittedContent Path="/customers/register">
+            <li><NavLink href="/customers/register">ثبت‌نام عضو</NavLink></li>
+        </PermittedContent>
+        <PermittedContent Path="/admin/receipts/household-wizard">
+            <li><NavLink href="/admin/receipts/household-wizard">دریافت خانوار و تسهیم</NavLink></li>
+        </PermittedContent>
+        <PermittedContent Path="/admin/reports/tx-summary">
+            <li><NavLink href="/admin/reports/tx-summary">گزارش تراکنش‌ها</NavLink></li>
+        </PermittedContent>
+        <PermittedContent Path="/admin/reports/transactions">
+            <li><NavLink href="/admin/reports/transactions">گزارش‌های تفصیلی تراکنش</NavLink></li>
+        </PermittedContent>
+        <PermittedContent Path="/admin/reports/trial-balance">
+            <li><NavLink href="/admin/reports/trial-balance">تراز تعاملی چندسطله</NavLink></li>
+        </PermittedContent>
+        <PermittedContent Path="/admin/manual-journal-entry">
+            <li><NavLink href="/admin/manual-journal-entry">ثبت دستی سند حسابداری</NavLink></li>
+        </PermittedContent>
+        <PermittedContent Path="/admin/posting-templates">
+            <li><NavLink href="/admin/posting-templates">الگوهای حسابداری</NavLink></li>
+        </PermittedContent>
+        <PermittedContent Path="/admin/fiscal-years">
+            <li><NavLink href="/admin/fiscal-years">سال‌های مالی</NavLink></li>
+        </PermittedContent>
+    </ul>
+</nav>

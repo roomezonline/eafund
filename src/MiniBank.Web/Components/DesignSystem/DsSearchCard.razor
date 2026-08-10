@@ -1,0 +1,31 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="ds-search-card">
+  <i class="fa-solid fa-search"></i>
+  <input class="search-input" 
+         type="text" 
+         placeholder="@Placeholder" 
+         value="@Value" 
+         @oninput="OnValueChanged" />
+  <button class="clear" title="پاک کردن" @onclick="ClearSearch">
+    <i class="fa-solid fa-xmark"></i>
+  </button>
+</div>
+
+@code {
+  [Parameter] public string Value { get; set; } = "";
+  [Parameter] public string Placeholder { get; set; } = "جستجو...";
+  [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+  private async Task OnValueChanged(ChangeEventArgs e)
+  {
+    Value = e.Value?.ToString() ?? "";
+    await ValueChanged.InvokeAsync(Value);
+  }
+
+  private async Task ClearSearch()
+  {
+    Value = "";
+    await ValueChanged.InvokeAsync(Value);
+  }
+}

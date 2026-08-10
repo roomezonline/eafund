@@ -1,0 +1,148 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+@inject MiniBank.Web.Services.Auth.AuthPermissionService Perms
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository Repo
+
+@if (_canRender)
+{
+    <RouteView RouteData="@RouteData" DefaultLayout="@DefaultLayout" />
+}
+
+@code {
+    [Parameter] public RouteData RouteData { get; set; } = default!;
+    [Parameter] public Type DefaultLayout { get; set; } = typeof(MiniBank.Web.Shared.MainLayout);
+
+    private bool _canRender;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _canRender = false;
+
+        var path = NormalizePath(Nav.Uri);
+
+        // Always allow login
+        if (path.Equals("/login", StringComparison.OrdinalIgnoreCase))
+        {
+            _canRender = true;
+            return;
+        }
+
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = state.User;
+
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            Nav.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        // Always allow root so it can redirect based on role
+        if (path.Equals("/", StringComparison.OrdinalIgnoreCase))
+        {
+            _canRender = true;
+            return;
+        }
+
+        // Admin has full access
+        // Note: Claims can be stale if user role changed while logged in. We re-check role from DB below.
+
+        // Allow forbidden page for authenticated users
+        if (path.Equals("/forbidden", StringComparison.OrdinalIgnoreCase))
+        {
+            _canRender = true;
+            return;
+        }
+
+        // Resolve latest role from DB (claims can be stale until next login)
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!long.TryParse(userIdClaim, out var userId) || userId <= 0)
+        {
+            Nav.NavigateTo("/forbidden", forceLoad: true);
+            return;
+        }
+
+        long roleId;
+        try
+        {
+            var dbUser = await Repo.GetUserByIdAsync(userId);
+            if (dbUser == null || !dbUser.IsActive)
+            {
+                Nav.NavigateTo("/forbidden", forceLoad: true);
+                return;
+            }
+
+            // Admin has full access
+            if (string.Equals(dbUser.Role?.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                _canRender = true;
+                return;
+            }
+
+            // Members can always access their dashboard
+            if (path.Equals("/dashboard", StringComparison.OrdinalIgnoreCase))
+            {
+                if (dbUser.MemberId.HasValue || string.Equals(dbUser.Role?.Name, "Member", StringComparison.OrdinalIgnoreCase))
+                {
+                    _canRender = true;
+                    return;
+                }
+            }
+
+            // Members can access their self-service area
+            if (path.StartsWith("/me", StringComparison.OrdinalIgnoreCase))
+            {
+                if (dbUser.MemberId.HasValue || string.Equals(dbUser.Role?.Name, "Member", StringComparison.OrdinalIgnoreCase))
+                {
+                    _canRender = true;
+                    return;
+                }
+            }
+
+            roleId = dbUser.RoleId;
+            if (roleId <= 0)
+            {
+                Nav.NavigateTo("/forbidden", forceLoad: true);
+                return;
+            }
+        }
+        catch
+        {
+            Nav.NavigateTo("/forbidden", forceLoad: true);
+            return;
+        }
+
+        // Public paths such as static resources are not routed here.
+        // Enforce permission per page path.
+        bool allowed;
+        try
+        {
+            allowed = await Perms.IsAllowedAsync(roleId, path);
+        }
+        catch
+        {
+            allowed = false;
+        }
+
+        if (!allowed)
+        {
+            Nav.NavigateTo("/forbidden", forceLoad: true);
+            return;
+        }
+
+        _canRender = true;
+    }
+
+    private static string NormalizePath(string absoluteOrRelative)
+    {
+        var p = (absoluteOrRelative ?? string.Empty).Trim();
+        if (p.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            try { p = new Uri(p).AbsolutePath; } catch { }
+        }
+        if (!p.StartsWith('/')) p = "/" + p;
+        if (p.Length > 1 && p.EndsWith('/')) p = p.TrimEnd('/');
+        return p;
+    }
+}

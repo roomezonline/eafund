@@ -1,0 +1,793 @@
+@page "/admin/accounting/profit-loss"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.DesignSystem
+@inject ProfitLossService ProfitLossService
+@inject DsToastService Toasts
+@inject NavigationManager Navigation
+@inject IWebHostEnvironment Env
+
+<div class="pl-page">
+    <DsPageHeader Title="سند سود و زیان"
+                  Icon="fa-solid fa-scale-balanced"
+                  ShowBackButton="true" />
+
+    <div class="pl-card">
+        <div class="pl-row pl-row-dates">
+            <DsJalaliDatePicker Label="از تاریخ" @bind-Value="_fromDateString" Placeholder="1404/01/01" />
+            <DsJalaliDatePicker Label="تا تاریخ" @bind-Value="_toDateString" Placeholder="1404/12/29" />
+        </div>
+
+        <div class="pl-row pl-row-toggle">
+            <label class="pl-switch">
+                <input type="checkbox" @bind="_isTemporary" />
+                <span class="pl-switch-track">
+                    <span class="pl-switch-thumb"></span>
+                </span>
+                <span class="pl-switch-label @(_isTemporary ? "on" : "off")">
+                    @(_isTemporary ? "موقت" : "دائمی")
+                </span>
+            </label>
+        </div>
+
+        <div class="pl-row pl-row-actions">
+            <button class="pl-btn pl-btn-calc" @onclick="BuildPreview" disabled="@_loading">
+                @if (_loading)
+                {
+                    <span class="pl-spinner"></span>
+                }
+                else
+                {
+                    <i class="fas fa-calculator"></i>
+                }
+                <span>محاسبه</span>
+            </button>
+            <button class="pl-btn pl-btn-submit" @onclick="OpenPreviewModal"
+                    disabled="@(_preview == null || _posting)">
+                @if (_posting)
+                {
+                    <span class="pl-spinner"></span>
+                }
+                else
+                {
+                    <i class="fas fa-check-double"></i>
+                }
+                <span>ثبت سند</span>
+            </button>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="pl-loading">
+            <div class="pl-loading-spinner"></div>
+            <span>در حال محاسبه...</span>
+        </div>
+    }
+
+    @if (!_loading && _error != null)
+    {
+        <div class="pl-error">
+            <i class="fas fa-circle-exclamation"></i>
+            <span>@_error</span>
+        </div>
+    }
+
+    @if (!_loading && _preview != null)
+    {
+        <div class="pl-results">
+
+            @* Income table *@
+            <div class="pl-table-wrap">
+                <div class="pl-table-header pl-table-header-income">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>بستن حساب‌های درآمدی</span>
+                    <span class="pl-table-badge">گروه ۴</span>
+                </div>
+                <div class="table-scroll">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th class="row-number th-yellow">ردیف</th>
+                            <th class="account-code th-yellow">کد</th>
+                            <th class="th-yellow">شرح حساب</th>
+                            <th class="amount-debit th-blue">بدهکار</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ var rn = 1; }
+                        @foreach (var line in _preview.IncomeLines)
+                        {
+                            <tr>
+                                <td class="row-number">@(rn++)</td>
+                                <td class="account-code">@line.AccountCode</td>
+                                <td class="account-name td-white">@line.AccountName</td>
+                                <td class="amount-debit td-blue">@line.Debit.ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="2" class="td-white" style="text-align:center;font-weight:800;">جمع</td>
+                            <td class="account-name td-white">جمع درآمد</td>
+                            <td class="amount-debit td-blue">@_preview.TotalIncome.ToString("N0")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>
+            </div>
+
+            @* Expense table *@
+            <div class="pl-table-wrap">
+                <div class="pl-table-header pl-table-header-expense">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>بستن حساب‌های هزینه</span>
+                    <span class="pl-table-badge">گروه ۵</span>
+                </div>
+                <div class="table-scroll">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th class="row-number th-yellow">ردیف</th>
+                            <th class="account-code th-yellow">کد</th>
+                            <th class="th-yellow">شرح حساب</th>
+                            <th class="amount-credit th-green">بستانکار</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ rn = 1; }
+                        @foreach (var line in _preview.ExpenseLines)
+                        {
+                            <tr>
+                                <td class="row-number">@(rn++)</td>
+                                <td class="account-code">@line.AccountCode</td>
+                                <td class="account-name td-white">@line.AccountName</td>
+                                <td class="amount-credit td-green">@line.Credit.ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="2" class="td-white" style="text-align:center;font-weight:800;">جمع</td>
+                            <td class="account-name td-white">جمع هزینه</td>
+                            <td class="amount-credit td-green">@_preview.TotalExpense.ToString("N0")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>
+            </div>
+
+            @* Balance table *@
+            <div class="pl-table-wrap">
+                <div class="pl-table-header pl-table-header-balance">
+                    <i class="fas fa-balance-scale"></i>
+                    <span>جمع و موازنه</span>
+                </div>
+                <div class="table-scroll">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th class="th-yellow">شرح</th>
+                            <th class="amount-debit th-blue">بدهکار</th>
+                            <th class="amount-credit th-green">بستانکار</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="account-name td-white" style="text-align:center;font-weight:800;">جمع کل بدهکار و بستانکار</td>
+                            <td class="amount-debit td-blue">@_preview.TotalDebit.ToString("N0")</td>
+                            <td class="amount-credit td-green">@_preview.TotalCredit.ToString("N0")</td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            @* Transfer table *@
+            @if (_preview.TransferLine != null)
+            {
+                <div class="pl-table-wrap">
+                    <div class="pl-table-header @(_preview.NetProfitLoss > 0 ? "pl-table-header-profit" : "pl-table-header-loss")">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>@(_preview.NetProfitLoss > 0 ? "انتقال سود خالص" : "انتقال زیان خالص")</span>
+                        <span class="pl-table-badge">@(_preview.NetProfitLoss > 0 ? "سود" : "زیان")</span>
+                    </div>
+                    <div class="table-scroll">
+                    <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th class="row-number th-yellow">ردیف</th>
+                            <th class="account-code th-yellow">کد</th>
+                            <th class="th-yellow">شرح</th>
+                            <th class="amount-debit th-blue">بدهکار</th>
+                            <th class="amount-credit th-green">بستانکار</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="row-number">1</td>
+                            <td class="account-code">3102</td>
+                            <td class="account-name td-white">
+                                @(_preview.NetProfitLoss > 0 ? "انتقال سود خالص" : "انتقال زیان خالص")
+                            </td>
+                            <td class="amount-debit td-blue">
+                                @(_preview.TransferLine.Debit > 0 ? _preview.TransferLine.Debit.ToString("N0") : "-")
+                            </td>
+                            <td class="amount-credit td-green">
+                                @(_preview.TransferLine.Credit > 0 ? _preview.TransferLine.Credit.ToString("N0") : "-")
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="2" class="td-white" style="text-align:center;font-weight:800;">جمع</td>
+                            <td class="account-name td-white">
+                                @(_preview.NetProfitLoss > 0 ? "سود خالص" : "زیان خالص")
+                            </td>
+                            <td class="amount-debit td-blue">
+                                @(_preview.TransferLine.Debit > 0 ? _preview.TransferLine.Debit.ToString("N0") : "-")
+                            </td>
+                            <td class="amount-credit td-green">
+                                @(_preview.TransferLine.Credit > 0 ? _preview.TransferLine.Credit.ToString("N0") : "-")
+                            </td>
+                        </tr>
+                    </tfoot>
+                    </table>
+                    </div>
+                </div>
+            }
+
+            <div class="pl-bottom-bar">
+                <button class="pl-btn pl-btn-submit" @onclick="OpenPreviewModal" disabled="@(_posting)">
+                    @if (_posting)
+                    {
+                        <span class="pl-spinner"></span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-check-double"></i>
+                    }
+                    <span>ثبت نهایی سند سود و زیان</span>
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@if (_showPreviewModal && _preview != null)
+{
+    <div class="loan-disburse-modal-overlay @(_showPostConfirm ? "preview-under-confirm" : "")" @onclick="ClosePreviewModal">
+        <div class="loan-disburse-modal" @onclick:stopPropagation="true">
+            <div class="loan-disburse-modal-header">
+                <div class="loan-disburse-modal-title">پیش‌نمایش سند سود و زیان</div>
+                <div class="preview-header-sub">
+                    @_fromDateString تا @_toDateString
+                    @if (_isTemporary)
+                    {
+                        <span class="preview-badge-temp">موقت</span>
+                    }
+                    else
+                    {
+                        <span class="preview-badge-perm">دائمی</span>
+                    }
+                </div>
+                <button type="button" class="loan-disburse-modal-close" @onclick="ClosePreviewModal">×</button>
+            </div>
+
+            <div class="loan-disburse-modal-meta">
+                <div><strong>جمع بدهکار:</strong> @_preview.TotalDebit.ToString("N0") ریال</div>
+                <div><strong>جمع بستانکار:</strong> @_preview.TotalCredit.ToString("N0") ریال</div>
+            </div>
+
+            <div class="loan-disburse-modal-table">
+                <div class="journals-table-scroll">
+                    <table class="journals-table" style="min-width:920px">
+                        <thead>
+                            <tr>
+                                <th>ردیف</th>
+                                <th>معین</th>
+                                <th>نام حساب</th>
+                                <th>تفصیلی</th>
+                                <th>بدهکار</th>
+                                <th>بستانکار</th>
+                                <th>شرح</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in _preview.AllLines)
+                            {
+                                <tr>
+                                    <td class="cell-center">@l.LineNo</td>
+                                    <td>@l.AccountCode</td>
+                                    <td>@l.AccountName</td>
+                                    <td>@l.DisplaySubsidiary</td>
+                                    <td class="amount-td">@(l.Debit > 0 ? l.Debit.ToString("N0") : "-")</td>
+                                    <td class="amount-td">@(l.Credit > 0 ? l.Credit.ToString("N0") : "-")</td>
+                                    <td>@l.Description</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="loan-disburse-modal-actions">
+                <button type="button" class="loan-disburse-cancel" @onclick="ClosePreviewModal">انصراف</button>
+                <button type="button" class="loan-disburse-confirm" @onclick="ConfirmPost">تأیید و ثبت سند</button>
+            </div>
+        </div>
+    </div>
+}
+
+<DsConfirm Show="@_showPostConfirm"
+           Title="تایید نهایی ثبت سند"
+           Message="@_postConfirmMessage"
+           Variant="danger"
+           ConfirmText="ثبت"
+           CancelText="انصراف"
+           OnConfirm="OnConfirmPostAsync"
+           OnCancel="OnCancelPost" />
+
+<style>
+    .pl-page { max-width: 1100px; margin: 0 auto; padding-bottom: 60px; }
+
+    /* Card */
+    .pl-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        padding: 20px 24px;
+        margin-top: 16px;
+    }
+    .pl-row { display: flex; align-items: center; gap: 12px; }
+    .pl-row + .pl-row { margin-top: 14px; }
+
+    /* Date pickers */
+    .pl-row-dates { gap: 16px; }
+    .pl-row-dates ::deep .ds-jalali-datepicker { flex: 1; min-width: 0; }
+
+    /* Toggle switch */
+    .pl-row-toggle { justify-content: center; }
+    .pl-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+        border: 1.5px dashed #cbd5e1;
+        border-radius: 999px;
+        padding: 6px 16px 6px 12px;
+        transition: border-color 0.2s;
+    }
+    .pl-switch:hover { border-color: #94a3b8; }
+    .pl-switch input { display: none; }
+    .pl-switch-track {
+        width: 44px;
+        height: 24px;
+        background: #ef4444;
+        border-radius: 12px;
+        position: relative;
+        transition: background 0.3s;
+        flex-shrink: 0;
+    }
+    .pl-switch input:checked + .pl-switch-track { background: #22c55e; }
+    .pl-switch-thumb {
+        position: absolute;
+        width: 20px; height: 20px;
+        background: #fff;
+        border-radius: 50%;
+        top: 2px; left: 2px;
+        transition: left 0.3s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .pl-switch input:checked + .pl-switch-track .pl-switch-thumb { left: 22px; }
+    .pl-switch-label {
+        font-size: 13px;
+        font-weight: 700;
+        transition: color 0.3s;
+    }
+    .pl-switch-label.on { color: #22c55e; }
+    .pl-switch-label.off { color: #ef4444; }
+
+    /* Action buttons */
+    .pl-row-actions { gap: 12px; }
+    .pl-row-actions .pl-btn { flex: 1; justify-content: center; }
+
+    /* Button base */
+    .pl-btn {
+        padding: 10px 24px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    .pl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .pl-btn-calc { background: #f1f5f9; color: #334155; }
+    .pl-btn-calc:hover:not(:disabled) { background: #e2e8f0; }
+    .pl-btn-submit { background: linear-gradient(135deg, #059669, #10b981); color: #fff; }
+    .pl-btn-submit:hover:not(:disabled) { background: linear-gradient(135deg, #047857, #059669); }
+
+    /* Loading state */
+    .pl-loading { text-align: center; padding: 48px 0; color: #6b7280; }
+    .pl-loading-spinner {
+        width: 30px; height: 30px;
+        border: 3px solid #e5e7eb;
+        border-top-color: #059669;
+        border-radius: 50%;
+        animation: pl-spin 0.7s linear infinite;
+        margin: 0 auto 10px;
+    }
+    .pl-error {
+        text-align: center; padding: 18px 20px; color: #dc2626;
+        background: #fef2f2; border-radius: 12px; margin-top: 16px; font-size: 14px;
+    }
+
+    /* Results */
+    .pl-results { margin-top: 24px; }
+
+    /* Table wrapper */
+    .pl-table-wrap {
+        margin-bottom: 22px;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    /* Table header (replaces caption) */
+    .pl-table-header {
+        display: flex; align-items: center; gap: 8px;
+        padding: 12px 16px; font-weight: 700; font-size: 15px;
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .pl-table-header i { font-size: 16px; }
+    .pl-table-badge {
+        margin-right: auto; font-size: 11px; font-weight: 600;
+        padding: 2px 10px; border-radius: 999px; background: rgba(0,0,0,0.06);
+    }
+    .pl-table-header-income { background: linear-gradient(135deg, #dbeafe, #eff6ff); color: #1d4ed8; }
+    .pl-table-header-expense { background: linear-gradient(135deg, #fce7f3, #fdf2f8); color: #be185d; }
+    .pl-table-header-balance { background: linear-gradient(135deg, #fef3c7, #fffbeb); color: #b45309; }
+    .pl-table-header-profit { background: linear-gradient(135deg, #d1fae5, #ecfdf5); color: #059669; }
+    .pl-table-header-loss { background: linear-gradient(135deg, #fee2e2, #fef2f2); color: #dc2626; }
+
+    /* ===== Trial Balance yellow theme ===== */
+    .report-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    .report-table th {
+        background: #FFD700; border: 1px solid #DAA520;
+        padding: 10px 12px; text-align: center; font-weight: 800;
+        font-size: 16px; white-space: nowrap; color: #8B4513;
+    }
+    .report-table td {
+        border: 1px solid #000; padding: 8px 12px;
+        white-space: nowrap; font-size: 15px;
+    }
+    .report-table td.account-name { white-space: normal; }
+
+    .row-number { text-align: center; width: 50px; }
+    .account-code { text-align: center; width: 100px; }
+    .account-name { text-align: right; min-width: 300px; font-size: 16px; font-weight: 700; }
+
+    .amount-debit, .amount-credit {
+        text-align: right; width: 150px;
+        font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: 'tnum' 1, 'lnum' 1;
+        direction: ltr; font-weight: 800; font-size: 18px;
+        letter-spacing: .2px;
+    }
+    .total-row { font-weight: bold; }
+
+    .th-yellow { background: #fff200 !important; color: #111827 !important; border: 1px solid #000 !important; }
+    .th-blue { background: #7dd3fc !important; color: #111827 !important; border: 1px solid #000 !important; }
+    .th-green { background: #b7f7b7 !important; color: #111827 !important; border: 1px solid #000 !important; }
+
+    .td-blue { background: #7dd3fc !important; color: #111827 !important; border: 1px solid #000 !important; }
+    .td-green { background: #b7f7b7 !important; color: #111827 !important; border: 1px solid #000 !important; }
+    .td-white { background: #ffffff !important; color: #111827 !important; border: 1px solid #000 !important; }
+
+    .table-scroll {
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+        height: 100%;
+        width: 100%;
+        position: relative;
+        touch-action: pan-x pan-y;
+    }
+
+    /* Bottom bar */
+    .pl-bottom-bar { text-align: center; margin-top: 8px; padding: 20px 0; }
+
+    /* Spinner */
+    .pl-spinner {
+        display: inline-block; width: 16px; height: 16px;
+        border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+        border-radius: 50%; animation: pl-spin 0.7s linear infinite;
+    }
+    @@keyframes pl-spin { to { transform: rotate(360deg); } }
+
+    /* Preview modal (matching early settlement modal style) */
+    .loan-disburse-modal-overlay {
+        position: fixed; inset: 0; background: rgba(15,23,42,.55);
+        display: flex; align-items: center; justify-content: center;
+        padding: 12px; z-index: 10000; overscroll-behavior: contain;
+    }
+    .loan-disburse-modal {
+        width: min(1100px, calc(100vw - 28px));
+        max-height: min(88vh, 920px); background: #fff;
+        border-radius: 14px; border: 1px solid #e5e7eb;
+        box-shadow: 0 20px 60px rgba(15,23,42,.35);
+        overflow: auto; display: flex; flex-direction: column;
+    }
+    .loan-disburse-modal-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 12px; background: #2563eb; color: #fff;
+    }
+    .loan-disburse-modal-title {
+        font-weight: 900; font-size: 14px;
+    }
+    .preview-header-sub {
+        font-size: 12px; font-weight: 700; color: rgba(255,255,255,.82);
+        display: flex; align-items: center; gap: 6px;
+    }
+    .preview-badge-temp, .preview-badge-perm {
+        font-size: 10px; font-weight: 800; padding: 1px 8px; border-radius: 999px;
+    }
+    .preview-badge-temp { background: #fef3c7; color: #92400e; }
+    .preview-badge-perm { background: #d1fae5; color: #065f46; }
+    .loan-disburse-modal-close {
+        border: none; background: rgba(255,255,255,.18);
+        color: #fff; width: 34px; height: 34px; border-radius: 10px;
+        font-size: 20px; line-height: 20px; cursor: pointer;
+    }
+    .loan-disburse-modal-close:hover { background: rgba(255,255,255,.28); }
+    .loan-disburse-modal-meta {
+        padding: 10px 12px; background: #f8fafc;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 12px; line-height: 1.9;
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px 10px;
+    }
+    .loan-disburse-modal-table {
+        padding: 10px 12px; overflow: auto;
+    }
+    .loan-disburse-modal-actions {
+        padding: 10px 12px; display: flex; gap: 10px;
+        justify-content: flex-end; border-top: 1px solid #e5e7eb;
+        background: #fff;
+    }
+    .loan-disburse-cancel, .loan-disburse-confirm {
+        min-height: 42px; border-radius: 12px;
+        font-size: 12px; font-weight: 900;
+        padding: 8px 12px; cursor: pointer;
+    }
+    .loan-disburse-cancel {
+        border: 1px solid #cbd5e1; background: #fff; color: #0f172a;
+    }
+    .loan-disburse-cancel:hover { background: #f8fafc; }
+    .loan-disburse-confirm {
+        border: 1px solid #10b981; background: #10b981; color: #fff;
+    }
+    .loan-disburse-confirm:hover { background: #059669; border-color: #059669; }
+
+    /* Journal table (yellow header, black borders, matching early settlement) */
+    .journals-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .journals-table thead th {
+        background: #fde047; color: #111827;
+        padding: 4px 8px; border: 1px solid #111827;
+        font-weight: bold; text-align: center;
+    }
+    .journals-table tbody td {
+        padding: 4px 8px; border: 1px solid #111827;
+        white-space: nowrap; text-align: right;
+        background: #fff;
+    }
+    .journals-table tbody tr:nth-child(even) td { background: #f8fafc; }
+    .journals-table td.cell-center { text-align: center !important; }
+    .journals-table td.amount-td {
+        text-align: right !important; direction: ltr !important;
+        font-weight: 900; font-variant-numeric: tabular-nums;
+    }
+    .journals-table-scroll {
+        overflow-x: auto; -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+
+    /* Mobile */
+    @@media (max-width: 768px) {
+        .pl-card { padding: 14px 12px; border-radius: 12px; }
+        .pl-row-dates { gap: 8px; }
+        .pl-row-dates ::deep .ds-datepicker-label { display: none; }
+        .pl-row-dates ::deep .ds-datepicker-input { padding: 7px 8px; font-size: 14px; }
+        .pl-row-toggle { justify-content: center; }
+        .pl-switch { padding: 4px 12px 4px 8px; }
+        .pl-switch-track { width: 38px; height: 20px; }
+        .pl-switch-thumb { width: 16px; height: 16px; top: 2px; left: 2px; }
+        .pl-switch input:checked + .pl-switch-track .pl-switch-thumb { left: 20px; }
+        .pl-switch-label { font-size: 12px; }
+        .pl-row-actions { gap: 8px; }
+        .pl-row-actions .pl-btn { padding: 10px 12px; font-size: 13px; }
+        .pl-table-header { padding: 10px 12px; font-size: 13px; }
+        .pl-table-wrap { margin-bottom: 16px; border-radius: 8px; }
+        .pl-bottom-bar .pl-btn { width: 100%; justify-content: center; }
+
+        .report-table { font-size: 13px; width: max-content; table-layout: auto; }
+        .report-table th, .report-table td { padding: 6px 4px; font-size: 12px; }
+        .account-name { min-width: 150px; font-size: 14px; }
+        .amount-debit, .amount-credit { font-size: 15px; min-width: 80px; }
+        .row-number { width: auto; min-width: 30px; }
+        .account-code { width: auto; min-width: 50px; }
+        .total-row { background: #FFD700 !important; }
+        .table-scroll { -webkit-overflow-scrolling: touch; }
+    }
+
+    .loan-disburse-modal-overlay.preview-under-confirm {
+        z-index: 9000 !important;
+    }
+    :global(.ds-confirm-overlay) {
+        z-index: 999999 !important;
+    }
+</style>
+
+@code {
+    private string _fromDateString = "";
+    private string _toDateString = "";
+    private bool _isTemporary = true;
+    private bool _initialized;
+
+    protected override void OnInitialized()
+    {
+        if (!_initialized)
+        {
+            var pc = new System.Globalization.PersianCalendar();
+            var today = DateTime.Today;
+            var year = pc.GetYear(today);
+            var month = pc.GetMonth(today);
+            var daysInMonth = pc.GetDaysInMonth(year, month);
+            _fromDateString = $"{year}/{month:D2}/01";
+            _toDateString = $"{year}/{month:D2}/{daysInMonth:D2}";
+            _initialized = true;
+        }
+    }
+
+    private bool _loading;
+    private bool _posting;
+    private string? _error;
+    private ProfitLossService.ProfitLossPreview? _preview;
+    private bool _showPreviewModal;
+    private bool _showPostConfirm;
+    private string _postConfirmMessage = "";
+
+    private DateTime? ToGeorgian(string jalali)
+    {
+        if (string.IsNullOrWhiteSpace(jalali)) return null;
+        var parts = jalali.Split('/');
+        if (parts.Length == 3 &&
+            int.TryParse(parts[0], out var y) &&
+            int.TryParse(parts[1], out var m) &&
+            int.TryParse(parts[2], out var d))
+        {
+            var pc = new System.Globalization.PersianCalendar();
+            return pc.ToDateTime(y, m, d, 0, 0, 0, 0);
+        }
+        return null;
+    }
+
+    private async Task BuildPreview()
+    {
+        var from = ToGeorgian(_fromDateString);
+        var to = ToGeorgian(_toDateString);
+        if (from == null || to == null)
+        {
+            Toasts.Warning("لطفاً بازه زمانی را وارد کنید");
+            return;
+        }
+        if (from > to)
+        {
+            Toasts.Warning("تاریخ شروع نباید بعد از تاریخ پایان باشد");
+            return;
+        }
+
+        _loading = true;
+        _error = null;
+        _preview = null;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            _preview = await ProfitLossService.BuildPreviewAsync(from.Value, to.Value);
+            if (_preview.IncomeLines.Count == 0 && _preview.ExpenseLines.Count == 0)
+                _error = "در بازه انتخابی هیچ درآمد یا هزینه‌ای ثبت نشده است";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OpenPreviewModal()
+    {
+        if (_preview == null) return;
+        _showPreviewModal = true;
+    }
+
+    private void ClosePreviewModal()
+    {
+        _showPreviewModal = false;
+    }
+
+    private void ConfirmPost()
+    {
+        if (_preview == null) return;
+        _showPreviewModal = false;
+        var typeText = _isTemporary ? "موقت" : "دائمی";
+        var dbFmt = _preview.TotalDebit.ToString("N0");
+        var crFmt = _preview.TotalCredit.ToString("N0");
+        _postConfirmMessage = $@"
+<div style='line-height:1.9'>
+  <div style='margin-bottom:8px'>آیا از ثبت سند سود و زیان مطمئن هستید؟</div>
+  <div style='background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.25);border-radius:10px;padding:10px 12px'>
+    <div><strong>بازه:</strong> {_fromDateString} تا {_toDateString}</div>
+    <div><strong>نوع:</strong> {typeText}</div>
+    <div><strong>بدهکار:</strong> {dbFmt} ریال</div>
+    <div><strong>بستانکار:</strong> {crFmt} ریال</div>
+  </div>
+</div>";
+        _showPostConfirm = true;
+    }
+
+    private async Task OnConfirmPostAsync()
+    {
+        _showPostConfirm = false;
+        _showPreviewModal = false;
+        await PostJournal();
+    }
+
+    private void OnCancelPost()
+    {
+        _showPostConfirm = false;
+    }
+
+    private async Task PostJournal()
+    {
+        var from = ToGeorgian(_fromDateString);
+        var to = ToGeorgian(_toDateString);
+        if (from == null || to == null || _preview == null) return;
+
+        _posting = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var (success, message, docNum) = await ProfitLossService.PostClosingJournalAsync(
+                from.Value, to.Value, "admin", _isTemporary, null);
+
+            if (success)
+            {
+                Toasts.Success(message);
+                _preview = null;
+            }
+            else
+            {
+                Toasts.Error(message);
+            }
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ثبت سند: {ex.Message}");
+        }
+        finally
+        {
+            _posting = false;
+        }
+    }
+}

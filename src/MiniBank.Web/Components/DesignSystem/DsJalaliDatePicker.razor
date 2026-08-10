@@ -1,0 +1,79 @@
+@namespace MiniBank.Web.Components.DesignSystem
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using MiniBank.Web.Components.Extensions
+@inject IJSRuntime JS
+
+<div class="ds-jalali-datepicker">
+  @if (!string.IsNullOrWhiteSpace(Label))
+  {
+    <label class="ds-datepicker-label">@Label</label>
+  }
+  <input type="text"
+         value="@Value"
+         @oninput="OnDateInput"
+         @ref="_dateInput"
+         class="ds-datepicker-input @(HasError ? "error" : "")"
+         style="text-align: center;"
+         data-jdp
+         data-jdp-only-date="true"
+         placeholder="@Placeholder"
+         disabled="@Disabled" />
+  @if (!string.IsNullOrWhiteSpace(HelperText) || HasError)
+  {
+    <div class="ds-datepicker-helper @(HasError ? "error" : null)">
+      @if (HasError)
+      {
+        <span>@ErrorMessage</span>
+      }
+      else if (!string.IsNullOrWhiteSpace(HelperText))
+      {
+        <span>@HelperText</span>
+      }
+    </div>
+  }
+</div>
+
+@code {
+  [Parameter] public string? Label { get; set; }
+  [Parameter] public string? Value { get; set; }
+  [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+  [Parameter] public string Placeholder { get; set; } = "مثال: 1404/06/27";
+  [Parameter] public bool Disabled { get; set; }
+  [Parameter] public string? ErrorMessage { get; set; }
+  [Parameter] public string? HelperText { get; set; }
+
+  private ElementReference _dateInput;
+  private bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      try
+      {
+        // Wait for DOM to be ready
+        await Task.Delay(100);
+        await JS.InvokeVoidAsync("initJdp");
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error initializing Jalali date picker: {ex.Message}");
+        // Fallback: set current date manually
+        if (string.IsNullOrEmpty(Value))
+        {
+          var persianCalendar = new System.Globalization.PersianCalendar();
+          var today = DateTime.Today;
+          var jalaliDate = $"{persianCalendar.GetYear(today)}/{persianCalendar.GetMonth(today):D2}/{persianCalendar.GetDayOfMonth(today):D2}";
+          await ValueChanged.InvokeAsync(jalaliDate);
+        }
+      }
+    }
+  }
+
+  private async Task OnDateInput(ChangeEventArgs e)
+  {
+    var value = e.Value?.ToString() ?? string.Empty;
+    await ValueChanged.InvokeAsync(value);
+  }
+}

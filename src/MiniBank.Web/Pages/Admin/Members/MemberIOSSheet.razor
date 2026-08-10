@@ -1,0 +1,912 @@
+@using MiniBank.Web.Models
+@using MiniBank.Web.Services
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Components.Extensions
+@inject MemberService MemberService
+@inject HouseholdService HouseholdService
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+
+@if (_isVisible)
+{
+  <div class="ios-sheet-overlay visible" @onclick="HandleOverlayClick">
+    <div class="ios-sheet open" @onclick:stopPropagation="true">
+      <!-- Handle Bar -->
+      <div class="ios-handle"></div>
+      
+      <!-- Header -->
+      <div class="ios-header">
+        <button class="ios-cancel" @onclick="Cancel">لغو</button>
+        <h2 class="ios-title">@(IsNew ? "عضو جدید" : "ویرایش عضو")</h2>
+        <button class="ios-done" @onclick="OnConfirm">
+          @if (_isSaving)
+          {
+            <div class="ios-spinner"></div>
+          }
+          else
+          {
+            <span>تایید</span>
+          }
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="ios-content">
+        <div class="ios-form-section">
+          <div class="ios-form-header">
+            <i class="fa-solid fa-user"></i>
+            <span>اطلاعات شخصی</span>
+          </div>
+          
+          <div class="ios-form-group">
+            @if (IsNew && _reservedId.HasValue)
+            {
+              <div class="ios-field" style="margin-bottom: 6px;">
+                <div style="display:flex; align-items:center; gap:8px; justify-content:center;">
+                  <span class="id-chip" style="background: rgba(99,102,241,.12); border:1px solid rgba(99,102,241,.28); color:#111827; font-weight:800; border-radius:999px; padding:2px 10px;">شناسه رزرو: #@_reservedId</span>
+                </div>
+                <div style="text-align:center; font-size:12px; color: var(--muted, #6b7280); margin-top:4px;">
+                  در صورت تایید، عضو با این شناسه ثبت خواهد شد
+                </div>
+              </div>
+            }
+
+            <div class="ios-field">
+              <label class="field-label">خانوار</label>
+              <div class="ios-combo">
+                <input type="text"
+                       @ref="_householdInput"
+                       class="ios-input @(_householdError ? "error" : "")"
+                       placeholder="جستجو و انتخاب خانوار..."
+                       value="@HouseholdInputValue"
+                       @onfocus="OpenHouseholdList"
+                       @oninput="OnHouseholdQueryInput"
+                       style="text-align: right;" />
+                @if (!string.IsNullOrEmpty(HouseholdInputValue))
+                {
+                  <button type="button" class="combo-clear" title="پاک کردن" @onclick="ClearHousehold">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                }
+
+                @if (_householdListOpen)
+                {
+                  <div class="ios-combo-list">
+                    <button type="button" class="ios-combo-item" @onclick="ClearHousehold">
+                      <div class="name">— بدون خانوار —</div>
+                      <div class="code">Clear</div>
+                    </button>
+                    <button type="button" class="ios-combo-item new-household" @onclick="SelectNewHousehold">
+                      <div class="name">ثبت خانوار جدید</div>
+                      <div class="code">New</div>
+                    </button>
+                    @if (!FilteredHouseholds.Any())
+                    {
+                      <div class="ios-combo-empty">موردی یافت نشد</div>
+                    }
+                    else
+                    {
+                      @foreach (var h in FilteredHouseholds)
+                      {
+                        <button type="button" class="ios-combo-item" @onclick="(() => SelectHousehold(h))">
+                          <div class="name">@h.Name</div>
+                          <div class="code">@h.HouseholdCode</div>
+                        </button>
+                      }
+                    }
+                  </div>
+                }
+              </div>
+              @if (_householdError)
+              {
+                <div class="field-error">@_householdErrorText</div>
+              }
+              @if (_newHouseholdSelected)
+              {
+                <div class="ios-form-group" style="margin-top:10px;">
+                  <div class="ios-field">
+                    <div class="field-label">ثبت خودکار خانوار جدید</div>
+                    <div class="ios-input" style="text-align:center; background:transparent; border:none;">
+                      در زمان تایید، یک خانوار با نام ترکیبی از «نام + نام خانوادگی + ☆ + نام پدر» ساخته می‌شود و کد خانوار به‌صورت خودکار از آخرین کد موجود +۱ تعیین خواهد شد.
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">نام</label>
+              <input type="text" 
+                     @ref="_firstNameInput"
+                     @bind="Model.FirstName" 
+                     @oninput="OnFirstNameInput"
+                     placeholder="نام"
+                     class="ios-input center-text @(_firstNameError ? "error" : "")"
+                     maxlength="100" />
+              @if (_firstNameError)
+              {
+                <div class="field-error">@_firstNameErrorText</div>
+              }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">نام خانوادگی</label>
+              <input type="text" 
+                     @ref="_lastNameInput"
+                     @bind="Model.LastName" 
+                     @oninput="OnLastNameInput"
+                     placeholder="نام خانوادگی"
+                     class="ios-input center-text @(_lastNameError ? "error" : "")"
+                     maxlength="100" />
+              @if (_lastNameError)
+              {
+                <div class="field-error">@_lastNameErrorText</div>
+              }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">نام پدر</label>
+              <input type="text" 
+                     @ref="_fatherNameInput"
+                     @bind="Model.FatherName" 
+                     @oninput="OnFatherNameInput"
+                     placeholder="نام پدر"
+                     class="ios-input center-text @(_fatherNameError ? "error" : "")"
+                     maxlength="100" />
+              @if (_fatherNameError)
+              {
+                <div class="field-error">@_fatherNameErrorText</div>
+              }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">کد ملی</label>
+              <input type="text" 
+                     @ref="_nationalCodeInput"
+                     @bind="Model.NationalCode" 
+                     @oninput="OnNationalCodeInput"
+                     placeholder="مثال: 1234567890"
+                     class="ios-input center-text @(_nationalCodeError ? "error" : "")"
+                     maxlength="10"
+                     inputmode="numeric"
+                     pattern="[0-9]*"
+                     autocomplete="one-time-code" />
+              @if (_nationalCodeError)
+              {
+                <div class="field-error">@_nationalCodeErrorText</div>
+              }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">شماره موبایل</label>
+              <input type="tel" 
+                     @ref="_mobileInput"
+                     @bind="Model.MobileNumber" 
+                     @oninput="OnMobileInput"
+                     placeholder="مثال: 09123456789"
+                     class="ios-input center-text @(_mobileError ? "error" : "")"
+                     maxlength="15"
+                     inputmode="numeric"
+                     pattern="[0-9]*"
+                     autocomplete="tel" />
+              @if (_mobileError)
+              {
+                <div class="field-error">@_mobileErrorText</div>
+              }
+            </div>
+
+            <div class="ios-field">
+              <label class="field-label">تاریخ عضویت</label>
+              <input type="text"
+                     value="@JoinedDateString"
+                     @oninput="OnJoinedDateInput"
+                     class="ios-input"
+                     style="text-align: center;"
+                     data-jdp
+                     data-jdp-only-date="true"
+                     placeholder="مثال: 1404/06/27" />
+            </div>
+
+            <div class="ios-toggle-row">
+              <div class="ios-toggle-label">
+                <i class="fa-solid fa-user-tie"></i>
+                <div>
+                  <span class="ios-toggle-title">سرپرست خانوار</span>
+                  <span class="ios-toggle-subtitle">این عضو به عنوان سرپرست خانوار انتخاب شود</span>
+                </div>
+              </div>
+              <label class="ios-toggle">
+                <input type="checkbox" @bind="_isHeadOfHousehold" />
+                <span class="ios-toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="ios-toggle-row">
+              <div class="ios-toggle-label">
+                <i class="fa-solid fa-diagram-subtree"></i>
+                <div>
+                  <span class="ios-toggle-title">کد تفضیلی عضو</span>
+                  <span class="ios-toggle-subtitle">فعال/غیرفعال کردن کد تفضیلی (در صورت داشتن تراکنش امکان غیرفعال‌سازی نیست)</span>
+                </div>
+              </div>
+              <label class="ios-toggle">
+                <input type="checkbox" checked="@_subsidiaryEnabled" @onchange="OnSubsidiaryToggleChanged" />
+                <span class="ios-toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="ios-toggle-row">
+              <div class="ios-toggle-label">
+                <i class="fa-solid fa-toggle-on"></i>
+                <div>
+                  <span class="ios-toggle-title">وضعیت فعال</span>
+                  <span class="ios-toggle-subtitle">عضو در سیستم فعال باشد</span>
+                </div>
+              </div>
+              <label class="ios-toggle">
+                <input type="checkbox" @bind="Model.IsActive" />
+                <span class="ios-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    @* Central DsConfirm for changing head of household *@
+    <DsConfirm Show="_showHeadConfirm"
+               Title="@_headConfirmTitle"
+               Message="@_headConfirmMessage"
+               Variant="warning"
+               ConfirmText="تایید"
+               CancelText="انصراف"
+               OnConfirm="ConfirmHeadChange"
+               OnCancel="CancelHeadChange" />
+  </div>
+}
+
+@code {
+    [Parameter] public Member Model { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+    [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+    private bool _isVisible;
+    private bool _isSaving;
+    private List<Household> _households = new();
+    private long? _reservedId;
+
+    // Form validation
+    private bool _firstNameError, _fatherNameError, _lastNameError, _nationalCodeError, _mobileError, _householdError;
+    private string? _firstNameErrorText, _fatherNameErrorText, _lastNameErrorText, _nationalCodeErrorText, _mobileErrorText, _householdErrorText;
+
+    // Element references for focus
+    private ElementReference _firstNameInput, _fatherNameInput, _lastNameInput, _nationalCodeInput, _mobileInput, _householdInput;
+    private bool _isHeadOfHousehold;
+    private bool _skipOwnerChange;
+    private bool _subsidiaryEnabled;
+    private Account? _memberSubsidiary;
+    private bool _showHeadConfirm;
+    private string _headConfirmTitle = "تغییر سرپرست خانوار";
+    private string _headConfirmMessage = string.Empty;
+    private TaskCompletionSource<bool>? _headConfirmTcs;
+
+    // Date handling (Persian)
+    private string JoinedDateString
+    {
+        get => Model.JoinedAt.ToPersianDate();
+        set
+        {
+            if (!string.IsNullOrEmpty(value))
+                Model.JoinedAt = DateTimeExtensions.FromPersianDate(value);
+        }
+    }
+
+    // In-app confirmation dialog handlers for changing head of household
+    private Task<bool> ShowHeadConfirmAsync(string message)
+    {
+        _headConfirmMessage = message;
+        _showHeadConfirm = true;
+        StateHasChanged();
+        _headConfirmTcs = new TaskCompletionSource<bool>();
+        return _headConfirmTcs.Task;
+    }
+
+    private void ConfirmHeadChange()
+    {
+        _showHeadConfirm = false;
+        _headConfirmTcs?.TrySetResult(true);
+        StateHasChanged();
+    }
+
+    private void CancelHeadChange()
+    {
+        _showHeadConfirm = false;
+        _headConfirmTcs?.TrySetResult(false);
+        StateHasChanged();
+    }
+
+    private void OnJoinedDateInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        if (!string.IsNullOrEmpty(value))
+            Model.JoinedAt = DateTimeExtensions.FromPersianDate(value);
+        StateHasChanged();
+    }
+
+    // Searchable Household picker state and logic
+    private bool _householdListOpen;
+    private string _householdQuery = string.Empty;
+    private IEnumerable<Household> FilteredHouseholds =>
+        string.IsNullOrWhiteSpace(_householdQuery)
+            ? _households
+            : _households.Where(h =>
+                (h.Name?.Contains(_householdQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (h.HouseholdCode?.Contains(_householdQuery, StringComparison.OrdinalIgnoreCase) ?? false)
+            );
+
+    // New household inline creation state
+    private bool _newHouseholdSelected;
+    private string _newHouseholdName = string.Empty;
+    private string _newHouseholdCode = string.Empty;
+    private bool _newHouseholdNameError, _newHouseholdCodeError;
+    private string? _newHouseholdNameErrorText, _newHouseholdCodeErrorText;
+
+    private string HouseholdInputValue
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(_householdQuery)) return _householdQuery;
+            var sel = _households.FirstOrDefault(x => string.Equals(x.HouseholdCode, Model.HouseholdCode, StringComparison.OrdinalIgnoreCase));
+            return sel != null ? $"{sel.Name} ({sel.HouseholdCode})" : string.Empty;
+        }
+    }
+
+    private void OpenHouseholdList()
+    {
+        _householdListOpen = true;
+        StateHasChanged();
+    }
+
+    private void OnHouseholdQueryInput(ChangeEventArgs e)
+    {
+        _householdQuery = e.Value?.ToString() ?? string.Empty;
+        _householdListOpen = true;
+        if (_householdError)
+        {
+            _householdError = false;
+            _householdErrorText = null;
+        }
+        StateHasChanged();
+    }
+
+    private void SelectNewHousehold()
+    {
+        _newHouseholdSelected = true;
+        _householdListOpen = false;
+        Model.HouseholdCode = null;
+        _householdQuery = "ثبت خانوار جدید";
+        // reset errors
+        _householdError = false; _householdErrorText = null;
+        _newHouseholdNameError = _newHouseholdCodeError = false;
+        _newHouseholdNameErrorText = _newHouseholdCodeErrorText = null;
+        StateHasChanged();
+    }
+
+    private void SelectHousehold(Household h)
+    {
+        // Work by HouseholdCode as the primary key
+        Model.HouseholdCode = h.HouseholdCode;
+        _householdQuery = $"{h.Name} ({h.HouseholdCode})";
+        _householdListOpen = false;
+        _newHouseholdSelected = false;
+        if (_householdError)
+        {
+            _householdError = false;
+            _householdErrorText = null;
+        }
+        // Reset head-of-household selection when changing household
+        _isHeadOfHousehold = false;
+        StateHasChanged();
+    }
+
+    private async Task ClearHousehold()
+    {
+        Model.HouseholdCode = null;
+        _householdQuery = string.Empty;
+        _householdListOpen = true;
+        _isHeadOfHousehold = false;
+        _newHouseholdSelected = false;
+        _newHouseholdName = string.Empty;
+        _newHouseholdCode = string.Empty;
+        if (_householdError)
+        {
+            _householdError = false;
+            _householdErrorText = null;
+        }
+        StateHasChanged();
+        try { await _householdInput.FocusAsync(); } catch { }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHouseholds();
+        
+        if (IsNew)
+        {
+            Model.IsActive = true;
+            Model.JoinedAt = DateTime.Now;
+            _subsidiaryEnabled = true;
+            try
+            {
+                _reservedId = await MemberService.GetNextMemberIdAsync();
+            }
+            catch (Exception ex)
+            {
+                Toasts.Error($"خطا در دریافت شناسه رزرو: {ex.Message}");
+            }
+        }
+        else
+        {
+            var sel = _households.FirstOrDefault(h => string.Equals(h.HouseholdCode, Model.HouseholdCode, StringComparison.OrdinalIgnoreCase));
+            _isHeadOfHousehold = sel != null && sel.OwnerMemberId.HasValue && sel.OwnerMemberId.Value == Model.MemberId;
+
+            try
+            {
+                _memberSubsidiary = await AccountsRepo.GetSubsidiaryByMemberIdAsync(Model.MemberId, includeInactive: true);
+                _subsidiaryEnabled = _memberSubsidiary?.IsActive ?? false;
+            }
+            catch
+            {
+                _memberSubsidiary = null;
+                _subsidiaryEnabled = false;
+            }
+        }
+        
+        // Start invisible, then animate in
+        await Task.Delay(50);
+        _isVisible = true;
+        await InitJalaliPicker();
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_isVisible)
+        {
+            await InitJalaliPicker();
+        }
+    }
+
+    private async Task InitJalaliPicker()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("initJdp");
+        }
+        catch { /* ignore if script not yet loaded */ }
+    }
+
+    private async Task LoadHouseholds()
+    {
+        try
+        {
+            // Load ALL households (active and inactive) so editing members of inactive households works too
+            var list = (await HouseholdService.GetAsync(null, null, 2000)).ToList();
+            // Sort by household code descending (numeric if possible, otherwise by string)
+            _households = list
+                .OrderByDescending(h => long.TryParse(h.HouseholdCode, out var n) ? n : long.MinValue)
+                .ThenByDescending(h => h.HouseholdCode)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری خانوارها: {ex.Message}");
+        }
+    }
+
+    private void OnFirstNameInput()
+    {
+        if (_firstNameError)
+        {
+            _firstNameError = false;
+            _firstNameErrorText = null;
+            StateHasChanged();
+        }
+    }
+
+    private void OnLastNameInput()
+    {
+        if (_lastNameError)
+        {
+            _lastNameError = false;
+            _lastNameErrorText = null;
+            StateHasChanged();
+        }
+    }
+
+    private void OnFatherNameInput()
+    {
+        if (_fatherNameError)
+        {
+            _fatherNameError = false;
+            _fatherNameErrorText = null;
+            StateHasChanged();
+        }
+    }
+
+    private void OnNationalCodeInput()
+    {
+        // Sanitize to digits only and enforce max length 10
+        if (!string.IsNullOrEmpty(Model.NationalCode))
+        {
+            var digits = new string(Model.NationalCode.Where(char.IsDigit).ToArray());
+            if (digits.Length > 10) digits = digits.Substring(0, 10);
+            if (!string.Equals(digits, Model.NationalCode, StringComparison.Ordinal))
+            {
+                Model.NationalCode = digits;
+            }
+        }
+
+        if (_nationalCodeError)
+        {
+            _nationalCodeError = false;
+            _nationalCodeErrorText = null;
+            StateHasChanged();
+        }
+    }
+
+    private void OnMobileInput()
+    {
+        // Sanitize to digits only and enforce max length 15 (supports country codes if needed)
+        if (!string.IsNullOrEmpty(Model.MobileNumber))
+        {
+            var digits = new string(Model.MobileNumber.Where(char.IsDigit).ToArray());
+            if (digits.Length > 15) digits = digits.Substring(0, 15);
+            if (!string.Equals(digits, Model.MobileNumber, StringComparison.Ordinal))
+            {
+                Model.MobileNumber = digits;
+            }
+        }
+
+        if (_mobileError)
+        {
+            _mobileError = false;
+            _mobileErrorText = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnConfirm()
+    {
+        if (_isSaving) return;
+
+        // Reset previous errors
+        _firstNameError = _fatherNameError = _lastNameError = _nationalCodeError = _mobileError = _householdError = false;
+        _firstNameErrorText = _fatherNameErrorText = _lastNameErrorText = _nationalCodeErrorText = _mobileErrorText = _householdErrorText = null;
+
+        // Validate on submit
+        var hasError = false;
+
+        if (string.IsNullOrWhiteSpace(Model.FirstName))
+        {
+            _firstNameError = true;
+            _firstNameErrorText = "نام الزامی است";
+            hasError = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(Model.LastName))
+        {
+            _lastNameError = true;
+            _lastNameErrorText = "نام خانوادگی الزامی است";
+            hasError = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(Model.FatherName))
+        {
+            _fatherNameError = true;
+            _fatherNameErrorText = "نام پدر الزامی است";
+            hasError = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(Model.NationalCode) || Model.NationalCode.Length != 10)
+        {
+            _nationalCodeError = true;
+            _nationalCodeErrorText = "کد ملی باید 10 رقم باشد";
+            hasError = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(Model.MobileNumber) || Model.MobileNumber.Length < 11)
+        {
+            _mobileError = true;
+            _mobileErrorText = "شماره موبایل معتبر وارد کنید";
+            hasError = true;
+        }
+
+        if (!_newHouseholdSelected)
+        {
+            if (string.IsNullOrWhiteSpace(Model.HouseholdCode))
+            {
+                _householdError = true;
+                _householdErrorText = "انتخاب خانوار الزامی است";
+                hasError = true;
+            }
+        }
+
+        if (hasError)
+        {
+            // Focus first error field
+            if (_firstNameError)
+                await _firstNameInput.FocusAsync();
+            else if (_fatherNameError)
+                await _fatherNameInput.FocusAsync();
+            else if (_lastNameError)
+                await _lastNameInput.FocusAsync();
+            else if (_nationalCodeError)
+                await _nationalCodeInput.FocusAsync();
+            else if (_mobileError)
+                await _mobileInput.FocusAsync();
+            
+            StateHasChanged();
+            return;
+        }
+
+        // Decide head-of-household change policy before saving (to show prompt if needed)
+        _skipOwnerChange = false;
+        if (_isHeadOfHousehold && !string.IsNullOrWhiteSpace(Model.HouseholdCode))
+        {
+            var sel = _households.FirstOrDefault(h => string.Equals(h.HouseholdCode, Model.HouseholdCode, StringComparison.OrdinalIgnoreCase));
+            if (sel != null && sel.OwnerMemberId.HasValue && sel.OwnerMemberId.Value != Model.MemberId)
+            {
+                var currentHead = await MemberService.GetByIdAsync(sel.OwnerMemberId.Value);
+                var currentHeadName = currentHead != null ? currentHead.FullName : $"شناسه {sel.OwnerMemberId.Value}";
+                var confirmed = await ShowHeadConfirmAsync($"این خانوار هم اکنون سرپرست دارد: <strong style='color:#ef4444'>{currentHeadName}</strong>.<br/><br/>تغییر سرپرست به <strong>{Model.FullName}</strong> انجام شود؟");
+                if (!confirmed)
+                {
+                    _skipOwnerChange = true; // will save member without changing household owner
+                }
+            }
+        }
+
+        _isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            // If user chose to create a new household, create it first
+            if (_newHouseholdSelected)
+            {
+                // Auto-generate household name: "FirstName LastName☆FatherName"
+                var fn = (Model.FirstName ?? string.Empty).Trim();
+                var ln = (Model.LastName ?? string.Empty).Trim();
+                var fa = (Model.FatherName ?? string.Empty).Trim();
+                var autoName = string.Join(" ", new[]{fn, ln}.Where(s => !string.IsNullOrWhiteSpace(s))) + (string.IsNullOrWhiteSpace(fa) ? string.Empty : $"☆{fa}");
+                if (string.IsNullOrWhiteSpace(autoName)) autoName = "خانوار جدید";
+
+                // Auto-generate next numeric HouseholdCode from existing list
+                long maxCode = 0;
+                foreach (var h in _households)
+                {
+                    if (long.TryParse(h.HouseholdCode, out var n) && n > maxCode) maxCode = n;
+                }
+                var nextCode = (maxCode > 0 ? maxCode + 1 : 1001);
+
+                var newHousehold = new Household
+                {
+                    Name = autoName,
+                    HouseholdCode = nextCode.ToString(),
+                    IsActive = true
+                };
+                var newId = await HouseholdService.CreateAsync(newHousehold);
+                newHousehold.HouseholdId = newId;
+                // Update local list and bind selection
+                _households.Insert(0, newHousehold);
+                Model.HouseholdCode = newHousehold.HouseholdCode;
+                _newHouseholdSelected = false;
+            }
+
+            if (IsNew)
+            {
+                if (_reservedId.HasValue && _reservedId.Value > 0)
+                {
+                    Model.MemberId = _reservedId.Value;
+                }
+                var id = await MemberService.CreateAsync(Model);
+                Model.MemberId = id;
+            }
+            else
+            {
+                await MemberService.UpdateAsync(Model);
+            }
+
+            // Apply head-of-household relation if applicable
+            if (!string.IsNullOrWhiteSpace(Model.HouseholdCode))
+            {
+                var sel = _households.FirstOrDefault(h => string.Equals(h.HouseholdCode, Model.HouseholdCode, StringComparison.OrdinalIgnoreCase));
+                if (sel != null)
+                {
+                    if (_skipOwnerChange)
+                    {
+                        // Do nothing: user opted not to change household head
+                    }
+                    else
+                    {
+                        var shouldOwnerId = _isHeadOfHousehold ? (long?)Model.MemberId : (sel.OwnerMemberId == Model.MemberId ? (long?)null : sel.OwnerMemberId);
+                        if (shouldOwnerId != sel.OwnerMemberId)
+                        {
+                            sel.OwnerMemberId = shouldOwnerId;
+                            await HouseholdService.UpdateAsync(sel);
+                        }
+                    }
+                }
+            }
+
+            // After member is saved successfully, ensure linked subsidiary account exists if requested
+            if (_subsidiaryEnabled && Model.MemberId > 0)
+            {
+                try
+                {
+                    var existing = await AccountsRepo.GetSubsidiaryByMemberIdAsync(Model.MemberId, includeInactive: true);
+                    if (existing == null)
+                    {
+                        // فرمت کد تفضیلی عضو: M-{MemberId}
+                        var code = $"M-{Model.MemberId}";
+                        var name = Model.FullName;
+
+                        await AccountsRepo.CreateAsync(new Account
+                        {
+                            Code = code,
+                            Name = name,
+                            AccountType = 1, // دارایی به عنوان پیشفرض برای حساب اعضا
+                            ParentAccountId = null,
+                            MemberId = Model.MemberId,
+                            Level = 4,
+                            IsActive = true
+                        });
+                    }
+                    else if (!existing.IsActive)
+                    {
+                        // Reactivate/update if an inactive record exists
+                        existing.IsActive = true;
+                        existing.Code = $"M-{Model.MemberId}";
+                        existing.Name = Model.FullName;
+                        existing.Level = 4;
+                        existing.MemberId = Model.MemberId;
+                        await AccountsRepo.UpdateAsync(existing.AccountId, existing);
+                    }
+
+                    _memberSubsidiary = await AccountsRepo.GetSubsidiaryByMemberIdAsync(Model.MemberId, includeInactive: true);
+                    _subsidiaryEnabled = _memberSubsidiary?.IsActive ?? false;
+                }
+                catch (Exception ex)
+                {
+                    Toasts.Error($"خطا در ایجاد کد تفضیلی برای عضو: {ex.Message}");
+                }
+            }
+
+            await OnClose.InvokeAsync(true);
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره: {ex.Message}");
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Cancel()
+    {
+        await OnClose.InvokeAsync(false);
+    }
+
+    private async Task OnSubsidiaryToggleChanged(ChangeEventArgs e)
+    {
+        var newValue = e?.Value is bool b && b;
+
+        // New member: just remember the intent and create after save.
+        if (IsNew)
+        {
+            _subsidiaryEnabled = newValue;
+            StateHasChanged();
+            return;
+        }
+
+        var old = _subsidiaryEnabled;
+        _subsidiaryEnabled = newValue;
+        StateHasChanged();
+
+        try
+        {
+            if (Model.MemberId <= 0)
+                return;
+
+            _memberSubsidiary = await AccountsRepo.GetSubsidiaryByMemberIdAsync(Model.MemberId, includeInactive: true);
+
+            if (newValue)
+            {
+                // Enable: create or reactivate
+                if (_memberSubsidiary == null)
+                {
+                    var code = $"M-{Model.MemberId}";
+                    await AccountsRepo.CreateAsync(new Account
+                    {
+                        Code = code,
+                        Name = Model.FullName,
+                        AccountType = 1,
+                        ParentAccountId = null,
+                        MemberId = Model.MemberId,
+                        Level = 4,
+                        IsActive = true
+                    });
+
+                    var refreshed = await AccountsRepo.GetSubsidiaryByMemberIdAsync(Model.MemberId, includeInactive: true);
+                    if (refreshed == null)
+                    {
+                        _subsidiaryEnabled = old;
+                        StateHasChanged();
+                        Toasts.Error("کد تفضیلی ایجاد شد اما در بانک اطلاعاتی پیدا نشد");
+                        return;
+                    }
+
+                    Toasts.Success("کد تفضیلی برای این عضو ایجاد شد");
+                }
+                else if (!_memberSubsidiary.IsActive)
+                {
+                    _memberSubsidiary.IsActive = true;
+                    _memberSubsidiary.Code = $"M-{Model.MemberId}";
+                    _memberSubsidiary.Name = Model.FullName;
+                    _memberSubsidiary.AccountType = 1;
+                    _memberSubsidiary.ParentAccountId = null;
+                    _memberSubsidiary.Level = 4;
+                    _memberSubsidiary.MemberId = Model.MemberId;
+                    await AccountsRepo.UpdateAsync(_memberSubsidiary.AccountId, _memberSubsidiary);
+
+                    var refreshed = await AccountsRepo.GetSubsidiaryByMemberIdAsync(Model.MemberId, includeInactive: true);
+                    if (refreshed == null)
+                    {
+                        _subsidiaryEnabled = old;
+                        StateHasChanged();
+                        Toasts.Error("عملیات انجام شد اما تفضیلی در بانک اطلاعاتی پیدا نشد");
+                        return;
+                    }
+
+                    Toasts.Success("کد تفضیلی مجدداً فعال شد");
+                }
+            }
+            else
+            {
+                // Disable only if no journal usage
+                if (_memberSubsidiary != null && _memberSubsidiary.IsActive)
+                {
+                    var used = await AccountsRepo.IsUsedInJournalEntriesAsync(_memberSubsidiary.AccountId);
+                    if (used)
+                    {
+                        Toasts.Error("این تفضیلی دارای تراکنش/سند است و امکان غیرفعال سازی ندارد");
+                        _subsidiaryEnabled = old;
+                        StateHasChanged();
+                        return;
+                    }
+
+                    await AccountsRepo.DeleteAsync(_memberSubsidiary.AccountId);
+                    _memberSubsidiary.IsActive = false;
+                    Toasts.Success("کد تفضیلی غیرفعال شد");
+                }
+            }
+
+            _memberSubsidiary = await AccountsRepo.GetSubsidiaryByMemberIdAsync(Model.MemberId, includeInactive: true);
+            _subsidiaryEnabled = _memberSubsidiary?.IsActive ?? false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _subsidiaryEnabled = old;
+            StateHasChanged();
+            Toasts.Error($"خطا: {ex.Message}");
+        }
+    }
+
+    private async Task HandleOverlayClick() { /* do nothing to force explicit cancel/close */ await Task.CompletedTask; }
+}

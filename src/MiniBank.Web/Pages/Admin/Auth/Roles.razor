@@ -1,0 +1,438 @@
+@page "/admin/auth/roles"
+@using System.Linq
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models.Auth
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository Repo
+@inject MiniBank.Web.Services.Auth.AuthPageSeeder Seeder
+@inject MiniBank.Web.Services.Auth.AuthPermissionService Perms
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+
+<div class="roles-duo">
+  <DsPageHeader Icon="fa-solid fa-shield-halved"
+                Title="نقش‌ها و دسترسی‌ها"
+                Subtitle="تعیین صفحات مجاز برای هر نقش"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                OnRefreshClick="LoadAsync">
+  </DsPageHeader>
+
+  <div class="duo-controls">
+    <div class="role-picker">
+      <label>نقش</label>
+      <select class="select" @bind="_activeRoleId">
+        @foreach (var r in _roles)
+        {
+          <option value="@r.RoleId">@ToFaRole(r.Name)</option>
+        }
+      </select>
+    </div>
+
+    <div class="actions-row" style="align-self:end; display:flex; gap:8px;">
+      <button class="btn" @onclick="OpenEditRole" disabled="@(_saving || _activeRole == null || _activeRole.IsSystem)">ویرایش نقش</button>
+      <button class="btn danger" @onclick="DeleteRole" disabled="@(_saving || _activeRole == null || _activeRole.IsSystem)">حذف نقش</button>
+    </div>
+
+    <div class="add-role">
+      <label>نقش جدید</label>
+      <div class="row">
+        <input class="input" @bind="_newRoleName" @bind:event="oninput" placeholder="مثلاً Manager" />
+        <button class="btn" @onclick="AddRole" disabled="@_saving">افزودن</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="duo-main">
+    @if (_loading)
+    {
+      <div class="loading-state"><div class="loading-spinner"></div><p>در حال بارگذاری...</p></div>
+    }
+    else
+    {
+      <div class="pages-grid">
+        <div class="page-card" style="border:2px solid rgba(99,102,241,.35);">
+          <div class="page-info">
+            <div class="t">دسترسی کامل</div>
+            <div class="s">اعطا/لغو همه دسترسی‌ها با یک کلیک</div>
+          </div>
+          <DsToggle Value="@_allAllowed" ValueChanged="(v => ToggleAll(v))" Label="" Description="" Icon="fa-solid fa-shield" Size="sm" />
+        </div>
+        @foreach (var p in _pages)
+        {
+          var allowed = _permMap.TryGetValue(p.PageId, out var a) && a;
+          <div class="page-card">
+            <div class="page-info">
+              <div class="t">@ToFaPageTitle(p)</div>
+              <div class="s">@p.Path</div>
+            </div>
+            <DsToggle Value="@allowed" ValueChanged="(v => Toggle(p.PageId, v))" Label="" Description="" Icon="fa-solid fa-link" Size="sm" />
+          </div>
+        }
+      </div>
+    }
+  </main>
+</div>
+
+@if (_showEditRole && _activeRole != null)
+{
+  <div class="edit-overlay" @onclick="CloseEditRole">
+    <div class="edit-card" @onclick:stopPropagation="true">
+      <div class="edit-title">ویرایش نقش</div>
+
+      <div class="edit-grid">
+        <div class="kv"><span class="k">نام نقش</span><span class="v"><input class="input" @bind="_editRoleName" @bind:event="oninput" /></span></div>
+        <div class="kv"><span class="k">وضعیت</span><span class="v">
+          <select class="select" @bind="_editRoleIsActiveStr">
+            <option value="true">فعال</option>
+            <option value="false">غیرفعال</option>
+          </select>
+        </span></div>
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-secondary" @onclick="CloseEditRole">بستن</button>
+        <button class="btn-primary" disabled="@_saving" @onclick="SaveRoleEdit">@(_saving?"در حال ذخیره...":"ذخیره")</button>
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+  private bool _loading;
+  private bool _saving;
+  private List<AuthRole> _roles = new();
+  private List<AuthPage> _pages = new();
+  private Dictionary<long, bool> _permMap = new();
+  private bool _allAllowed;
+
+  private AuthRole? _activeRole => _roles.FirstOrDefault(r => r.RoleId == _activeRoleIdRaw);
+
+  private bool _showEditRole;
+  private string _editRoleName = string.Empty;
+  private string _editRoleIsActiveStr = "true";
+
+  private static string ToFaRole(string? name)
+  {
+    var x = (name ?? string.Empty).Trim();
+    if (string.IsNullOrWhiteSpace(x)) return "-";
+
+    return x switch
+    {
+      "Developer" => "توسعه‌دهنده",
+      "Admin" => "مدیر سیستم",
+      "Accountant" => "حسابدار",
+      "Member" => "عضو",
+      "Manager" => "مدیر",
+      _ => x
+    };
+  }
+
+  private static string ToFaPageTitle(AuthPage p)
+  {
+    var title = (p.Title ?? string.Empty).Trim();
+    if (!string.IsNullOrWhiteSpace(title) && !title.StartsWith('/'))
+      return title;
+
+    var path = (p.Path ?? p.PageKey ?? title).Trim();
+    if (string.IsNullOrWhiteSpace(path)) return "-";
+
+    return path switch
+    {
+      "/" => "صفحه اصلی",
+      "/login" => "ورود",
+      "/forbidden" => "عدم دسترسی",
+
+      "/admin/dashboard" => "داشبورد",
+      "/admin/auth/users" => "کاربران سامانه",
+      "/admin/auth/roles" => "نقش‌ها و دسترسی‌ها",
+
+      "/admin/members" => "اعضا",
+      "/admin/households" => "خانوارها",
+      "/admin/bank-accounts" => "حساب‌های بانکی",
+      "/admin/deposit-types" => "انواع سپرده",
+      "/admin/tx-groups" => "گروه‌های تراکنش",
+
+      "/admin/account-types" => "گروه حساب‌ها",
+      "/admin/accounts" => "حساب‌ها",
+      "/admin/kol" => "حساب‌های کل",
+      "/admin/moeen" => "حساب‌های معین",
+      "/admin/subsidiary" => "حساب‌های تفضیلی",
+      "/admin/posting-templates" => "الگوهای ثبت حسابداری",
+
+      "/admin/manual-journal-entry" => "ثبت سند دستی",
+      "/admin/manual-journal-entry-v2" => "ثبت سند دستی (جدید)",
+
+      "/admin/reports/trial-balance" => "تراز آزمایشی",
+      "/admin/reports/interactive-trial-balance" => "تراز آزمایشی تعاملی",
+      "/admin/reports/balance-sheet" => "ترازنامه",
+      "/admin/reports/tx-summary" => "گزارش خلاصه تراکنش‌ها",
+      "/admin/reports/transactions" => "گزارش تراکنش‌ها",
+      "/admin/reports/member-banking" => "گزارش بانکی اعضا",
+      "/admin/reports/financial-statements" => "صورت‌های مالی",
+
+      "/admin/receipts/household-wizard-v2" => "ثبت رسید خانوار (چند مرحله‌ای)",
+
+      _ => FormatPathFallback(path)
+    };
+  }
+
+  private static string FormatPathFallback(string path)
+  {
+    var x = (path ?? string.Empty).Trim();
+    if (string.IsNullOrWhiteSpace(x)) return "-";
+    if (!x.StartsWith('/')) return x;
+
+    var key = x.Trim('/');
+    key = key.Replace("admin/", "");
+    var last = key.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? key;
+    last = last.Replace('-', ' ').Replace('_', ' ');
+    return last;
+  }
+  private long _activeRoleIdRaw;
+  private long _activeRoleId
+  {
+    get => _activeRoleIdRaw;
+    set
+    {
+      if (_activeRoleIdRaw == value) return;
+      _activeRoleIdRaw = value;
+      _ = InvokeAsync(async () =>
+      {
+        await LoadPermsAsync();
+        StateHasChanged();
+      });
+    }
+  }
+  private string _newRoleName = string.Empty;
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      await Seeder.EnsurePagesSeededFromRoutesAsync();
+    }
+    catch { }
+
+    await LoadAsync();
+  }
+
+  private async Task LoadAsync()
+  {
+    _loading = true;
+    try
+    {
+      _roles = (await Repo.GetRolesAsync(includeInactive: true)).ToList();
+      if (_activeRoleId == 0 && _roles.Any())
+        _activeRoleId = _roles.First().RoleId;
+
+      _pages = (await Repo.GetPagesAsync(includeInactive: false)).ToList();
+      await LoadPermsAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری نقش‌ها: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private async Task LoadPermsAsync()
+  {
+    _permMap.Clear();
+    if (_activeRoleId <= 0) return;
+
+    var perms = await Repo.GetRolePagePermissionsAsync(_activeRoleId);
+    foreach (var x in perms)
+      _permMap[x.PageId] = x.Allowed;
+
+    RecalcAllAllowed();
+  }
+
+  private void RecalcAllAllowed()
+  {
+    if (_pages.Count == 0)
+    {
+      _allAllowed = false;
+      return;
+    }
+
+    foreach (var p in _pages)
+    {
+      if (!(_permMap.TryGetValue(p.PageId, out var a) && a))
+      {
+        _allAllowed = false;
+        return;
+      }
+    }
+
+    _allAllowed = true;
+  }
+
+  private async Task ToggleAll(bool allowed)
+  {
+    if (_saving) return;
+    if (_activeRoleId <= 0) return;
+
+    _saving = true;
+    try
+    {
+      await Repo.SetRoleAllPagePermissionsAsync(_activeRoleId, allowed, activePagesOnly: true);
+
+      foreach (var p in _pages)
+        _permMap[p.PageId] = allowed;
+
+      _allAllowed = allowed;
+      Perms.InvalidateRole(_activeRoleId);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره دسترسی‌ها: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task Toggle(long pageId, bool allowed)
+  {
+    if (_saving) return;
+
+    _saving = true;
+    try
+    {
+      await Repo.SetRolePagePermissionAsync(_activeRoleId, pageId, allowed);
+      _permMap[pageId] = allowed;
+      RecalcAllAllowed();
+      Perms.InvalidateRole(_activeRoleId);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره دسترسی: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+
+  private void OpenEditRole()
+  {
+    var r = _activeRole;
+    if (r == null) return;
+    if (r.IsSystem) return;
+
+    _editRoleName = (r.Name ?? string.Empty).Trim();
+    _editRoleIsActiveStr = r.IsActive ? "true" : "false";
+    _showEditRole = true;
+  }
+
+  private void CloseEditRole()
+  {
+    _showEditRole = false;
+  }
+
+  private async Task SaveRoleEdit()
+  {
+    var r = _activeRole;
+    if (r == null) return;
+    if (r.IsSystem) return;
+    if (_saving) return;
+
+    var name = (_editRoleName ?? string.Empty).Trim();
+    if (string.IsNullOrWhiteSpace(name))
+    {
+      Toasts.Error("نام نقش را وارد کنید");
+      return;
+    }
+
+    var isActive = string.Equals((_editRoleIsActiveStr ?? string.Empty).Trim(), "true", StringComparison.OrdinalIgnoreCase);
+
+    _saving = true;
+    try
+    {
+      await Repo.UpdateRoleAsync(r.RoleId, name, isActive);
+      Toasts.Success("ذخیره شد");
+      _showEditRole = false;
+      await LoadAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+
+  private async Task DeleteRole()
+  {
+    var r = _activeRole;
+    if (r == null) return;
+    if (r.IsSystem)
+    {
+      Toasts.Error("نقش سیستمی قابل حذف نیست");
+      return;
+    }
+    if (_saving) return;
+
+    _saving = true;
+    try
+    {
+      var canDelete = await Repo.CanDeleteRoleAsync(r.RoleId);
+      if (!canDelete)
+      {
+        Toasts.Error("این نقش به یک یا چند کاربر اختصاص داده شده و قابل حذف نیست");
+        return;
+      }
+
+      await Repo.DeleteRoleSafeAsync(r.RoleId);
+      Toasts.Success("نقش حذف شد");
+
+      await LoadAsync();
+      if (_roles.Any())
+        _activeRoleId = _roles.First().RoleId;
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در حذف نقش: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+
+  private async Task AddRole()
+  {
+    if (_saving) return;
+    var name = (_newRoleName ?? string.Empty).Trim();
+    if (string.IsNullOrWhiteSpace(name))
+    {
+      Toasts.Error("نام نقش را وارد کنید");
+      return;
+    }
+
+    _saving = true;
+    try
+    {
+      var id = await Repo.CreateRoleAsync(name, isSystem: false, isActive: true);
+      _newRoleName = string.Empty;
+      Toasts.Success("نقش ایجاد شد");
+      await LoadAsync();
+      _activeRoleId = id;
+      await LoadPermsAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ایجاد نقش: {ex.Message}");
+    }
+    finally
+    {
+      _saving = false;
+    }
+  }
+}

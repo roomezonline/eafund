@@ -1,0 +1,131 @@
+/* Bottom Navigation */
+.bottom-navigation {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    height: 80px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    padding: 0 20px 12px 20px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    
+    /* Create curved notch for center item */
+    clip-path: ellipse(100% 100% at 50% 100%);
+    
+    /* Alternative approach using pseudo-element for notch */
+    position: relative;
+}
+
+.bottom-navigation::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70px;
+    height: 70px;
+    background: white;
+    border-radius: 50%;
+    z-index: -1;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    max-width: 80px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.nav-item span {
+    font-size: 11px;
+    color: #6c757d;
+    font-weight: 500;
+    font-family: 'Vazir', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.nav-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 18px;
+    transition: all 0.2s;
+}
+
+/* Center Item Styling */
+.nav-item.center-item {
+    position: relative;
+    margin-top: -30px;
+}
+
+.nav-item.center-item .nav-icon.center-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #ff8a00, #ff6b00);
+    color: white;
+    font-size: 24px;
+    box-shadow: 0 4px 16px rgba(255, 138, 0, 0.3);
+    border: 4px solid white;
+}
+
+.nav-item.center-item span {
+    color: #ff8a00;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+/* Hover Effects */
+.nav-item:hover .nav-icon:not(.center-icon) {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.nav-item:hover.center-item .nav-icon.center-icon {
+    transform: scale(1.05);
+}
+
+/* Active State */
+.nav-item.active .nav-icon:not(.center-icon) {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.nav-item.active span {
+    color: #1976d2;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+    .bottom-navigation {
+        padding: 0 12px 10px 12px;
+        height: 75px;
+    }
+    
+    .nav-item span {
+        font-size: 10px;
+    }
+    
+    .nav-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    
+    .nav-item.center-item .nav-icon.center-icon {
+        width: 56px;
+        height: 56px;
+        font-size: 22px;
+    }
+}

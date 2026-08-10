@@ -1,0 +1,95 @@
+@namespace MiniBank.Web.Components.DesignSystem
+@using System.Globalization
+
+<div class="ds-field @(HasError ? "ds-field-error" : "") @(Disabled ? "ds-field-disabled" : "")">
+  @if (!string.IsNullOrEmpty(Label))
+  {
+    <label class="ds-label" for="@Id">
+      @Label
+      @if (Required)
+      {
+        <span class="ds-required">*</span>
+      }
+    </label>
+  }
+
+  <input id="@Id"
+         class="ds-input @Class"
+         type="text"
+         inputmode="numeric"
+         value="@_display"
+         placeholder="@Placeholder"
+         disabled="@Disabled"
+         maxlength="@MaxLength"
+         @oninput="OnInput"
+         @attributes="AdditionalAttributes" />
+
+  @if (HasError && !string.IsNullOrEmpty(ErrorMessage))
+  {
+    <div class="ds-error">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      @ErrorMessage
+    </div>
+  }
+
+  @if (!HasError && !string.IsNullOrEmpty(HelperText))
+  {
+    <div class="ds-helper">@HelperText</div>
+  }
+</div>
+
+@code{
+  [Parameter] public string? Label { get; set; }
+  // Value is the formatted value with thousands separators, e.g. "1,234,567"
+  [Parameter] public string? Value { get; set; }
+  [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+
+  // Optional: numeric-only constraints
+  [Parameter] public bool AllowNegative { get; set; } = false;
+  [Parameter] public int? MaxLength { get; set; }
+
+  [Parameter] public string? Placeholder { get; set; }
+  [Parameter] public bool Disabled { get; set; }
+  [Parameter] public bool Required { get; set; }
+  [Parameter] public string? ErrorMessage { get; set; }
+  [Parameter] public string? HelperText { get; set; }
+  [Parameter] public string Class { get; set; } = string.Empty;
+  [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+  private string Id = Guid.NewGuid().ToString("N")[..8];
+  private bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+  private string? _display;
+
+  protected override void OnParametersSet()
+  {
+    // Keep display in sync when parent updates Value from outside
+    _display = NormalizeAndFormat(Value);
+  }
+
+  private async Task OnInput(ChangeEventArgs e)
+  {
+    var raw = e.Value?.ToString() ?? string.Empty;
+    _display = NormalizeAndFormat(raw);
+    await ValueChanged.InvokeAsync(_display);
+  }
+
+  private string? NormalizeAndFormat(string? input)
+  {
+    if (string.IsNullOrWhiteSpace(input)) return null;
+
+    // Keep leading minus if allowed
+    var negative = AllowNegative && input.TrimStart().StartsWith("-");
+
+    // Extract digits only
+    var digits = new string(input.Where(char.IsDigit).ToArray());
+    if (string.IsNullOrEmpty(digits)) return negative ? "-" : null;
+
+    // Parse as long (money without decimals). If you need decimals, extend here.
+    if (!long.TryParse(digits, out var number))
+      return negative ? "-" : digits;
+
+    var formatted = number.ToString("N0", CultureInfo.InvariantCulture); // 1,234,567
+    return negative ? "-" + formatted : formatted;
+  }
+}

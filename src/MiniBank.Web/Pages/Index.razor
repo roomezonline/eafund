@@ -1,0 +1,28 @@
+@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = state.User;
+
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            Nav.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var role = user.FindFirst(ClaimTypes.Role)?.Value;
+        if (string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo("/dashboard", forceLoad: true);
+            return;
+        }
+
+        Nav.NavigateTo("/admin/dashboard2", forceLoad: true);
+    }
+}

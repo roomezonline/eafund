@@ -1,0 +1,55 @@
+@namespace MiniBank.Web.Components.DesignSystem
+
+<div class="ds-toggle-container @(Disabled ? "ds-toggle-disabled" : "") @Class">
+  @if (!string.IsNullOrEmpty(Label) || !string.IsNullOrEmpty(Description))
+  {
+    <div class="ds-toggle-content">
+      @if (!string.IsNullOrEmpty(Icon))
+      {
+        <div class="ds-toggle-icon">
+          <i class="@Icon"></i>
+        </div>
+      }
+      <div class="ds-toggle-text">
+        @if (!string.IsNullOrEmpty(Label))
+        {
+          <span class="ds-toggle-label">@Label</span>
+        }
+        @if (!string.IsNullOrEmpty(Description))
+        {
+          <span class="ds-toggle-description">@Description</span>
+        }
+      </div>
+    </div>
+  }
+  
+  <label class="ds-toggle @(Size == "sm" ? "ds-toggle-sm" : "")">
+    <input type="checkbox" 
+           checked="@Value" 
+           disabled="@Disabled"
+           @onchange="OnToggleChanged"
+           @attributes="AdditionalAttributes" />
+    <span class="ds-toggle-slider"></span>
+  </label>
+</div>
+
+@code {
+  [Parameter] public bool Value { get; set; }
+  [Parameter] public EventCallback<bool> ValueChanged { get; set; }
+  [Parameter] public string? Label { get; set; }
+  [Parameter] public string? Description { get; set; }
+  [Parameter] public string? Icon { get; set; }
+  [Parameter] public string Size { get; set; } = "md"; // sm|md
+  [Parameter] public bool Disabled { get; set; }
+  [Parameter] public string Class { get; set; } = "";
+  [Parameter(CaptureUnmatchedValues = true)] 
+  public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+  private async Task OnToggleChanged(ChangeEventArgs e)
+  {
+    if (Disabled) return;
+    
+    Value = (bool)(e.Value ?? false);
+    await ValueChanged.InvokeAsync(Value);
+  }
+}

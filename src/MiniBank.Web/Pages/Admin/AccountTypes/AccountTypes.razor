@@ -1,0 +1,232 @@
+@page "/admin/account-types"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Infrastructure.Repositories.AccountTypeRepository AccountTypeRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+
+<div class="account-types-duo">
+  <!-- Header -->
+  <DsPageHeader Icon="fa-solid fa-layer-group" 
+                Title="گروه‌های حسابداری" 
+                Subtitle="مدیریت گروه‌های اصلی حسابداری (سطح 1)"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="گروه جدید"
+                OnRefreshClick="LoadAccountTypes"
+                OnAddClick="Add">
+  </DsPageHeader>
+
+  <!-- Controls -->
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="searchTerm" 
+                  Placeholder="جستجو در گروه..." />
+  </div>
+  
+  <div class="duo-filters">
+    <DsPillGroup Mode="filter" 
+                 Items="@filterItems" 
+                 @bind-ActiveKey="activeFilter" 
+                 OnFilterChanged="OnFilterChanged" />
+  </div>
+
+  <div class="duo-sort">
+    <DsPillGroup Mode="sort" 
+                 Items="@sortItems" 
+                 @bind-ActiveKey="activeSortKey" 
+                 @bind-Desc="sortDesc"
+                 OnSortChanged="OnSortChanged" />
+  </div>
+
+  <!-- Main -->
+  <div class="duo-main">
+    @if (loading)
+    {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <div>در حال بارگذاری...</div>
+      </div>
+    }
+    else if (!filteredAccountTypes.Any())
+    {
+      <div class="empty-state">
+        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.7;">📋</div>
+        <div>هیچ نوع حسابی یافت نشد</div>
+      </div>
+    }
+    else
+    {
+      <div class="items-grid">
+        @foreach (var accountType in filteredAccountTypes)
+        {
+          <div class="item-card @(accountType.IsActive ? "" : "inactive")" @onclick="() => Edit(accountType)">
+            <div class="item-header">
+              <div class="item-info compact">
+                <div class="item-title">@accountType.Name</div>
+                <div class="id-chip">کد: @accountType.Code</div>
+              </div>
+              <div class="status-chip @(accountType.IsActive ? "active" : "inactive")">
+                @(accountType.IsActive ? "فعال" : "غیرفعال")
+              </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(accountType.Description))
+            {
+              <div class="item-subtitle">@accountType.Description</div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- FAB -->
+  <DsFab Title="گروه جدید" Icon="fa-plus" OnClick="Add" />
+</div>
+
+<!-- FAB Navigation -->
+<DsFabNavigation @bind-IsOpen="fabMenuOpen" />
+
+<!-- Edit Sheet -->
+<AccountTypeIOSSheet Model="@selectedAccountType" 
+                     IsNew="@isNewAccountType" 
+                     @bind-IsOpen="showEditSheet"
+                     OnClose="HandleSheetClose" />
+
+@code {
+  // FAB Navigation
+  private bool fabMenuOpen = false;
+  
+  private List<AccountType> accountTypes = new();
+  private List<AccountType> filteredAccountTypes = new();
+  private bool loading = true;
+  private string searchTerm = string.Empty;
+  private string activeFilter = "all";
+  private string activeSortKey = "code";
+  private bool sortDesc = false;
+
+  private bool showEditSheet = false;
+  private bool isNewAccountType = false;
+  private (int AccountTypeId, string Code, string Name, string Description) selectedAccountType;
+
+  private readonly List<DsPillGroup.DsPillItem> filterItems = new()
+  {
+    new() { Key = "all", Text = "همه", Icon = "fa-list" },
+    new() { Key = "active", Text = "فعال", Icon = "fa-check-circle" },
+    new() { Key = "inactive", Text = "غیرفعال", Icon = "fa-times-circle" }
+  };
+
+  private readonly List<DsPillGroup.DsPillItem> sortItems = new()
+  {
+    new() { Key = "code", Text = "کد", Icon = "fa-hashtag" },
+    new() { Key = "name", Text = "نام", Icon = "fa-font" }
+  };
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAccountTypes();
+  }
+
+  private async Task LoadAccountTypes()
+  {
+    loading = true;
+    try
+    {
+      accountTypes = (await AccountTypeRepo.GetAllAsync(false)).ToList();
+      ApplyFiltersAndSort();
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در دریافت انواع حساب: {ex.Message}");
+    }
+    finally
+    {
+      loading = false;
+    }
+  }
+
+  private void OnSearchInput(ChangeEventArgs e)
+  {
+    searchTerm = e.Value?.ToString() ?? string.Empty;
+    ApplyFiltersAndSort();
+  }
+
+  private void ClearSearch()
+  {
+    searchTerm = string.Empty;
+    ApplyFiltersAndSort();
+  }
+
+  private void OnFilterChanged(string filterKey)
+  {
+    activeFilter = filterKey;
+    ApplyFiltersAndSort();
+  }
+
+  private void OnSortChanged((string key, bool desc) sort)
+  {
+    activeSortKey = sort.key;
+    sortDesc = sort.desc;
+    ApplyFiltersAndSort();
+  }
+
+  private void ApplyFiltersAndSort()
+  {
+    var filtered = accountTypes.AsEnumerable();
+
+    // Apply search
+    if (!string.IsNullOrWhiteSpace(searchTerm))
+    {
+      filtered = filtered.Where(at => 
+        at.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+        at.Code.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+        (at.Description?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+    }
+
+    // Apply filter
+    filtered = activeFilter switch
+    {
+      "active" => filtered.Where(at => at.IsActive),
+      "inactive" => filtered.Where(at => !at.IsActive),
+      _ => filtered
+    };
+
+    // Apply sort
+    filtered = activeSortKey switch
+    {
+      "name" => sortDesc ? filtered.OrderByDescending(at => at.Name) : filtered.OrderBy(at => at.Name),
+      _ => sortDesc ? filtered.OrderByDescending(at => at.Code) : filtered.OrderBy(at => at.Code)
+    };
+
+    filteredAccountTypes = filtered.ToList();
+    StateHasChanged();
+  }
+
+  private void Add()
+  {
+    selectedAccountType = (0, string.Empty, string.Empty, string.Empty);
+    isNewAccountType = true;
+    showEditSheet = true;
+  }
+
+  private void Edit(AccountType accountType)
+  {
+    selectedAccountType = (accountType.AccountTypeId, accountType.Code, accountType.Name, accountType.Description ?? string.Empty);
+    isNewAccountType = false;
+    showEditSheet = true;
+  }
+
+  private async Task HandleSheetClose(bool hasChanges)
+  {
+    showEditSheet = false;
+    if (hasChanges)
+    {
+      await LoadAccountTypes();
+    }
+  }
+
+  private void GoBack()
+  {
+    // Navigate back to dashboard or previous page
+    // Implementation depends on your navigation setup
+  }
+}

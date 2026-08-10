@@ -1,0 +1,21 @@
+@namespace MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Components.Extensions
+
+<span class="ds-date">@GetText()</span>
+
+@code {
+  [Parameter] public DateTime Value { get; set; }
+  [Parameter] public string? FormatName { get; set; } = "Short"; // Short | Long
+
+  private string GetText()
+  {
+    // Fallback to Short formatting if not provided
+    var fmt = (FormatName?.Trim() ?? "Short").ToLowerInvariant();
+    return fmt switch
+    {
+        "long" => Value.ToPersianDateFull(),
+        "full" => Value.ToPersianDateFull(),
+        _ => Value.ToPersianDate(),
+    };
+  }
+}

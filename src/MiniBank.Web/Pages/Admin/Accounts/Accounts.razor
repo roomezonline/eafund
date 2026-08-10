@@ -1,0 +1,846 @@
+@page "/admin/accounts"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@inject AccountsRepository AccountsRepo
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<div class="accounts-duo">
+  <DsPageHeader Icon="fa-solid fa-chart-tree-map" 
+                Title="مدیریت حساب‌ها" 
+                Subtitle="سرفصل‌های حسابداری (گروه - کل - معین)"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                OnBackClicked="HandleBackNavigation"
+                OnRefreshClick="LoadAccounts"
+                OnAddClick="ShowAddForm">
+    <ChildContent>
+    </ChildContent>
+  </DsPageHeader>
+
+  <main class="duo-main">
+    <div class="accounts-container">
+      
+      @* Search and Filters *@
+      <div class="search-filters">
+        <div class="search-box">
+          <i class="fa-solid fa-search"></i>
+          <input type="text" @bind="searchQuery" @oninput="OnSearchInput" placeholder="جستجو در کد یا نام حساب..." />
+        </div>
+        
+        <div class="filter-chips">
+          <button class="filter-chip @(selectedAccountType == null ? "active" : "")" @onclick="() => FilterByAccountType(null)">
+            همه
+          </button>
+          <button class="filter-chip @(selectedAccountType == 1 ? "active" : "")" @onclick="() => FilterByAccountType(1)">
+            دارایی
+          </button>
+          <button class="filter-chip @(selectedAccountType == 2 ? "active" : "")" @onclick="() => FilterByAccountType(2)">
+            بدهی
+          </button>
+          <button class="filter-chip @(selectedAccountType == 3 ? "active" : "")" @onclick="() => FilterByAccountType(3)">
+            حقوق صاحبان
+          </button>
+          <button class="filter-chip @(selectedAccountType == 4 ? "active" : "")" @onclick="() => FilterByAccountType(4)">
+            درآمد
+          </button>
+          <button class="filter-chip @(selectedAccountType == 5 ? "active" : "")" @onclick="() => FilterByAccountType(5)">
+            هزینه
+          </button>
+        </div>
+
+        <div class="level-filters">
+          <button class="level-chip @(selectedLevel == null ? "active" : "")" @onclick="() => FilterByLevel(null)">
+            همه سطوح
+          </button>
+          <button class="level-chip @(selectedLevel == 1 ? "active" : "")" @onclick="() => FilterByLevel(1)">
+            گروه
+          </button>
+          <button class="level-chip @(selectedLevel == 2 ? "active" : "")" @onclick="() => FilterByLevel(2)">
+            کل
+          </button>
+          <button class="level-chip @(selectedLevel == 3 ? "active" : "")" @onclick="() => FilterByLevel(3)">
+            معین
+          </button>
+        </div>
+      </div>
+
+      @* Accounts Tree *@
+      @if (isLoading)
+      {
+        <div class="loading-state">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <span>در حال بارگذاری حساب‌ها...</span>
+        </div>
+      }
+      else if (filteredAccounts?.Count > 0)
+      {
+        <div class="accounts-tree">
+          @foreach (var account in GetRootAccounts())
+          {
+            <div class="account-node level-@(account.Level ?? 0)">
+              <div class="account-header" @onclick="() => ToggleExpanded(account.AccountId)">
+                <div class="account-info">
+                  <div class="expand-icon">
+                    @if (HasChildren(account.AccountId))
+                    {
+                      <i class="fa-solid @(IsExpanded(account.AccountId) ? "fa-chevron-down" : "fa-chevron-right")"></i>
+                    }
+                    else
+                    {
+                      <i class="fa-solid fa-circle" style="font-size: 4px; opacity: 0.3;"></i>
+                    }
+                  </div>
+                  
+                  <div class="account-details">
+                    <div class="account-code">@account.Code</div>
+                    <div class="account-name">@account.Name</div>
+                  </div>
+                  
+                  <div class="account-badges">
+                    <span class="level-badge level-@(account.Level ?? 0)">@account.LevelName</span>
+                    <span class="type-badge type-@account.AccountType">@account.AccountTypeName</span>
+                    @if (!account.IsActive)
+                    {
+                      <span class="status-badge inactive">غیرفعال</span>
+                    }
+                  </div>
+                </div>
+                
+                <div class="account-actions">
+                  <button class="btn-icon" @onclick:stopPropagation="true" @onclick="() => EditAccount(account)" title="ویرایش">
+                    <i class="fa-solid fa-edit"></i>
+                  </button>
+                  <button class="btn-icon" @onclick:stopPropagation="true" @onclick="() => AddChildAccount(account)" title="افزودن زیرحساب">
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                  <button class="btn-icon danger" @onclick:stopPropagation="true" @onclick="() => ToggleAccountStatus(account)" title="@(account.IsActive ? "غیرفعال کردن" : "فعال کردن")">
+                    <i class="fa-solid @(account.IsActive ? "fa-eye-slash" : "fa-eye")"></i>
+                  </button>
+                </div>
+              </div>
+              
+              @if (IsExpanded(account.AccountId))
+              {
+                <div class="account-children">
+                  @foreach (var child in GetChildren(account.AccountId))
+                  {
+                    @RenderAccountNode(child)
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+      else
+      {
+        <div class="empty-state">
+          <i class="fa-solid fa-chart-tree-map"></i>
+          <h3>هیچ حسابی یافت نشد</h3>
+          <p>برای شروع، حساب جدیدی اضافه کنید</p>
+          <button class="btn-primary" @onclick="ShowAddForm">
+            <i class="fa-solid fa-plus"></i>
+            افزودن حساب جدید
+          </button>
+        </div>
+      }
+    </div>
+  </main>
+</div>
+
+<!-- FAB Navigation -->
+<DsFabNavigation @bind-IsOpen="fabMenuOpen" />
+
+@* Account Form Modal *@
+@if (showAccountForm)
+{
+  <AccountFormModal Account="currentAccount" 
+                    IsNew="isNewAccount"
+                    ParentAccounts="parentAccounts"
+                    OnClose="CloseAccountForm" />
+}
+
+@code {
+  private List<Account> allAccounts = new();
+  private List<Account> filteredAccounts = new();
+  private List<Account> parentAccounts = new();
+  private HashSet<long> expandedNodes = new();
+  private bool isLoading = true;
+  
+  private string searchQuery = string.Empty;
+  private int? selectedAccountType = null;
+  private byte? selectedLevel = null;
+  
+  private bool showAccountForm = false;
+  private bool isNewAccount = false;
+  private Account currentAccount = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      await LoadAccounts();
+    }
+    catch (Exception ex)
+    {
+      // Handle migration-time errors gracefully
+      Console.WriteLine($"Error loading accounts: {ex.Message}");
+      allAccounts = new List<Account>();
+      StateHasChanged();
+    }
+  }
+
+  private async Task LoadAccounts()
+  {
+    isLoading = true;
+    try
+    {
+      var accountData = await AccountsRepo.GetAllAsync();
+      allAccounts = accountData.Select(a => new Account
+      {
+        AccountId = a.AccountId,
+        Code = a.Code,
+        Name = a.Name,
+        AccountType = a.AccountType,
+        IsActive = true,
+        Level = null // Will be populated after migration
+      }).ToList();
+      
+      ApplyFilters();
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در بارگذاری حساب‌ها: {ex.Message}");
+    }
+    finally
+    {
+      isLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private void OnSearchInput(ChangeEventArgs e)
+  {
+    searchQuery = e.Value?.ToString() ?? string.Empty;
+    ApplyFilters();
+  }
+
+  private void FilterByAccountType(int? accountType)
+  {
+    selectedAccountType = accountType;
+    ApplyFilters();
+  }
+
+  private void FilterByLevel(byte? level)
+  {
+    selectedLevel = level;
+    ApplyFilters();
+  }
+
+  private void ApplyFilters()
+  {
+    filteredAccounts = allAccounts.Where(a =>
+    {
+      // Search filter
+      if (!string.IsNullOrWhiteSpace(searchQuery))
+      {
+        var query = searchQuery.Trim().ToLower();
+        if (!a.Code.ToLower().Contains(query) && !a.Name.ToLower().Contains(query))
+          return false;
+      }
+      
+      // Account type filter
+      if (selectedAccountType.HasValue && a.AccountType != selectedAccountType.Value)
+        return false;
+      
+      // Level filter
+      if (selectedLevel.HasValue && a.Level != selectedLevel.Value)
+        return false;
+      
+      return true;
+    }).ToList();
+    
+    StateHasChanged();
+  }
+
+  private List<Account> GetRootAccounts()
+  {
+    return filteredAccounts.Where(a => a.ParentAccountId == null).OrderBy(a => a.Code).ToList();
+  }
+
+  private List<Account> GetChildren(long parentId)
+  {
+    return filteredAccounts.Where(a => a.ParentAccountId == parentId).OrderBy(a => a.Code).ToList();
+  }
+
+  private bool HasChildren(long accountId)
+  {
+    return filteredAccounts.Any(a => a.ParentAccountId == accountId);
+  }
+
+  private bool IsExpanded(long accountId)
+  {
+    return expandedNodes.Contains(accountId);
+  }
+
+  private void ToggleExpanded(long accountId)
+  {
+    if (expandedNodes.Contains(accountId))
+      expandedNodes.Remove(accountId);
+    else
+      expandedNodes.Add(accountId);
+    
+    StateHasChanged();
+  }
+
+  private RenderFragment RenderAccountNode(Account account) => builder =>
+  {
+    builder.OpenElement(0, "div");
+    builder.AddAttribute(1, "class", $"account-node level-{account.Level ?? 0}");
+    
+    builder.OpenElement(2, "div");
+    builder.AddAttribute(3, "class", "account-header");
+    builder.AddAttribute(4, "onclick", EventCallback.Factory.Create(this, () => ToggleExpanded(account.AccountId)));
+    
+    // Account info
+    builder.OpenElement(5, "div");
+    builder.AddAttribute(6, "class", "account-info");
+    
+    // Expand icon
+    builder.OpenElement(7, "div");
+    builder.AddAttribute(8, "class", "expand-icon");
+    if (HasChildren(account.AccountId))
+    {
+      builder.OpenElement(9, "i");
+      builder.AddAttribute(10, "class", $"fa-solid {(IsExpanded(account.AccountId) ? "fa-chevron-down" : "fa-chevron-right")}");
+      builder.CloseElement();
+    }
+    else
+    {
+      builder.OpenElement(11, "i");
+      builder.AddAttribute(12, "class", "fa-solid fa-circle");
+      builder.AddAttribute(13, "style", "font-size: 4px; opacity: 0.3;");
+      builder.CloseElement();
+    }
+    builder.CloseElement(); // expand-icon
+    
+    // Account details
+    builder.OpenElement(14, "div");
+    builder.AddAttribute(15, "class", "account-details");
+    
+    builder.OpenElement(16, "div");
+    builder.AddAttribute(17, "class", "account-code");
+    builder.AddContent(18, account.Code);
+    builder.CloseElement();
+    
+    builder.OpenElement(19, "div");
+    builder.AddAttribute(20, "class", "account-name");
+    builder.AddContent(21, account.Name);
+    builder.CloseElement();
+    
+    builder.CloseElement(); // account-details
+    
+    // Account badges
+    builder.OpenElement(22, "div");
+    builder.AddAttribute(23, "class", "account-badges");
+    
+    builder.OpenElement(24, "span");
+    builder.AddAttribute(25, "class", $"level-badge level-{account.Level ?? 0}");
+    builder.AddContent(26, account.LevelName);
+    builder.CloseElement();
+    
+    builder.OpenElement(27, "span");
+    builder.AddAttribute(28, "class", $"type-badge type-{account.AccountType}");
+    builder.AddContent(29, account.AccountTypeName);
+    builder.CloseElement();
+    
+    if (!account.IsActive)
+    {
+      builder.OpenElement(30, "span");
+      builder.AddAttribute(31, "class", "status-badge inactive");
+      builder.AddContent(32, "غیرفعال");
+      builder.CloseElement();
+    }
+    
+    builder.CloseElement(); // account-badges
+    builder.CloseElement(); // account-info
+    
+    // Account actions
+    builder.OpenElement(33, "div");
+    builder.AddAttribute(34, "class", "account-actions");
+    
+    builder.OpenElement(35, "button");
+    builder.AddAttribute(36, "class", "btn-icon");
+    builder.AddAttribute(37, "onclick", EventCallback.Factory.Create(this, () => EditAccount(account)));
+    builder.AddAttribute(38, "title", "ویرایش");
+    builder.AddEventStopPropagationAttribute(39, "onclick", true);
+    builder.OpenElement(40, "i");
+    builder.AddAttribute(41, "class", "fa-solid fa-edit");
+    builder.CloseElement();
+    builder.CloseElement();
+    
+    builder.OpenElement(42, "button");
+    builder.AddAttribute(43, "class", "btn-icon");
+    builder.AddAttribute(44, "onclick", EventCallback.Factory.Create(this, () => AddChildAccount(account)));
+    builder.AddAttribute(45, "title", "افزودن زیرحساب");
+    builder.AddEventStopPropagationAttribute(46, "onclick", true);
+    builder.OpenElement(47, "i");
+    builder.AddAttribute(48, "class", "fa-solid fa-plus");
+    builder.CloseElement();
+    builder.CloseElement();
+    
+    builder.OpenElement(49, "button");
+    builder.AddAttribute(50, "class", $"btn-icon {(account.IsActive ? "" : "danger")}");
+    builder.AddAttribute(51, "onclick", EventCallback.Factory.Create(this, () => ToggleAccountStatus(account)));
+    builder.AddAttribute(52, "title", account.IsActive ? "غیرفعال کردن" : "فعال کردن");
+    builder.AddEventStopPropagationAttribute(53, "onclick", true);
+    builder.OpenElement(54, "i");
+    builder.AddAttribute(55, "class", $"fa-solid {(account.IsActive ? "fa-eye-slash" : "fa-eye")}");
+    builder.CloseElement();
+    builder.CloseElement();
+    
+    builder.CloseElement(); // account-actions
+    builder.CloseElement(); // account-header
+    
+    // Children
+    if (IsExpanded(account.AccountId))
+    {
+      builder.OpenElement(56, "div");
+      builder.AddAttribute(57, "class", "account-children");
+      
+      foreach (var child in GetChildren(account.AccountId))
+      {
+        builder.AddContent(58, RenderAccountNode(child));
+      }
+      
+      builder.CloseElement(); // account-children
+    }
+    
+    builder.CloseElement(); // account-node
+  };
+
+  private void ShowAddForm()
+  {
+    currentAccount = new Account();
+    isNewAccount = true;
+    LoadParentAccounts();
+    showAccountForm = true;
+  }
+
+  private void CloseAccountForm()
+  {
+    showAccountForm = false;
+    currentAccount = new();
+  }
+
+  private void EditAccount(Account account)
+  {
+    currentAccount = new Account
+    {
+      AccountId = account.AccountId,
+      Code = account.Code,
+      Name = account.Name,
+      AccountType = account.AccountType,
+      ParentAccountId = account.ParentAccountId,
+      Level = account.Level,
+      IsActive = account.IsActive
+    };
+    isNewAccount = false;
+    LoadParentAccounts();
+    showAccountForm = true;
+  }
+
+  private void AddChildAccount(Account parent)
+  {
+    currentAccount = new Account
+    {
+      ParentAccountId = parent.AccountId,
+      AccountType = parent.AccountType,
+      Level = (byte?)Math.Min((parent.Level ?? 0) + 1, 3)
+    };
+    isNewAccount = true;
+    LoadParentAccounts();
+    showAccountForm = true;
+  }
+
+  private void LoadParentAccounts()
+  {
+    parentAccounts = allAccounts.Where(a => a.IsActive && a.Level < 3).ToList();
+  }
+
+  private async Task CloseAccountForm(bool saved)
+  {
+    showAccountForm = false;
+    if (saved)
+    {
+      await LoadAccounts();
+      Toast.Success("حساب با موفقیت ذخیره شد");
+    }
+  }
+
+  private async Task ToggleAccountStatus(Account account)
+  {
+    try
+    {
+      await AccountsRepo.UpdateAsync(account.AccountId, account.Code, account.Name, account.AccountType, !account.IsActive);
+      account.IsActive = !account.IsActive;
+      Toast.Success($"وضعیت حساب {account.Code} تغییر کرد");
+      StateHasChanged();
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در تغییر وضعیت: {ex.Message}");
+    }
+  }
+
+  private void HandleBackNavigation()
+  {
+    Navigation.NavigateTo("/admin");
+  }
+
+  // Navigation dropdown
+  // FAB Navigation
+  private bool fabMenuOpen = false;
+
+  // Navigation methods
+  private void NavigateToKol()
+  {
+    Navigation.NavigateTo("/admin/kol");
+  }
+
+  private void NavigateToMoeen()
+  {
+    Navigation.NavigateTo("/admin/moeen");
+  }
+
+  private void NavigateToSubsidiary()
+  {
+    Navigation.NavigateTo("/admin/subsidiary");
+  }
+
+  private void NavigateToPostingTemplates()
+  {
+    Navigation.NavigateTo("/admin/accounting/posting-templates");
+  }
+}
+
+<style>
+.accounts-duo {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-primary);
+}
+
+.duo-main {
+  flex: 1;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.accounts-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.search-filters {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.search-box {
+  position: relative;
+  max-width: 400px;
+}
+
+.search-box i {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+
+.search-box input {
+  width: 100%;
+  padding: 8px 40px 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.filter-chips, .level-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-chip, .level-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: white;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-chip:hover, .level-chip:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.filter-chip.active, .level-chip.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.accounts-tree {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.account-node {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.account-node.level-1 {
+  background: #f8f9ff;
+}
+
+.account-node.level-2 {
+  background: #fafbff;
+  margin-right: 20px;
+}
+
+.account-node.level-3 {
+  background: white;
+  margin-right: 40px;
+}
+
+.account-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.account-header:hover {
+  background: rgba(var(--primary-rgb), 0.05);
+}
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.expand-icon {
+  width: 20px;
+  display: flex;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.account-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.account-name {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.account-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.level-badge, .type-badge, .status-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.level-badge.level-1 {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.level-badge.level-2 {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.level-badge.level-3 {
+  background: #e8f5e8;
+  color: #388e3c;
+}
+
+.type-badge.type-1 {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+
+.type-badge.type-2 {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.type-badge.type-3 {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.type-badge.type-4 {
+  background: #e8f5e8;
+  color: #388e3c;
+}
+
+.type-badge.type-5 {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+.status-badge.inactive {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+.account-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-icon:hover {
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--primary-color);
+}
+
+.btn-icon.danger:hover {
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+}
+
+.account-children {
+  border-right: 2px solid var(--border-light);
+}
+
+.loading-state, .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.loading-state i {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: var(--primary-color);
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+
+.empty-state h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary);
+}
+
+.empty-state p {
+  margin: 0 0 1.5rem 0;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nav-menu {
+  min-width: 200px;
+}
+
+.nav-dropdown {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+}
+
+@@media (max-width: 768px) {
+  .nav-buttons {
+    gap: 6px;
+  }
+  .nav-menu {
+    min-width: 150px;
+  }
+}
+</style>

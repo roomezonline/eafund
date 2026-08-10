@@ -1,0 +1,190 @@
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Services.HouseholdService HouseholdService
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+
+<div class="ios-sheet-overlay @(_isVisible ? "visible" : "")" @onclick="HandleOverlayClick">
+  <div class="ios-sheet @(_isVisible ? "open" : "")" @onclick:stopPropagation="true">
+    <!-- Handle Bar -->
+    <div class="ios-handle"></div>
+    
+    <!-- Header -->
+    <div class="ios-header">
+      <button class="ios-cancel" @onclick="Cancel">لغو</button>
+      <h2 class="ios-title">@(IsNew ? "خانوار جدید" : "ویرایش خانوار")</h2>
+      <button class="ios-done @(_isFormValid ? "enabled" : "")" @onclick="SaveAsync" disabled="@(!_isFormValid)">
+        @if (_isSaving)
+        {
+          <div class="ios-spinner"></div>
+        }
+        else
+        {
+          <span>تایید</span>
+        }
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="ios-content">
+      <div class="ios-form-section">
+        <div class="ios-form-header">
+          <i class="fa-solid fa-info-circle"></i>
+          <span>اطلاعات خانوار</span>
+        </div>
+        
+        <div class="ios-form-group">
+          <div class="simple-field">
+            <label class="field-label">کد خانوار</label>
+            <input type="text" 
+                   @bind="Model.HouseholdCode" 
+                   @oninput="ValidateForm"
+                   placeholder="مثال: 1001"
+                   class="simple-input @(_codeError ? "error" : "")"
+                   maxlength="10" />
+            @if (_codeError)
+            {
+              <div class="field-error">کد خانوار الزامی است</div>
+            }
+          </div>
+
+          <div class="simple-field">
+            <label class="field-label">نام خانوار</label>
+            <input type="text" 
+                   @bind="Model.Name" 
+                   @oninput="ValidateForm"
+                   placeholder="نام خانوادگی یا عنوان"
+                   class="simple-input @(_nameError ? "error" : "")"
+                   maxlength="100" />
+            @if (_nameError)
+            {
+              <div class="field-error">نام خانوار الزامی است</div>
+            }
+          </div>
+
+          <div class="ios-toggle-row">
+            <div class="ios-toggle-label">
+              <i class="fa-solid fa-toggle-on"></i>
+              <div>
+                <span class="ios-toggle-title">وضعیت فعال</span>
+                <span class="ios-toggle-subtitle">خانوار در سیستم فعال باشد</span>
+              </div>
+            </div>
+            <label class="ios-toggle">
+              <input type="checkbox" @bind="Model.IsActive" @bind:after="ValidateForm" />
+              <span class="ios-toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      @if (!IsNew)
+      {
+        <div class="ios-form-section">
+          <div class="ios-form-header">
+            <i class="fa-solid fa-clock"></i>
+            <span>اطلاعات سیستم</span>
+          </div>
+          
+          <div class="ios-form-group">
+            <div class="ios-info-row">
+              <span class="ios-info-label">تاریخ ایجاد</span>
+              <span class="ios-info-value">@Model.CreatedAt.ToString("yyyy/MM/dd")</span>
+            </div>
+            <div class="ios-info-row">
+              <span class="ios-info-label">شناسه</span>
+              <span class="ios-info-value">#@Model.HouseholdId</span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+@code {
+  [Parameter] public Household Model { get; set; } = new();
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _isVisible = false;
+  private bool _isSaving = false;
+  private bool _isFormValid = false;
+  private bool _codeError = false;
+  private bool _nameError = false;
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      // Set default active status
+      if (IsNew)
+      {
+        Model.IsActive = true;
+      }
+      
+      await Task.Delay(50);
+      _isVisible = true;
+      StateHasChanged();
+      ValidateForm();
+    }
+  }
+
+  private void ValidateForm()
+  {
+    _codeError = string.IsNullOrWhiteSpace(Model.HouseholdCode);
+    _nameError = string.IsNullOrWhiteSpace(Model.Name);
+    _isFormValid = !_codeError && !_nameError;
+    StateHasChanged();
+  }
+
+  private async Task SaveAsync()
+  {
+    if (!_isFormValid || _isSaving) return;
+
+    _isSaving = true;
+    StateHasChanged();
+
+    try
+    {
+      if (IsNew)
+      {
+        var id = await HouseholdService.CreateAsync(Model);
+        Model.HouseholdId = id;
+      }
+      else
+      {
+        await HouseholdService.UpdateAsync(Model);
+      }
+      
+      await CloseSheet(true);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره: {ex.Message}");
+    }
+    finally
+    {
+      _isSaving = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task Cancel()
+  {
+    await CloseSheet(false);
+  }
+
+  private async Task HandleOverlayClick()
+  {
+    await CloseSheet(false);
+  }
+
+  private async Task CloseSheet(bool success)
+  {
+    _isVisible = false;
+    StateHasChanged();
+    
+    await Task.Delay(300); // Wait for animation
+    await OnClose.InvokeAsync(success);
+  }
+}

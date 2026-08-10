@@ -1,0 +1,154 @@
+@page "/admin/fiscal-years/closing/{FiscalYearId:int}"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Services.FiscalYearService FiscalYearService
+@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject NavigationManager Navigation
+
+<div class="report-container">
+  <button class="back-btn" @onclick="GoBack">
+    <i class="fa-solid fa-arrow-right"></i>
+    <span>بازگشت</span>
+  </button>
+
+  @if (_loading)
+  {
+    <div style="text-align: center; padding: 50px;">در حال بارگیری...</div>
+  }
+  else if (_error != null)
+  {
+    <div style="text-align: center; padding: 50px; color: #dc2626;">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <div>@_error</div>
+      <button class="btn primary" @onclick="LoadData" style="margin-top: 12px;">تلاش مجدد</button>
+    </div>
+  }
+    else if (_preview != null)
+    {
+      <div class="report-header">
+        <div class="report-title">
+          <i class="fa-solid fa-lock"></i>
+          <span>اختتامیه سال مالی @_preview.FiscalYear!.YearCode</span>
+        </div>
+        <div class="report-subtitle">@_preview.FiscalYear.Title</div>
+        <div class="report-subtitle" style="margin-top: 4px; color: #6b7280;">
+          @($"{_preview.FiscalYear.StartDate:yyyy/MM/dd} - {_preview.FiscalYear.EndDate:yyyy/MM/dd}")
+        </div>
+      </div>
+
+      var bsRows = _preview.SummaryRows.Where(r => r.AccountType is 1 or 2 or 3).ToList();
+
+      if (bsRows.Count > 0)
+      {
+        var totalDebit = bsRows.Where(r => r.AccountType == 1).Sum(r => r.NetBalance);
+        var totalCredit = bsRows.Where(r => r.AccountType != 1).Sum(r => r.NetBalance);
+        var diff = totalDebit - totalCredit;
+        var hasDiscrepancy = Math.Abs(diff) > 0.01m;
+
+        <div class="table-scroll">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th class="th-yellow">نوع حساب</th>
+                <th class="th-blue">بدهکار</th>
+                <th class="th-credit-header">بستانکار</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var row in bsRows)
+              {
+                var isDebitType = row.AccountType == 1;
+                var displayDebit = isDebitType && row.NetBalance > 0 ? row.NetBalance : 0m;
+                var displayCredit = !isDebitType && row.NetBalance > 0 ? row.NetBalance : 0m;
+                <tr>
+                  <td class="td-white">@row.TypeName</td>
+                  <td class="amount-value td-blue">@(displayDebit > 0 ? displayDebit.ToString("N0") : "-")</td>
+                  <td class="amount-value td-credit">@(displayCredit > 0 ? displayCredit.ToString("N0") : "-")</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td class="td-white" style="text-align:center; font-weight:800;">جمع</td>
+                <td class="amount-value td-blue" style="color:#111827;">@totalDebit.ToString("N0")</td>
+                <td class="amount-value td-credit" style="font-size:12px;">@totalCredit.ToString("N0")</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        if (hasDiscrepancy)
+        {
+          var isDebtSide = diff > 0;
+          <div class="discrepancy-box @(isDebtSide ? "dc-blue" : "dc-credit")">
+            <span class="dc-label">مغایرت</span>
+            <span class="dc-amount">@Math.Abs(diff).ToString("N0")</span>
+          </div>
+        }
+      }
+
+      <div style="text-align: center; margin-top: 24px;">
+        <button class="btn primary" @onclick="ExecuteClosing" disabled="@_executing">
+          @if (_executing)
+          {
+            <span>در حال اجرا...</span>
+          }
+          else
+          {
+            <span>تأیید و ثبت اختتامیه</span>
+          }
+        </button>
+      </div>
+    }
+</div>
+
+@code {
+  [Parameter] public int FiscalYearId { get; set; }
+
+  private bool _loading = true;
+  private string? _error;
+  private FiscalYearService.ClosingPreview? _preview;
+  private bool _executing;
+
+  protected override async Task OnInitializedAsync() => await LoadData();
+
+  private async Task LoadData()
+  {
+    _loading = true;
+    _error = null;
+    try
+    {
+      _preview = await FiscalYearService.BuildClosingPreviewAsync(FiscalYearId);
+    }
+    catch (Exception ex)
+    {
+      _error = ex.Message;
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private async Task ExecuteClosing()
+  {
+    _executing = true;
+    try
+    {
+      var journalId = await FiscalYearService.ExecuteClosingAsync(FiscalYearId, "admin");
+      Toasts.Success($"اختتامیه با موفقیت ثبت شد (سند شماره {journalId})");
+      Navigation.NavigateTo("/admin/fiscal-years");
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ثبت اختتامیه: {ex.Message}");
+    }
+    finally
+    {
+      _executing = false;
+    }
+  }
+
+  private void GoBack() => Navigation.NavigateTo("/admin/fiscal-years");
+}

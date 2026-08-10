@@ -1,0 +1,23 @@
+/* DS Floating Action Button - matches members/households fab */
+:root{
+  --fab-grad-a: #0ea5e9;
+  --fab-grad-b: #7c3aed;
+}
+
+.ds-fab {
+    position: fixed;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none !important;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    color: #fff !important;
+    background: linear-gradient(45deg, var(--fab-grad-a,#0ea5e9), var(--fab-grad-b,#7c3aed)) !important;
+    box-shadow: 0 12px 26px rgba(15,23,42,.28) !important;
+    z-index: 50;
+}
+.ds-fab:active{ transform: translateY(1px); }
+.ds-fab:focus{ outline: 2px solid rgba(14,165,233,.35); outline-offset: 2px; }

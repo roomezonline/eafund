@@ -1,0 +1,212 @@
+@page "/me/household"
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using MiniBank.Web.Models
+@using MiniBank.Web.Models.Reports
+@using MiniBank.Web.Components.Member
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository AuthRepo
+@inject MiniBank.Web.Services.MemberService MemberService
+@inject MiniBank.Web.Infrastructure.Repositories.TransactionReportRepository TxReports
+@inject MiniBank.Web.Services.MemberFinancialSnapshotService Snapshots
+
+<MemberSelector OnMemberChanged="OnMemberSelectorChanged" />
+
+<style>
+  :root{--c-bg:#f7f9fc;--c-card:#ffffff;--c-border:#e5e7eb;--c-text:#0f172a;--c-muted:#64748b;--c-brand:#0ea5e9;--c-ok:#16a34a;--c-bad:#dc2626}
+  .me-shell{max-width:980px;margin:0 auto;padding:16px 14px 80px;direction:rtl}
+  .card{background:var(--c-card);border:1px solid var(--c-border);border-radius:16px;padding:14px;box-shadow:0 10px 25px rgba(15,23,42,.06)}
+  .card.accent{border-color:#bae6fd;background:linear-gradient(180deg,#ffffff,#f0f9ff)}
+  .title{font-weight:950;color:#0f172a;margin-bottom:8px}
+  .muted{color:#64748b;font-weight:800;font-size:12px}
+
+  .totals{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}
+  @@media (min-width: 700px){.totals{grid-template-columns:1fr 1fr 1fr}}
+  .kv{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:10px;border-radius:14px;background:linear-gradient(180deg,#f8fafc,#ffffff);border:1px solid #eef2f7}
+  .k{font-weight:800;color:#64748b;font-size:12px}
+  .v{font-weight:950;color:#0f172a;font-size:13px;white-space:nowrap}
+
+  .list{display:flex;flex-direction:column;gap:10px}
+  .row{border:1px solid #eef2f7;border-radius:18px;padding:12px;background:linear-gradient(180deg,#ffffff,#f8fafc)}
+  .row-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .name{font-weight:950;color:#0f172a;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sub{font-weight:900;color:#64748b;font-size:11px;white-space:nowrap}
+  .amt{font-variant-numeric:tabular-nums}
+  .amt.net{color:#0369a1;font-weight:950}
+  .amt.interest{color:var(--c-ok)}
+  .nums{margin-top:10px;display:grid;grid-template-columns:1fr;gap:8px}
+  @@media (min-width: 700px){.nums{grid-template-columns:1fr 1fr 1fr}}
+</style>
+
+<div class="me-shell">
+  <div class="card accent" style="margin-bottom:12px">
+    <div class="title">گزارش خانوار</div>
+    <div class="muted">خلاصه تجمیعی و جزئیات اعضای خانوار</div>
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+      <div style="margin-top:10px;font-weight:950;color:#b91c1c">@_error</div>
+    }
+
+    @if (!_loading && _me != null)
+    {
+      <div style="margin-top:10px" class="muted">خانوار: @(_me.Household?.Name ?? "-") | کد: @(_me.HouseholdCode ?? "-")</div>
+      <div class="totals">
+        <div class="kv"><span class="k">اصل سپرده (تجمیعی)</span><span class="v amt">@FmtMoney(_totalPrincipal)</span></div>
+        <div class="kv"><span class="k">سود سپرده (تجمیعی)</span><span class="v amt interest">@FmtMoney(_totalInterest)</span></div>
+        <div class="kv"><span class="k">خالص سپرده (تجمیعی)</span><span class="v amt net">@FmtMoney(_totalNet)</span></div>
+        <div class="kv"><span class="k">مانده وام تاکنون</span><span class="v amt">@FmtMoney(_totalLoanRemaining)</span></div>
+        <div class="kv"><span class="k">خالص <span style="color:#16a34a">طلب</span> / <span style="color:#dc2626">بدهی</span></span><span class="v amt" style="color:@(_netClaimDebt >= 0m ? "#16a34a" : "#dc2626")">@FmtMoney(_netClaimDebt)</span></div>
+      </div>
+    }
+  </div>
+
+  @if (_loading)
+  {
+    <div class="card"><div class="muted">در حال بارگذاری...</div></div>
+  }
+  else if (_members.Count == 0)
+  {
+    <div class="card"><div class="muted">اطلاعات اعضای خانوار یافت نشد.</div></div>
+  }
+  else
+  {
+    <div class="list">
+      @foreach (var m in _members)
+      {
+        _snaps.TryGetValue(m.MemberId, out var snap);
+        <div class="row">
+          <div class="row-top">
+            <div style="min-width:0">
+              <div class="name">@m.MemberName</div>
+              <div class="sub">کد عضویت: @m.MemberId</div>
+            </div>
+            <div class="sub amt net">@FmtMoney(snap?.TotalNet ?? 0m)</div>
+          </div>
+          <div class="nums">
+            <div class="kv"><span class="k">اصل سپرده</span><span class="v">@FmtMoney(snap?.NetPrincipal ?? 0m)</span></div>
+            <div class="kv"><span class="k">سود سپرده</span><span class="v">@FmtMoney(snap?.NetInterest ?? 0m)</span></div>
+            <div class="kv"><span class="k">خالص سپرده</span><span class="v">@FmtMoney(snap?.TotalNet ?? 0m)</span></div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+@code {
+  private bool _loading = true;
+  private string? _error;
+
+  private Member? _me;
+  // Member selector for admin/staff
+  private long? _adminSelectedMemberId;
+
+  private List<MemberBankingBalanceRow> _members = new();
+  private Dictionary<long, MemberFinancialSnapshot> _snaps = new();
+  private decimal _totalPrincipal;
+  private decimal _totalInterest;
+  private decimal _totalNet;
+  private decimal _totalLoanRemaining;
+  private decimal _netClaimDebt;
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      _loading = true;
+      _error = null;
+
+      var memberId = await ResolveMemberIdAsync();
+      if (memberId <= 0)
+      {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var role = state.User?.FindFirst("role")?.Value ?? state.User?.FindFirst(ClaimTypes.Role)?.Value;
+        var isMemberRole = string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase);
+
+        if (!isMemberRole)
+        {
+          _error = "برای مشاهده گزارش خانوار، ابتدا یک عضو را از لیست بالا انتخاب کنید.";
+          return;
+        }
+
+        _error = "اطلاعات عضویت برای این کاربر ثبت نشده است.";
+        return;
+      }
+
+      _me = await MemberService.GetByIdAsync(memberId);
+      if (_me == null)
+      {
+        _error = "عضو یافت نشد.";
+        return;
+      }
+
+      if (string.IsNullOrWhiteSpace(_me.HouseholdCode))
+      {
+        _error = "برای این عضو خانوار ثبت نشده است.";
+        return;
+      }
+
+      var rows = await TxReports.GetHouseholdMemberBankingBalancesAsync(_me.HouseholdCode);
+      _members = rows.ToList();
+
+      var codes = _members.Select(x => x.BankAccountNumber).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+      var map = await Snapshots.GetSnapshotsByMemberCodesAsync(codes!);
+
+      _snaps = new Dictionary<long, MemberFinancialSnapshot>();
+      foreach (var mem in _members)
+      {
+        if (string.IsNullOrWhiteSpace(mem.BankAccountNumber))
+          continue;
+        if (map.TryGetValue(mem.BankAccountNumber, out var s))
+          _snaps[mem.MemberId] = s;
+      }
+
+      _totalPrincipal = _snaps.Values.Sum(x => x.NetPrincipal);
+      _totalInterest = _snaps.Values.Sum(x => x.NetInterest);
+      _totalNet = _snaps.Values.Sum(x => x.TotalNet);
+
+      _totalLoanRemaining = _snaps.Values.Sum(x => x.ActiveLoan?.RemainingTotal ?? 0m);
+      _netClaimDebt = _totalNet - _totalLoanRemaining;
+    }
+    catch (Exception ex)
+    {
+      _error = $"خطا در بارگذاری گزارش خانوار: {ex.Message}";
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private async Task<long> ResolveMemberIdAsync()
+  {
+    // If admin has selected a member, prioritize that selection
+    if (_adminSelectedMemberId.HasValue && _adminSelectedMemberId.Value > 0)
+      return _adminSelectedMemberId.Value;
+
+    var state = await AuthStateProvider.GetAuthenticationStateAsync();
+    var user = state.User;
+
+    var memberIdClaim = user?.FindFirst("MemberId")?.Value;
+    if (long.TryParse(memberIdClaim, out var memberId) && memberId > 0)
+      return memberId;
+
+    var userIdClaim = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (!long.TryParse(userIdClaim, out var userId) || userId <= 0)
+      return 0;
+
+    var dbUser = await AuthRepo.GetUserByIdAsync(userId);
+    return dbUser?.MemberId ?? 0;
+  }
+
+  private async Task OnMemberSelectorChanged(long? memberId)
+  {
+    _adminSelectedMemberId = memberId;
+    await OnInitializedAsync();
+  }
+
+  private static string FmtMoney(decimal v)
+    => string.Format(System.Globalization.CultureInfo.GetCultureInfo("fa-IR"), "{0:n0}", v) + " ریال";
+}

@@ -1,0 +1,55 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="curved-navigation-container">
+    <!-- Active Label Display in Curved Area -->
+    <div class="curved-label-area">
+        @if (ActiveItem != null && !string.IsNullOrEmpty(ActiveItem.Label))
+        {
+            <span class="active-label">@ActiveItem.Label</span>
+        }
+    </div>
+    
+    <!-- Navigation Items -->
+    <div class="curved-navigation">
+        @for (int i = 0; i < Items.Count; i++)
+        {
+            var index = i;
+            var item = Items[i];
+            var isActive = ActiveIndex == index;
+            var isCenterItem = index == CenterItemIndex;
+            
+            <div class="nav-item @(isActive ? "active" : "") @(isCenterItem ? "center-item" : "")" 
+                 @onclick="() => OnItemClick(index)">
+                <div class="nav-icon @(isCenterItem ? "center-icon" : "")">
+                    @item.Icon
+                </div>
+                @if (!isCenterItem)
+                {
+                    <span class="nav-label @(isActive ? "visible" : "")">@item.Label</span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<CurvedNavigationItem> Items { get; set; } = new();
+    [Parameter] public int ActiveIndex { get; set; } = 2; // Default to center item
+    [Parameter] public EventCallback<int> OnActiveIndexChanged { get; set; }
+    [Parameter] public EventCallback<CurvedNavigationItem> OnItemSelected { get; set; }
+
+    private int CenterItemIndex => Items.Count / 2;
+    private CurvedNavigationItem? ActiveItem => ActiveIndex < Items.Count ? Items[ActiveIndex] : null;
+
+    private async Task OnItemClick(int index)
+    {
+        if (ActiveIndex != index)
+        {
+            ActiveIndex = index;
+            await OnActiveIndexChanged.InvokeAsync(ActiveIndex);
+            await OnItemSelected.InvokeAsync(Items[index]);
+            StateHasChanged();
+        }
+    }
+}
+

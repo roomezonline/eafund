@@ -1,0 +1,419 @@
+@page "/admin/cashflow-budget"
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Components.DesignSystem
+@inject CashFlowBudgetRepository BudgetRepo
+@inject TrialBalanceRepository TrialBalanceRepo
+@inject DsToastService Toasts
+
+<div class="cb-page">
+    <DsPageHeader Icon="fa-solid fa-chart-pie"
+                  Title="بودجه‌بندی نقدینگی"
+                  Subtitle="تنظیم درصدهای تخصیص بودجه"
+                  ShowBackButton="true"
+                  ShowRefreshButton="true"
+                  OnRefreshClick="LoadDataAsync" />
+
+    <div class="cb-body">
+        <div class="cb-summary-card">
+            <div class="cb-summary-label">مانده کل سپرده‌ها</div>
+            <div class="cb-summary-value">@TotalBalanceText</div>
+        </div>
+
+        <div class="cb-items">
+            @foreach (var item in _items)
+            {
+                <div class="cb-item" style="--cb-color: @GetItemColor(item.SortOrder)">
+                    <div class="cb-item-header">
+                        <span class="cb-item-title">@item.Title</span>
+                        <span class="cb-item-percent">
+                            <input type="number"
+                                   class="cb-percent-input"
+                                   @bind-value="item.Percentage"
+                                   @bind-value:event="oninput"
+                                    @bind-value:after="Recalc"
+                                    min="0" max="100" step="any" />
+                            <span class="cb-percent-symbol">%</span>
+                        </span>
+                    </div>
+                    <div class="cb-item-amount">@DisplayAmount(item.Percentage)</div>
+                    <div class="cb-item-bar">
+                        <div class="cb-item-bar-fill" style="width: @(item.Percentage)%"></div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="cb-total @(Math.Abs(_totalPercent - 100m) > 0.01m ? "cb-total-invalid" : "cb-total-valid")">
+            <span>مجموع درصدها</span>
+            <span class="cb-total-value">@_totalPercent.ToString("0.0")%</span>
+            @if (Math.Abs(_totalPercent - 100m) > 0.01m)
+            {
+                <span class="cb-total-warn">باید برابر ۱۰۰% باشد</span>
+            }
+        </div>
+
+        <div class="cb-preview">
+            <div class="cb-preview-title">پیش‌نمایش تخصیص</div>
+            @foreach (var item in _items)
+            {
+                <div class="cb-preview-row" style="--cb-color: @GetItemColor(item.SortOrder)">
+                    <span class="cb-preview-label">
+                        <span class="cb-preview-dot"></span>
+                        @item.Title
+                    </span>
+                    <span class="cb-preview-value">@DisplayAmount(item.Percentage)</span>
+                </div>
+            }
+            <div class="cb-preview-row cb-preview-total">
+                <span>جمع کل</span>
+                <span>@DisplayAmount(100m)</span>
+            </div>
+        </div>
+
+        <div class="cb-actions">
+            <button class="cb-btn cb-btn-primary" @onclick="SaveAsync" disabled="@(!_hasChanges || Math.Abs(_totalPercent - 100m) > 0.01m || _saving)">
+                @(_saving ? "در حال ذخیره..." : "ذخیره تغییرات")
+            </button>
+            <button class="cb-btn cb-btn-secondary" @onclick="ResetAsync" disabled="@(!_hasChanges || _saving)">
+                انصراف
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .cb-page {
+        padding: 0;
+        max-width: 640px;
+        margin: 0 auto;
+    }
+    .cb-body {
+        padding: 0 12px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+    .cb-summary-card {
+        background: linear-gradient(135deg, #1e40af, #3b82f6);
+        color: #fff;
+        border-radius: 14px;
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .cb-summary-label {
+        font-size: 13px;
+        opacity: .85;
+    }
+    .cb-summary-value {
+        font-size: 18px;
+        font-weight: 800;
+        direction: rtl;
+        text-align: end;
+    }
+    .cb-items {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .cb-item {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    }
+    .cb-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .cb-item-title {
+        font-weight: 700;
+        font-size: 15px;
+        color: #0f172a;
+    }
+    .cb-item-percent {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+    }
+    .cb-percent-input {
+        width: 85px;
+        text-align: center;
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--cb-color, #3b82f6);
+        border: 2px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 6px 4px;
+        outline: none;
+        transition: border-color .15s;
+        direction: ltr;
+        background: #fff;
+    }
+    .cb-percent-input:focus {
+        border-color: var(--cb-color, #3b82f6);
+    }
+    .cb-percent-symbol {
+        font-size: 14px;
+        font-weight: 700;
+        color: #64748b;
+    }
+    .cb-item-amount {
+        font-size: 13px;
+        color: #475569;
+        font-weight: 600;
+        direction: rtl;
+        text-align: left;
+    }
+    .cb-item-bar {
+        height: 6px;
+        background: #f1f5f9;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .cb-item-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: var(--cb-color, #3b82f6);
+        transition: width .2s ease;
+    }
+    .cb-total {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 700;
+    }
+    .cb-total-valid {
+        background: #f0fdf4;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+    .cb-total-invalid {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+    .cb-total-value {
+        font-size: 18px;
+        direction: ltr;
+    }
+    .cb-total-warn {
+        font-size: 12px;
+        font-weight: 500;
+        margin-right: auto;
+    }
+    .cb-preview {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    }
+    .cb-preview-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 12px;
+    }
+    .cb-preview-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        font-size: 14px;
+    }
+    .cb-preview-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #334155;
+    }
+    .cb-preview-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--cb-color, #3b82f6);
+        flex-shrink: 0;
+    }
+    .cb-preview-value {
+        font-weight: 700;
+        direction: ltr;
+        color: #0f172a;
+        direction: rtl;
+    }
+    .cb-preview-total {
+        border-top: 1px solid #e2e8f0;
+        margin-top: 6px;
+        padding-top: 10px;
+        font-weight: 800;
+        font-size: 15px;
+        color: #0f172a;
+    }
+    .cb-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 4px;
+    }
+    .cb-btn {
+        flex: 1;
+        padding: 12px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        transition: opacity .15s;
+    }
+    .cb-btn:disabled {
+        opacity: .45;
+        cursor: default;
+    }
+    .cb-btn-primary {
+        background: linear-gradient(135deg, #2563eb, #3b82f6);
+        color: #fff;
+    }
+    .cb-btn-primary:hover:not(:disabled) {
+        opacity: .9;
+    }
+    .cb-btn-secondary {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+    .cb-btn-secondary:hover:not(:disabled) {
+        background: #e2e8f0;
+    }
+</style>
+
+@code {
+    private List<ItemVm> _items = new();
+    private decimal _totalPercent;
+    private bool _hasChanges;
+    private bool _saving;
+    private string TotalBalanceText = "---";
+
+    private static readonly string[] _colors = { "#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2" };
+
+    private static string GetItemColor(int sortOrder)
+    {
+        var idx = (sortOrder - 1) % _colors.Length;
+        return _colors[idx >= 0 ? idx : 0];
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            var dbItems = await BudgetRepo.GetAllAsync();
+            _items = dbItems.Select(x => new ItemVm
+            {
+                Id = x.Id,
+                Title = x.Title,
+                Percentage = x.Percentage,
+                SortOrder = x.SortOrder
+            }).ToList();
+
+            var principal = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("2201");
+            var interest = await TrialBalanceRepo.GetAccountBalanceByCodeAsync("2202");
+            var pBal = principal is null ? 0 : ComputeDisplayNet(principal.AccountType, principal.DebitBalance, principal.CreditBalance);
+            var iBal = interest is null ? 0 : ComputeDisplayNet(interest.AccountType, interest.DebitBalance, interest.CreditBalance);
+            TotalBalanceText = (pBal + iBal).ToString("N0") + " ریال";
+
+            Recalc();
+            _hasChanges = false;
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری: {ex.Message}");
+        }
+    }
+
+    private decimal ComputeDisplayNet(int accountType, decimal debit, decimal credit)
+    {
+        var net = debit - credit;
+        if (accountType == 2 || accountType == 3 || accountType == 4)
+            net = -net;
+        return net < 0 ? 0 : net;
+    }
+
+    private void Recalc()
+    {
+        _totalPercent = _items.Sum(x => x.Percentage);
+        _hasChanges = true;
+        StateHasChanged();
+    }
+
+    private string DisplayAmount(decimal percent)
+    {
+        var total = ParseTotal();
+        if (total <= 0) return "- ریال";
+        var amount = decimal.Round(total * percent / 100m, 0, MidpointRounding.AwayFromZero);
+        return $"{amount:N0} ریال";
+    }
+
+    private decimal ParseTotal()
+    {
+        var cleaned = TotalBalanceText.Replace(" ریال", "").Replace(",", "");
+        if (decimal.TryParse(cleaned, out var v)) return v;
+        return 0;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (Math.Abs(_totalPercent - 100m) > 0.01m) return;
+        _saving = true;
+        try
+        {
+            var dbItems = _items.Select(x => new MiniBank.Web.Models.CashFlowBudgetItem
+            {
+                Id = x.Id,
+                Title = x.Title,
+                Percentage = x.Percentage,
+                SortOrder = x.SortOrder
+            }).ToList();
+            await BudgetRepo.UpdateAllAsync(dbItems);
+            _hasChanges = false;
+            Toasts.Success("درصدهای بودجه با موفقیت ذخیره شد");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره: {ex.Message}");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private class ItemVm
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        private decimal _percentage;
+        public decimal Percentage
+        {
+            get => _percentage;
+            set => _percentage = Math.Clamp(value, 0m, 100m);
+        }
+        public int SortOrder { get; set; }
+    }
+}

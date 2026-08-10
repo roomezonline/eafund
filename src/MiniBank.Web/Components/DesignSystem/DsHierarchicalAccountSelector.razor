@@ -1,0 +1,285 @@
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
+
+<div class="hierarchical-account-selector">
+  <div class="selector-header" @onclick="ToggleDropdown">
+    <div class="selected-display">
+      @if (SelectedAccount != null)
+      {
+        <span class="selected-account">
+          <span class="account-code">@SelectedAccount.Code</span>
+          <span class="account-name">@SelectedAccount.Name</span>
+          <span class="account-level">(@SelectedAccount.LevelName)</span>
+        </span>
+      }
+      else
+      {
+        <span class="placeholder">@Placeholder</span>
+      }
+    </div>
+    <div class="dropdown-arrow @(IsOpen ? "open" : "")">
+      <i class="fas fa-chevron-down"></i>
+    </div>
+  </div>
+
+  @if (IsOpen)
+  {
+    <div class="dropdown-panel">
+      <div class="search-box">
+        <input type="text" 
+               @bind="SearchTerm" 
+               @bind:event="oninput"
+               @onkeyup="OnSearchChanged"
+               placeholder="جستجو در حساب‌ها..."
+               class="search-input" />
+        <i class="fas fa-search search-icon"></i>
+      </div>
+
+      <div class="accounts-tree">
+        @if (string.IsNullOrWhiteSpace(SearchTerm))
+        {
+          <!-- نمایش سلسله مراتبی -->
+          @foreach (var group in GroupedAccounts.Where(g => g.Level == 1))
+          {
+            <div class="tree-node level-1">
+              <div class="node-header">
+                <i class="fas fa-@(IsNodeExpanded(group.AccountId) ? "chevron-down" : "chevron-right") expand-icon" @onclick="() => ToggleNode(group.AccountId)"></i>
+                <span class="node-label" @onclick="() => SelectAccount(group)">
+                  <span class="account-code">@group.Code</span>
+                  <span class="account-name">@group.Name</span>
+                  <span class="level-badge level-1">گروه</span>
+                  <span class="children-count">(@GetChildrenCount(group.AccountId))</span>
+                </span>
+              </div>
+              
+              @if (IsNodeExpanded(group.AccountId))
+              {
+                <div class="node-children">
+                  @foreach (var kol in GroupedAccounts.Where(k => k.ParentAccountId == group.AccountId && k.Level == 2))
+                  {
+                    <div class="tree-node level-2">
+                      <div class="node-header">
+                        <i class="fas fa-@(IsNodeExpanded(kol.AccountId) ? "chevron-down" : "chevron-right") expand-icon" @onclick="() => ToggleNode(kol.AccountId)"></i>
+                        <span class="node-label" @onclick="() => SelectAccount(kol)">
+                          <span class="account-code">@kol.Code</span>
+                          <span class="account-name">@kol.Name</span>
+                          <span class="level-badge level-2">کل</span>
+                          <span class="children-count">(@GetChildrenCount(kol.AccountId))</span>
+                        </span>
+                      </div>
+                      
+                      @if (IsNodeExpanded(kol.AccountId))
+                      {
+                        <div class="node-children">
+                          @foreach (var moeen in GroupedAccounts.Where(m => m.ParentAccountId == kol.AccountId && m.Level == 3))
+                          {
+                            <div class="tree-node level-3">
+                              <div class="node-header">
+                                <i class="fas fa-@(IsNodeExpanded(moeen.AccountId) ? "chevron-down" : "chevron-right") expand-icon" @onclick="() => ToggleNode(moeen.AccountId)" style="@(HasChildren(moeen.AccountId) ? "" : "visibility: hidden;")"></i>
+                                <span class="node-label" @onclick="() => SelectAccount(moeen)">
+                                  <span class="account-code">@moeen.Code</span>
+                                  <span class="account-name">@moeen.Name</span>
+                                  <span class="level-badge level-3">معین</span>
+                                  @if (HasChildren(moeen.AccountId))
+                                  {
+                                    <span class="children-count">(@GetChildrenCount(moeen.AccountId))</span>
+                                  }
+                                </span>
+                              </div>
+                              
+                              @if (IsNodeExpanded(moeen.AccountId))
+                              {
+                                <div class="node-children">
+                                  @foreach (var subsidiary in GroupedAccounts.Where(s => s.ParentAccountId == moeen.AccountId && s.Level == 4))
+                                  {
+                                    <div class="tree-node level-4">
+                                      <div class="node-header">
+                                        <span class="node-label leaf" @onclick="() => SelectAccount(subsidiary)">
+                                          <span class="account-code">@subsidiary.Code</span>
+                                          <span class="account-name">@subsidiary.Name</span>
+                                          <span class="level-badge level-4">تفضیلی</span>
+                                        </span>
+                                      </div>
+                                    </div>
+                                  }
+                                </div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+        else
+        {
+          <!-- نمایش نتایج جستجو -->
+          <div class="search-results">
+            @if (FilteredAccounts.Any())
+            {
+              @foreach (var account in FilteredAccounts.Take(20))
+              {
+                <div class="search-result-item" @onclick="() => SelectAccount(account)">
+                  <span class="account-code">@account.Code</span>
+                  <span class="account-name">@account.Name</span>
+                  <span class="level-badge level-@account.Level">@account.LevelName</span>
+                  @if (account.Parent != null)
+                  {
+                    <span class="parent-path">← @GetParentPath(account)</span>
+                  }
+                </div>
+              }
+              @if (FilteredAccounts.Count() > 20)
+              {
+                <div class="more-results">
+                  و @(FilteredAccounts.Count() - 20) مورد دیگر...
+                </div>
+              }
+            }
+            else
+            {
+              <div class="no-results">
+                هیچ حسابی یافت نشد
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+@code {
+  [Parameter] public string? Placeholder { get; set; } = "انتخاب حساب...";
+  [Parameter] public Account? SelectedAccount { get; set; }
+  [Parameter] public EventCallback<Account?> SelectedAccountChanged { get; set; }
+  [Parameter] public bool AllowAllLevels { get; set; } = true;
+  [Parameter] public List<byte>? AllowedLevels { get; set; } // مثلاً [3,4] برای فقط معین و تفضیلی
+
+  private bool IsOpen = false;
+  private string SearchTerm = string.Empty;
+  private List<Account> GroupedAccounts = new();
+  private IEnumerable<Account> FilteredAccounts => 
+    GroupedAccounts.Where(a => 
+      (string.IsNullOrWhiteSpace(SearchTerm) || 
+       a.Code.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+       a.Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)) &&
+      (AllowAllLevels || AllowedLevels == null || AllowedLevels.Contains(a.Level ?? 0)));
+
+  private HashSet<long> ExpandedNodes = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAccounts();
+  }
+
+  private async Task LoadAccounts()
+  {
+    try
+    {
+      // Load all accounts with hierarchy
+      var allAccounts = await AccountsRepo.GetAllWithHierarchyAsync();
+      GroupedAccounts = allAccounts.Where(a => a.IsActive).ToList();
+    }
+    catch (Exception ex)
+    {
+      // Handle error
+      GroupedAccounts = new List<Account>();
+    }
+  }
+
+  private void ToggleDropdown()
+  {
+    IsOpen = !IsOpen;
+    if (!IsOpen)
+    {
+      SearchTerm = string.Empty;
+    }
+  }
+
+  private void ToggleNode(long accountId)
+  {
+    if (ExpandedNodes.Contains(accountId))
+    {
+      ExpandedNodes.Remove(accountId);
+    }
+    else
+    {
+      ExpandedNodes.Add(accountId);
+    }
+  }
+
+  private bool IsNodeExpanded(long accountId)
+  {
+    return ExpandedNodes.Contains(accountId);
+  }
+
+  private async Task SelectAccount(Account account)
+  {
+    // Check if this level is allowed
+    if (!AllowAllLevels && AllowedLevels != null && !AllowedLevels.Contains(account.Level ?? 0))
+    {
+      return; // Don't allow selection of this level
+    }
+
+    SelectedAccount = account;
+    await SelectedAccountChanged.InvokeAsync(account);
+    IsOpen = false;
+    SearchTerm = string.Empty;
+  }
+
+  private async Task OnSearchChanged()
+  {
+    // Auto-expand nodes when searching
+    if (!string.IsNullOrWhiteSpace(SearchTerm))
+    {
+      // Expand all parent nodes of matching accounts
+      var matchingAccounts = FilteredAccounts.ToList();
+      foreach (var account in matchingAccounts)
+      {
+        var current = account.Parent;
+        while (current != null)
+        {
+          ExpandedNodes.Add(current.AccountId);
+          current = current.Parent;
+        }
+      }
+    }
+    StateHasChanged();
+  }
+
+  private string GetParentPath(Account account)
+  {
+    var path = new List<string>();
+    var current = account.Parent;
+    while (current != null)
+    {
+      path.Insert(0, current.Name);
+      current = current.Parent;
+    }
+    return string.Join(" ← ", path);
+  }
+
+  private int GetChildrenCount(long parentId)
+  {
+    return GroupedAccounts.Count(a => a.ParentAccountId == parentId);
+  }
+
+  private bool HasChildren(long accountId)
+  {
+    return GroupedAccounts.Any(a => a.ParentAccountId == accountId);
+  }
+
+  // Close dropdown when clicking outside
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      // Add click outside handler via JS if needed
+    }
+  }
+}

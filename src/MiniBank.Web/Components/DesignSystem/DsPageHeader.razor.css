@@ -1,0 +1,149 @@
+/* Design System Page Header */
+.ds-page-header {
+ 
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  background: var(--card, #fff);
+  border: 1px solid var(--card-border, var(--border, #d1d5db));
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+  position: sticky;
+  top: 8px;
+  backdrop-filter: saturate(1.2) blur(8px);
+  z-index: 2;
+  outline: 1px solid color-mix(in srgb, var(--card-border, var(--border, #d1d5db)) 55%, transparent);
+  direction: rtl;
+}
+
+.ds-page-header .brand {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.ds-page-header .brand .icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+}
+
+.ds-page-header .brand .text .title {
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+.ds-page-header .brand .text .subtitle {
+  font-size: 12px;
+  color: var(--muted, #6b7280);
+  margin-top: 2px;
+}
+
+.ds-page-header .hdr-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Icon button styles for header actions */
+.ds-page-header .icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--card, #fff);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ds-page-header .icon-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
+}
+
+.ds-page-header .icon-btn:active {
+  transform: translateY(0);
+}
+
+.ds-page-header .icon-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.ds-page-header .icon-btn:disabled:hover {
+  transform: none;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+/* ChildContent buttons are rendered without this component's scope attribute.
+   Use ::deep to ensure custom action buttons (e.g., Sync) match the header style. */
+.ds-page-header .hdr-actions ::deep(.icon-btn) {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--card, #fff);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ds-page-header .hdr-actions ::deep(.icon-btn:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
+}
+
+.ds-page-header .hdr-actions ::deep(.icon-btn:active) {
+  transform: translateY(0);
+}
+
+.ds-page-header .hdr-actions ::deep(.icon-btn:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.ds-page-header .hdr-actions ::deep(.icon-btn:disabled:hover) {
+  transform: none;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ds-page-header {
+    padding: 12px;
+    gap: 10px;
+  }
+  
+  .ds-page-header .brand .icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .ds-page-header .hdr-actions {
+    gap: 6px;
+  }
+  
+  .ds-page-header .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ds-page-header .hdr-actions ::deep(.icon-btn) {
+    width: 34px;
+    height: 34px;
+  }
+}

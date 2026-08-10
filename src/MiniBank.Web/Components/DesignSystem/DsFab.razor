@@ -1,0 +1,23 @@
+@namespace MiniBank.Web.Components.DesignSystem
+@using Microsoft.AspNetCore.Components
+
+<button class="ds-fab @(ExtraClass)" style="@BuildStyle()" title="@Title" @onclick="OnClick">
+  <i class="fa-solid @Icon"></i>
+</button>
+
+@code {
+  [Parameter] public EventCallback OnClick { get; set; }
+  [Parameter] public string Icon { get; set; } = "fa-plus";
+  [Parameter] public string Title { get; set; } = "افزودن";
+  [Parameter] public string Bottom { get; set; } = "120px"; // higher to stay above footer
+  [Parameter] public string Right { get; set; } = "24px"; // legacy: inset-inline-end fallback
+  [Parameter] public string Side { get; set; } = "start"; // start | end (logical for RTL/LTR)
+  [Parameter] public string ExtraClass { get; set; } = string.Empty;
+
+  private string BuildStyle()
+  {
+    // Use logical inset for RTL/LTR safety
+    var sideCss = Side?.ToLowerInvariant() == "start" ? "inset-inline-start" : "inset-inline-end";
+    return $"bottom:{Bottom}; {sideCss}:{Right};";
+  }
+}

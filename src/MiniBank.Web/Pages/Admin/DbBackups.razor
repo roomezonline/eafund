@@ -1,0 +1,1071 @@
+@page "/admin/db-backups"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models.Admin
+@inject DsToastService Toasts
+@inject MiniBank.Web.Services.DbBackupService BackupService
+
+<PageTitle>پشتیبان‌گیری دیتابیس</PageTitle>
+
+<DsPageHeader Title="پشتیبان‌گیری دیتابیس"
+             Icon="fa-solid fa-database"
+             Subtitle="تنظیمات، اجرای دستی، زمان‌بندی روزانه و تاریخچه"
+             ShowBackButton="true" />
+
+<section class="page" dir="rtl">
+    <div class="dbb-card">
+        <div class="dbb-title">تنظیمات</div>
+
+        @if (_loading)
+        {
+            <div>در حال بارگذاری...</div>
+        }
+        else
+        {
+            <div class="dbb-grid">
+                <div class="dbb-field">
+                    <DsToggle Label="فعال بودن بکاپ روزانه" Description="" Icon="fa-solid fa-toggle-on" Value="_settings.IsEnabled" ValueChanged="OnEnabledChanged" />
+                    <div class="dbb-help">اگر روشن باشد، روزانه در ساعت مشخص شده بکاپ گرفته می‌شود.</div>
+                </div>
+
+                <div class="dbb-section">اطلاعات و زمان‌بندی</div>
+
+                <div class="dbb-grid-2">
+                    <div class="dbb-field">
+                        <label class="dbb-label">نام دیتابیس</label>
+                        <input class="dbb-input" value="@_settings.DatabaseName" @oninput="OnDbNameChanged" placeholder="foodir_EmamAli_minibank" />
+                        <div class="dbb-help">اگر خالی بگذارید، از کانکشن‌استرینگ سیستم خوانده می‌شود.</div>
+                    </div>
+
+                    <div class="dbb-field">
+                        <label class="dbb-label">دوره اجرا</label>
+                        <select class="dbb-input" style="direction:rtl;" value="@_frequencyText" @onchange="OnFrequencyChanged">
+                            <option value="daily">روزانه</option>
+                            <option value="weekly">هفتگی</option>
+                            <option value="monthly">ماهانه</option>
+                        </select>
+                        <div class="dbb-help">انتخاب کنید بکاپ هر روز، هر هفته یا هر ماه اجرا شود.</div>
+                    </div>
+                </div>
+
+                <div class="dbb-grid-2">
+                    <div class="dbb-field">
+                        <label class="dbb-label">زمان اجرا (Local)</label>
+                        <input class="dbb-input" value="@_runAtTimeText" @oninput="OnRunAtTimeChanged" placeholder="02:00" />
+                        <div class="dbb-help">فرمت HH:mm (مثلاً 02:00). طبق ساعت سرور اجرا می‌شود.</div>
+                    </div>
+
+                    @if (_settings.Frequency == DbBackupFrequency.Weekly)
+                    {
+                        <div class="dbb-field">
+                            <label class="dbb-label">روز هفته</label>
+                            <select class="dbb-input" style="direction:rtl;" value="@_runOnDayOfWeekText" @onchange="OnRunOnDayOfWeekChanged">
+                                <option value="">(انتخاب نشده)</option>
+                                <option value="0">یکشنبه</option>
+                                <option value="1">دوشنبه</option>
+                                <option value="2">سه‌شنبه</option>
+                                <option value="3">چهارشنبه</option>
+                                <option value="4">پنجشنبه</option>
+                                <option value="5">جمعه</option>
+                                <option value="6">شنبه</option>
+                            </select>
+                            <div class="dbb-help">اگر انتخاب نشود، اولین اجرای بعد از ساعت تعیین شده انجام می‌شود.</div>
+                        </div>
+                    }
+                    else if (_settings.Frequency == DbBackupFrequency.Monthly)
+                    {
+                        <div class="dbb-field">
+                            <label class="dbb-label">روز ماه</label>
+                            <input class="dbb-input" value="@_runOnDayOfMonthText" @oninput="OnRunOnDayOfMonthChanged" placeholder="1" />
+                            <div class="dbb-help">عدد بین 1 تا 28 (برای جلوگیری از مشکل ماه‌های کوتاه).</div>
+                        </div>
+                    }
+                </div>
+
+                <div class="dbb-section">مسیر و نگهداری</div>
+
+                <div class="dbb-grid-2">
+                    <div class="dbb-field">
+                        <label class="dbb-label">مسیر پوشه بکاپ روی سرور</label>
+                        <input class="dbb-input" value="@_settings.BackupDirectory" @oninput="OnBackupDirChanged" placeholder="D:\\DbBackups\\MiniBank" />
+                        <div class="dbb-help">این مسیر باید از دید SQL Server قابل نوشتن باشد (نه صرفاً وب‌سایت).</div>
+                    </div>
+
+                    <div class="dbb-field">
+                        <label class="dbb-label">نگهداری فایل‌ها</label>
+                        <input class="dbb-input" value="2" disabled />
+                        <div class="dbb-help">همیشه فقط ۲ بکاپ آخر نگهداری می‌شود.</div>
+                    </div>
+                </div>
+
+                <div class="dbb-field">
+                    <label class="dbb-label">ایمیل‌های گزارش (CSV)</label>
+                    <input class="dbb-input" value="@_settings.NotifyEmailsCsv" @oninput="OnEmailsChanged" placeholder="a@gmail.com,b@gmail.com" />
+                    <div class="dbb-help">چند ایمیل را با کاما جدا کنید؛ در صورت خالی بودن، ایمیل ارسال نمی‌شود.</div>
+                </div>
+
+                <div class="dbb-section">تنظیمات SMTP</div>
+
+                <div class="dbb-grid-2">
+                    <div class="dbb-field">
+                        <label class="dbb-label">SMTP Host</label>
+                        <input class="dbb-input" value="@_settings.SmtpHost" @oninput="OnSmtpHostChanged" placeholder="smtp.gmail.com" />
+                        <div class="dbb-help">برای Gmail معمولاً smtp.gmail.com است.</div>
+                    </div>
+                    <div class="dbb-field">
+                        <label class="dbb-label">SMTP Port</label>
+                        <input class="dbb-input" value="@_smtpPortText" @oninput="OnSmtpPortChanged" placeholder="587" />
+                        <div class="dbb-help">برای Gmail: 587 (TLS) یا 465 (SSL).</div>
+                    </div>
+                </div>
+
+                <div class="dbb-grid-2">
+                    <div class="dbb-field">
+                        <label class="dbb-label">SMTP Username</label>
+                        <input class="dbb-input" value="@_settings.SmtpUsername" @oninput="OnSmtpUserChanged" placeholder="clickpardazesh@gmail.com" />
+                        <div class="dbb-help">نام کاربری ایمیلی که از آن ارسال می‌شود.</div>
+                    </div>
+                    <div class="dbb-field">
+                        <label class="dbb-label">SMTP From</label>
+                        <input class="dbb-input" value="@_settings.SmtpFrom" @oninput="OnSmtpFromChanged" placeholder="clickpardazesh@gmail.com" />
+                        <div class="dbb-help">آدرس فرستنده (معمولاً همان Username).</div>
+                    </div>
+                </div>
+
+                <div class="dbb-field">
+                    <label class="dbb-label">SMTP Password (App Password)</label>
+                    <input class="dbb-input" value="@_settings.SmtpPassword" @oninput="OnSmtpPassChanged" type="password" />
+                    <div class="dbb-help">برای Gmail باید App Password بسازید (نه رمز اصلی Gmail).</div>
+                </div>
+
+                <div class="dbb-actions">
+                    <button class="dbb-btn dbb-btn-primary" @onclick="SaveAsync" disabled="@_saving">@(_saving ? "در حال ذخیره..." : "ذخیره تنظیمات")</button>
+                    <button class="dbb-btn dbb-btn-success" @onclick="RunNowAsync" disabled="@_running">@(_running ? "در حال بکاپ..." : "اجرای بکاپ دستی")</button>
+                    <button class="dbb-btn dbb-btn-ghost" @onclick="TestAccessAsync" disabled="@_testing">@(_testing ? "در حال تست..." : "تست دسترسی مسیر بکاپ")</button>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="dbb-card" style="margin-top:12px;">
+        <div class="dbb-history-head">
+            <div>
+                <div class="dbb-title" style="margin:0;">تاریخچه بکاپ‌ها</div>
+                <div class="dbb-help">@(_runs.Count) مورد</div>
+            </div>
+            <div class="dbb-history-actions">
+                <input class="dbb-input" style="height:36px;" placeholder="جستجو (وضعیت/مسیر/خطا...)" value="@_historySearch" @oninput="OnHistorySearchChanged" />
+                <select class="dbb-input" style="height:36px; direction:rtl;" value="@_historySort" @onchange="OnHistorySortChanged">
+                    <option value="new">جدیدترین</option>
+                    <option value="old">قدیمی‌ترین</option>
+                    <option value="status">وضعیت</option>
+                    <option value="size">حجم</option>
+                </select>
+                <button class="dbb-btn dbb-btn-ghost" style="height:36px;" @onclick="ReloadRunsAsync" disabled="@_loadingRuns">به‌روزرسانی</button>
+            </div>
+        </div>
+
+        <div class="dbb-filterbar">
+            <button class="dbb-chip-btn @(_historyStatusFilter == "all" ? "is-active" : "")" @onclick="SetHistoryStatusFilterAll">همه</button>
+            <button class="dbb-chip-btn @(_historyStatusFilter == "success" ? "is-active" : "")" @onclick="SetHistoryStatusFilterSuccess">موفق</button>
+            <button class="dbb-chip-btn @(_historyStatusFilter == "failed" ? "is-active" : "")" @onclick="SetHistoryStatusFilterFailed">ناموفق</button>
+            <button class="dbb-chip-btn @(_historyStatusFilter == "running" ? "is-active" : "")" @onclick="SetHistoryStatusFilterRunning">درحال اجرا</button>
+        </div>
+
+        @if (_loadingRuns)
+        {
+            <div style="margin-top:10px;">در حال بارگذاری...</div>
+        }
+        else if (FilteredRuns.Count == 0)
+        {
+            <div style="margin-top:10px; font-size:12px; opacity:.75;">موردی ثبت نشده است.</div>
+        }
+        else
+        {
+            <div class="dbb-list">
+                @foreach (var r in PagedRuns)
+                {
+                    <details class="dbb-run" open="@(_expandedRunId == r.RunId)">
+                        <summary class="dbb-run-summary" @onclick="() => ToggleRunExpanded(r.RunId)">
+                            <div class="dbb-run-summary-left">
+                                <div class="dbb-run-title">Run #@r.RunId</div>
+                                <div class="dbb-chip dbb-chip-@GetStatusChipClass(r.Status)">@ToFaStatus(r.Status)</div>
+                            </div>
+                            <div class="dbb-run-summary-right">
+                                <div class="dbb-help" style="direction:ltr;">@FormatServerTime(r.StartedAtUtc)</div>
+                                <div class="dbb-run-size">@(r.BackupFileSizeBytes.HasValue ? r.BackupFileSizeBytes.Value.ToString("N0") : "-")</div>
+                            </div>
+                        </summary>
+
+                        <div class="dbb-run-body">
+                            <div class="dbb-run-grid">
+                                <div>
+                                    <div class="dbb-label">شروع</div>
+                                    <div class="dbb-help" style="direction:ltr;">@FormatServerTime(r.StartedAtUtc)</div>
+                                </div>
+                                <div>
+                                    <div class="dbb-label">پایان</div>
+                                    <div class="dbb-help" style="direction:ltr;">@FormatServerTimeNullable(r.FinishedAtUtc)</div>
+                                </div>
+                                <div>
+                                    <div class="dbb-label">حجم</div>
+                                    <div class="dbb-help" style="direction:ltr;">@(r.BackupFileSizeBytes.HasValue ? r.BackupFileSizeBytes.Value.ToString("N0") : "-")</div>
+                                </div>
+                                <div>
+                                    <div class="dbb-label">فایل</div>
+                                </div>
+                                    <div class="dbb-help dbb-path" style="direction:ltr;">@(string.IsNullOrWhiteSpace(r.BackupFilePath) ? "-" : r.BackupFilePath)</div>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(r.ErrorMessage))
+                            {
+                                <div class="dbb-error" style="margin-top:8px; white-space:pre-wrap;">@r.ErrorMessage</div>
+                            }
+
+                            <div class="dbb-run-actions">
+                                @if (!string.IsNullOrWhiteSpace(r.BackupFilePath))
+                                {
+                                    <a class="dbb-btn dbb-btn-ghost" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:8px;" href="/api/admin/db-backups/@r.RunId/download" target="_blank">
+                                        <i class="fa-solid fa-download"></i>
+                                        <span>دانلود</span>
+                                    </a>
+                                }
+                                <button class="dbb-btn dbb-btn-danger" style="display:inline-flex; align-items:center; justify-content:center; gap:8px;" @onclick="() => AskDeleteRun(r.RunId)">
+                                    <i class="fa-solid fa-trash"></i>
+                                    <span>حذف</span>
+                                </button>
+                            </div>
+                        </div>
+                    </details>
+                }
+            </div>
+
+            <div class="dbb-pagination">
+                <div class="dbb-help">صفحه @(_historyPage + 1) از @HistoryTotalPages</div>
+                <div class="dbb-pagination-actions">
+                    <select class="dbb-input" style="height:30px; width:90px; direction:ltr;" value="@_historyPageSizeText" @onchange="OnHistoryPageSizeChanged">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                    <button class="dbb-btn dbb-btn-ghost" style="height:30px; padding:0 10px;" @onclick="PrevPage" disabled="@(_historyPage <= 0)">قبلی</button>
+                    <button class="dbb-btn dbb-btn-ghost" style="height:30px; padding:0 10px;" @onclick="NextPage" disabled="@(_historyPage >= HistoryTotalPages - 1)">بعدی</button>
+                </div>
+            </div>
+        }
+    </div>
+
+    <DsConfirm Show="@_showDeleteConfirm"
+               Title="تأیید حذف"
+               Message="آیا از حذف این بکاپ و فایل مربوطه مطمئن هستید؟"
+               Variant="danger"
+               ConfirmText="حذف"
+               CancelText="انصراف"
+               OnConfirm="ConfirmDeleteRun"
+               OnCancel="CancelDeleteRun" />
+</section>
+
+<style>
+    .dbb-card {
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .dbb-list {
+        display: grid;
+        gap: 10px;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .dbb-title {
+        font-weight: 900;
+        margin-bottom: 10px;
+    }
+
+    .dbb-grid {
+        display: grid;
+        gap: 12px;
+    }
+
+    .dbb-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .dbb-section {
+        font-weight: 900;
+        font-size: 12px;
+        opacity: .85;
+        padding-top: 6px;
+    }
+
+    .dbb-field {
+        display: grid;
+        gap: 6px;
+    }
+
+    .dbb-label {
+        font-weight: 900;
+        font-size: 12px;
+    }
+
+    .dbb-help {
+        font-size: 11px;
+        opacity: .7;
+        line-height: 1.35;
+    }
+
+    .dbb-input {
+        height: 42px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        padding: 0 10px;
+        font-weight: 900;
+        direction: ltr;
+        width: 100%;
+        box-sizing: border-box;
+        background: #fff;
+    }
+
+    .dbb-actions {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: 1fr;
+        margin-top: 4px;
+    }
+
+    .dbb-btn {
+        height: 42px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #0f172a;
+        font-weight: 900;
+        padding: 0 12px;
+    }
+
+    .dbb-btn-primary {
+        border-color: #0ea5e9;
+        background: #0ea5e9;
+        color: #fff;
+    }
+
+    .dbb-btn-success {
+        border-color: #10b981;
+        background: #10b981;
+        color: #fff;
+    }
+
+    .dbb-btn-ghost {
+        border-color: #e2e8f0;
+        background: #fff;
+        color: #0f172a;
+    }
+
+    .dbb-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .dbb-list {
+        margin-top: 10px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .dbb-run {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 10px;
+        background: #f8fafc;
+        display: grid;
+        gap: 6px;
+    }
+
+    .dbb-run-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .dbb-run-title {
+        font-weight: 900;
+    }
+
+    .dbb-run-size {
+        font-weight: 900;
+        direction: ltr;
+    }
+
+    .dbb-run-meta {
+        display: grid;
+        gap: 4px;
+    }
+
+    .dbb-error {
+        font-size: 12px;
+        color: #b91c1c;
+        font-weight: 900;
+    }
+
+    .dbb-history-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 12px;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+    }
+
+    .dbb-history-actions {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .dbb-filterbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .dbb-chip-btn {
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        font-weight: 900;
+        font-size: 12px;
+        color: #0f172a;
+    }
+
+    .dbb-chip-btn.is-active {
+        border-color: #0ea5e9;
+        background: #e0f2fe;
+        color: #075985;
+    }
+
+    .dbb-run-summary {
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px;
+        border-radius: 10px;
+        background: #f1f5f9;
+    }
+
+    .dbb-run {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+        max-width: 100%;
+    }
+
+    .dbb-run-summary::-webkit-details-marker { display: none; }
+
+    .dbb-run-summary-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .dbb-run-summary-right {
+        display: grid;
+        gap: 2px;
+        justify-items: end;
+        text-align: left;
+        min-width: 0;
+    }
+
+    .dbb-run-summary-right > * {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .dbb-run-title {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .dbb-chip {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 900;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+    }
+
+    .dbb-chip-success { border-color: #86efac; background: #dcfce7; color: #14532d; }
+    .dbb-chip-failed { border-color: #fecaca; background: #fee2e2; color: #7f1d1d; }
+    .dbb-chip-running { border-color: #bae6fd; background: #e0f2fe; color: #0c4a6e; }
+    .dbb-chip-other { border-color: #e5e7eb; background: #f8fafc; color: #0f172a; }
+
+    .dbb-run-body {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 10px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+    }
+
+    .dbb-run-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding-top: 6px;
+    }
+
+    .dbb-run-grid > div {
+        min-width: 0;
+    }
+
+    .dbb-path {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        max-width: 100%;
+    }
+
+    .dbb-label {
+        color: #334155;
+    }
+
+    .dbb-run-actions {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: 1fr 1fr;
+        margin-top: 10px;
+    }
+
+    .dbb-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #e5e7eb;
+        background: #fafafa;
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .dbb-pagination-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .dbb-btn-danger {
+        border-color: #fecaca;
+        background: #fee2e2;
+        color: #7f1d1d;
+    }
+
+    @@media (min-width: 768px) {
+        .dbb-grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .dbb-actions {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .dbb-history-actions {
+            grid-template-columns: 1fr 180px 140px;
+            width: auto;
+        }
+
+        .dbb-run-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .dbb-run-actions {
+            grid-template-columns: 140px 140px;
+            justify-content: end;
+        }
+    }
+</style>
+
+@code {
+    private bool _loading = true;
+    private bool _saving;
+    private bool _running;
+    private bool _testing;
+
+    private DbBackupSettings _settings = new();
+    private string _frequencyText = "daily";
+    private string _runAtTimeText = "02:00";
+    private string _runOnDayOfWeekText = "";
+    private string _runOnDayOfMonthText = "";
+    private string _smtpPortText = "587";
+
+    private bool _loadingRuns;
+    private List<DbBackupRun> _runs = new();
+    private long? _expandedRunId;
+    private string _historySearch = string.Empty;
+    private string _historySort = "new";
+    private string _historyStatusFilter = "all";
+    private int _historyPage;
+    private int _historyPageSize = 20;
+    private string _historyPageSizeText = "20";
+
+    private bool _showDeleteConfirm;
+    private long? _pendingDeleteRunId;
+
+    private List<DbBackupRun> FilteredRuns => ApplyHistoryFilters(_runs);
+    private List<DbBackupRun> PagedRuns => ApplyPaging(FilteredRuns);
+    private int HistoryTotalPages => Math.Max(1, (int)Math.Ceiling((double)FilteredRuns.Count / Math.Max(1, _historyPageSize)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        await ReloadRunsAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _settings = await BackupService.GetSettingsAsync();
+            _settings.RetainLastCount = 2;
+
+            if (string.IsNullOrWhiteSpace(_settings.SmtpHost))
+                _settings.SmtpHost = "smtp.gmail.com";
+            if (string.IsNullOrWhiteSpace(_settings.SmtpFrom) && string.IsNullOrWhiteSpace(_settings.SmtpUsername) && string.IsNullOrWhiteSpace(_settings.NotifyEmailsCsv))
+            {
+                // no-op (do not force emails)
+            }
+
+            _frequencyText = _settings.Frequency switch
+            {
+                DbBackupFrequency.Weekly => "weekly",
+                DbBackupFrequency.Monthly => "monthly",
+                _ => "daily"
+            };
+            _runAtTimeText = MinutesToTimeText(_settings.RunAtTimeLocalMinutes);
+            _runOnDayOfWeekText = _settings.RunOnDayOfWeek.HasValue ? _settings.RunOnDayOfWeek.Value.ToString() : "";
+            _runOnDayOfMonthText = _settings.RunOnDayOfMonth.HasValue ? _settings.RunOnDayOfMonth.Value.ToString() : "";
+            _smtpPortText = _settings.SmtpPort.ToString();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری تنظیمات: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task TestAccessAsync()
+    {
+        if (_testing) return;
+        _testing = true;
+        try
+        {
+            var res = await BackupService.TestBackupDirectoryAccessAsync(_settings.BackupDirectory, _settings.DatabaseName);
+            if (res.ok)
+                Toasts.Success(res.message);
+            else
+                Toasts.Error($"عدم دسترسی/خطا: {res.message}");
+        }
+        finally
+        {
+            _testing = false;
+        }
+    }
+
+    private Task OnEnabledChanged(bool v) { _settings.IsEnabled = v; return Task.CompletedTask; }
+    private void OnDbNameChanged(ChangeEventArgs e) => _settings.DatabaseName = e?.Value?.ToString();
+    private void OnBackupDirChanged(ChangeEventArgs e) => _settings.BackupDirectory = e?.Value?.ToString();
+    private void OnEmailsChanged(ChangeEventArgs e) => _settings.NotifyEmailsCsv = e?.Value?.ToString();
+    private void OnFrequencyChanged(ChangeEventArgs e)
+    {
+        _frequencyText = e?.Value?.ToString() ?? "daily";
+        _settings.Frequency = _frequencyText switch
+        {
+            "weekly" => DbBackupFrequency.Weekly,
+            "monthly" => DbBackupFrequency.Monthly,
+            _ => DbBackupFrequency.Daily
+        };
+        if (_settings.Frequency != DbBackupFrequency.Weekly)
+        {
+            _settings.RunOnDayOfWeek = null;
+            _runOnDayOfWeekText = "";
+        }
+        if (_settings.Frequency != DbBackupFrequency.Monthly)
+        {
+            _settings.RunOnDayOfMonth = null;
+            _runOnDayOfMonthText = "";
+        }
+    }
+    private void OnRunAtTimeChanged(ChangeEventArgs e) => _runAtTimeText = e?.Value?.ToString() ?? "";
+    private void OnRunOnDayOfWeekChanged(ChangeEventArgs e) => _runOnDayOfWeekText = e?.Value?.ToString() ?? "";
+    private void OnRunOnDayOfMonthChanged(ChangeEventArgs e) => _runOnDayOfMonthText = e?.Value?.ToString() ?? "";
+    private void OnSmtpHostChanged(ChangeEventArgs e) => _settings.SmtpHost = e?.Value?.ToString();
+    private void OnSmtpPortChanged(ChangeEventArgs e) => _smtpPortText = e?.Value?.ToString() ?? "";
+    private void OnSmtpUserChanged(ChangeEventArgs e) => _settings.SmtpUsername = e?.Value?.ToString();
+    private void OnSmtpPassChanged(ChangeEventArgs e) => _settings.SmtpPassword = e?.Value?.ToString();
+    private void OnSmtpFromChanged(ChangeEventArgs e) => _settings.SmtpFrom = e?.Value?.ToString();
+
+    private async Task SaveAsync()
+    {
+        if (_saving) return;
+        _saving = true;
+        try
+        {
+            _settings.Frequency = _frequencyText switch
+            {
+                "weekly" => DbBackupFrequency.Weekly,
+                "monthly" => DbBackupFrequency.Monthly,
+                _ => DbBackupFrequency.Daily
+            };
+
+            _settings.RunAtTimeLocalMinutes = ParseTimeTextToMinutes(_runAtTimeText, defaultMinutes: 120);
+
+            if (_settings.Frequency == DbBackupFrequency.Weekly)
+            {
+                if (int.TryParse(new string((_runOnDayOfWeekText ?? "").Where(char.IsDigit).ToArray()), out var dow))
+                {
+                    if (dow < 0) dow = 0;
+                    if (dow > 6) dow = 6;
+                    _settings.RunOnDayOfWeek = dow;
+                }
+                else
+                {
+                    _settings.RunOnDayOfWeek = null;
+                }
+                _settings.RunOnDayOfMonth = null;
+            }
+            else if (_settings.Frequency == DbBackupFrequency.Monthly)
+            {
+                if (int.TryParse(new string((_runOnDayOfMonthText ?? "").Where(char.IsDigit).ToArray()), out var dom))
+                {
+                    if (dom < 1) dom = 1;
+                    if (dom > 28) dom = 28;
+                    _settings.RunOnDayOfMonth = dom;
+                }
+                else
+                {
+                    _settings.RunOnDayOfMonth = 1;
+                }
+                _settings.RunOnDayOfWeek = null;
+            }
+            else
+            {
+                _settings.RunOnDayOfWeek = null;
+                _settings.RunOnDayOfMonth = null;
+            }
+
+            if (int.TryParse(new string((_smtpPortText ?? "").Where(char.IsDigit).ToArray()), out var p))
+            {
+                if (p < 1) p = 1;
+                _settings.SmtpPort = p;
+            }
+            _settings.RetainLastCount = 2;
+
+            await BackupService.SaveSettingsAsync(_settings);
+            Toasts.Success("تنظیمات ذخیره شد");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره تنظیمات: {ex.Message}");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static int ParseTimeTextToMinutes(string? text, int defaultMinutes)
+    {
+        var t = (text ?? string.Empty).Trim();
+        if (t.Length == 0) return defaultMinutes;
+
+        var parts = t.Split(':', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 2 && int.TryParse(parts[0], out var hh) && int.TryParse(parts[1], out var mm))
+        {
+            if (hh < 0) hh = 0;
+            if (hh > 23) hh = 23;
+            if (mm < 0) mm = 0;
+            if (mm > 59) mm = 59;
+            return hh * 60 + mm;
+        }
+
+        var digits = new string(t.Where(char.IsDigit).ToArray());
+        if (digits.Length >= 3)
+        {
+            var last2 = digits[^2..];
+            var first = digits[..^2];
+            if (int.TryParse(first, out var hh2) && int.TryParse(last2, out var mm2))
+            {
+                if (hh2 < 0) hh2 = 0;
+                if (hh2 > 23) hh2 = 23;
+                if (mm2 < 0) mm2 = 0;
+                if (mm2 > 59) mm2 = 59;
+                return hh2 * 60 + mm2;
+            }
+        }
+
+        return defaultMinutes;
+    }
+
+    private static string MinutesToTimeText(int minutes)
+    {
+        if (minutes < 0) minutes = 0;
+        if (minutes > 23 * 60 + 59) minutes = 23 * 60 + 59;
+        var hh = minutes / 60;
+        var mm = minutes % 60;
+        return hh.ToString("00") + ":" + mm.ToString("00");
+    }
+
+    private async Task RunNowAsync()
+    {
+        if (_running) return;
+        _running = true;
+        try
+        {
+            var res = await BackupService.RunBackupNowAsync("manual");
+            if (res.ok)
+                Toasts.Success("بکاپ با موفقیت انجام شد");
+            else
+                Toasts.Error(string.IsNullOrWhiteSpace(res.error) ? "خطا در بکاپ" : res.error);
+
+            await ReloadRunsAsync();
+        }
+        finally
+        {
+            _running = false;
+        }
+    }
+
+    private async Task ReloadRunsAsync()
+    {
+        if (_loadingRuns) return;
+        _loadingRuns = true;
+        try
+        {
+            _runs = (await BackupService.GetRunsAsync(50)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری تاریخچه: {ex.Message}");
+        }
+        finally
+        {
+            _loadingRuns = false;
+        }
+    }
+
+    private void ToggleRunExpanded(long runId)
+    {
+        _expandedRunId = _expandedRunId == runId ? null : runId;
+    }
+
+    private void OnHistorySearchChanged(ChangeEventArgs e)
+    {
+        _historySearch = e?.Value?.ToString() ?? string.Empty;
+        _historyPage = 0;
+    }
+
+    private void OnHistorySortChanged(ChangeEventArgs e)
+    {
+        _historySort = e?.Value?.ToString() ?? "new";
+        _historyPage = 0;
+    }
+
+    private void SetHistoryStatusFilter(string status)
+    {
+        _historyStatusFilter = string.IsNullOrWhiteSpace(status) ? "all" : status;
+        _historyPage = 0;
+    }
+
+    private void SetHistoryStatusFilterAll() => SetHistoryStatusFilter("all");
+    private void SetHistoryStatusFilterSuccess() => SetHistoryStatusFilter("success");
+    private void SetHistoryStatusFilterFailed() => SetHistoryStatusFilter("failed");
+    private void SetHistoryStatusFilterRunning() => SetHistoryStatusFilter("running");
+
+    private void OnHistoryPageSizeChanged(ChangeEventArgs e)
+    {
+        _historyPageSizeText = e?.Value?.ToString() ?? "20";
+        if (int.TryParse(new string((_historyPageSizeText ?? "").Where(char.IsDigit).ToArray()), out var n))
+        {
+            if (n < 1) n = 1;
+            if (n > 200) n = 200;
+            _historyPageSize = n;
+        }
+        _historyPage = 0;
+    }
+
+    private void PrevPage()
+    {
+        if (_historyPage > 0) _historyPage--;
+    }
+
+    private void NextPage()
+    {
+        var maxPage = HistoryTotalPages - 1;
+        if (_historyPage < maxPage) _historyPage++;
+    }
+
+    private List<DbBackupRun> ApplyHistoryFilters(List<DbBackupRun> runs)
+    {
+        IEnumerable<DbBackupRun> q = runs;
+
+        var st = (_historyStatusFilter ?? "all").Trim().ToLowerInvariant();
+        if (st != "all" && st.Length > 0)
+        {
+            q = q.Where(r => string.Equals((r.Status ?? string.Empty).Trim(), st, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var s = (_historySearch ?? string.Empty).Trim();
+        if (s.Length > 0)
+        {
+            q = q.Where(r =>
+                (r.Status ?? string.Empty).Contains(s, StringComparison.OrdinalIgnoreCase)
+                || ToFaStatus(r.Status).Contains(s, StringComparison.OrdinalIgnoreCase)
+                || (r.BackupFilePath ?? string.Empty).Contains(s, StringComparison.OrdinalIgnoreCase)
+                || (r.ErrorMessage ?? string.Empty).Contains(s, StringComparison.OrdinalIgnoreCase)
+                || r.RunId.ToString().Contains(s, StringComparison.OrdinalIgnoreCase));
+        }
+
+        q = (_historySort ?? "new") switch
+        {
+            "old" => q.OrderBy(r => r.CreatedAtUtc),
+            "status" => q.OrderBy(r => r.Status).ThenByDescending(r => r.CreatedAtUtc),
+            "size" => q.OrderByDescending(r => r.BackupFileSizeBytes ?? -1).ThenByDescending(r => r.CreatedAtUtc),
+            _ => q.OrderByDescending(r => r.CreatedAtUtc)
+        };
+
+        return q.ToList();
+    }
+
+    private static string FormatServerTime(DateTime utc)
+    {
+        try
+        {
+            return utc.ToString("yyyy-MM-dd HH:mm");
+        }
+        catch
+        {
+            return utc.ToString("yyyy-MM-dd HH:mm");
+        }
+    }
+
+    private static string FormatServerTimeNullable(DateTime? utc)
+    {
+        if (!utc.HasValue) return "-";
+        return FormatServerTime(utc.Value);
+    }
+
+    private static string ToFaStatus(string? status)
+    {
+        var s = (status ?? string.Empty).Trim().ToLowerInvariant();
+        return s switch
+        {
+            "success" => "موفق",
+            "failed" => "ناموفق",
+            "running" => "در حال اجرا",
+            "" => "-",
+            _ => status ?? "-"
+        };
+    }
+
+    private List<DbBackupRun> ApplyPaging(List<DbBackupRun> runs)
+    {
+        var totalPages = Math.Max(1, (int)Math.Ceiling((double)runs.Count / Math.Max(1, _historyPageSize)));
+        var maxPage = totalPages - 1;
+        if (_historyPage > maxPage) _historyPage = maxPage;
+        if (_historyPage < 0) _historyPage = 0;
+
+        return runs
+            .Skip(_historyPage * _historyPageSize)
+            .Take(_historyPageSize)
+            .ToList();
+    }
+
+    private string GetStatusChipClass(string? status)
+    {
+        var s = (status ?? string.Empty).Trim().ToLowerInvariant();
+        if (s == "success") return "success";
+        if (s == "failed") return "failed";
+        if (s == "running") return "running";
+        return "other";
+    }
+
+    private async Task DeleteRunAsync(long runId)
+    {
+        try
+        {
+            var res = await BackupService.DeleteRunAndFileAsync(runId);
+            if (res.ok)
+            {
+                Toasts.Success("حذف شد");
+                await ReloadRunsAsync();
+            }
+            else
+            {
+                Toasts.Error(res.error ?? "خطا در حذف");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در حذف: {ex.Message}");
+        }
+    }
+
+    private void AskDeleteRun(long runId)
+    {
+        _pendingDeleteRunId = runId;
+        _showDeleteConfirm = true;
+    }
+
+    private async Task ConfirmDeleteRun()
+    {
+        _showDeleteConfirm = false;
+        if (_pendingDeleteRunId.HasValue)
+            await DeleteRunAsync(_pendingDeleteRunId.Value);
+        _pendingDeleteRunId = null;
+    }
+
+    private Task CancelDeleteRun()
+    {
+        _showDeleteConfirm = false;
+        _pendingDeleteRunId = null;
+        return Task.CompletedTask;
+    }
+}

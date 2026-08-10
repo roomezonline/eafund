@@ -1,0 +1,395 @@
+@page "/storybook"
+@using MiniBank.Web.Components.DesignSystem
+@namespace MiniBank.Web.Components.DesignSystem
+@inject DsToastService Toasts
+
+<PageTitle>Design System Storybook</PageTitle>
+
+<div class="storybook-container">
+  <header class="storybook-header">
+    <h1>MiniBank Design System</h1>
+    <p>مجموعه کامپوننت‌های طراحی سیستم متمرکز</p>
+    
+    <div class="theme-switcher">
+      <DsToggle Label="حالت تیره" 
+                @bind-Value="_darkMode"
+                @bind-Value:after="ToggleTheme" />
+    </div>
+  </header>
+
+  <nav class="storybook-nav">
+    <button class="nav-btn @(_activeSection == "all" ? "active" : "")" 
+            @onclick="@(() => _activeSection = "all")">
+      همه
+    </button>
+    <button class="nav-btn @(_activeSection == "buttons" ? "active" : "")" 
+            @onclick="@(() => _activeSection = "buttons")">
+      دکمه‌ها
+    </button>
+    <button class="nav-btn @(_activeSection == "inputs" ? "active" : "")" 
+            @onclick="@(() => _activeSection = "inputs")">
+      ورودی‌ها
+    </button>
+    <button class="nav-btn @(_activeSection == "cards" ? "active" : "")" 
+            @onclick="@(() => _activeSection = "cards")">
+      کارت‌ها
+    </button>
+    <button class="nav-btn @(_activeSection == "toggles" ? "active" : "")" 
+            @onclick="@(() => _activeSection = "toggles")">
+      سوییچ‌ها
+    </button>
+    <button class="nav-btn @(_activeSection == "dropdowns" ? "active" : "")" 
+            @onclick="@(() => _activeSection = "dropdowns")">
+      دراپ‌داون‌ها
+    </button>
+    <button class="nav-btn @(_activeSection == "modals" ? "active" : "")" 
+            @onclick="@(() => _activeSection = "modals")">
+      مودال‌ها
+    </button>
+  </nav>
+
+  <main class="storybook-content">
+    @if (_activeSection == "all")
+    {
+      @RenderButtons()
+      @RenderInputs()
+      @RenderCards()
+      @RenderToggles()
+      @RenderModals()
+      @RenderDropdowns()
+    }
+    @if (_activeSection == "buttons")
+    {
+      @RenderButtons()
+    }
+
+    @if (_activeSection == "inputs")
+    {
+      @RenderInputs()
+    }
+
+    @if (_activeSection == "cards")
+    {
+      @RenderCards()
+    }
+
+    @if (_activeSection == "toggles")
+    {
+      @RenderToggles()
+    }
+
+    @if (_activeSection == "dropdowns")
+    {
+      @RenderDropdowns()
+    }
+
+    @if (_activeSection == "modals")
+    {
+      @RenderModals()
+    }
+  </main>
+</div>
+
+<!-- Modals -->
+<DsConfirm Show="_showInfoConfirm"
+           Title="اطلاعات"
+           Message="این یک پیام اطلاعاتی است."
+           Variant="info"
+           OnConfirm="@(() => _showInfoConfirm = false)"
+           OnCancel="@(() => _showInfoConfirm = false)" />
+
+<DsConfirm Show="_showWarnConfirm"
+           Title="هشدار"
+           Message="آیا از انجام این عمل اطمینان دارید؟"
+           Variant="warn"
+           OnConfirm="@(() => _showWarnConfirm = false)"
+           OnCancel="@(() => _showWarnConfirm = false)" />
+
+<DsConfirm Show="_showDangerConfirm"
+           Title="حذف"
+           Message="این عمل قابل بازگشت نیست. آیا ادامه می‌دهید؟"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           OnConfirm="@(() => _showDangerConfirm = false)"
+           OnCancel="@(() => _showDangerConfirm = false)" />
+
+<DsSheet Show="_showSheet"
+         Title="نمونه شیت"
+         OnConfirm="@(() => _showSheet = false)"
+         OnCancel="@(() => _showSheet = false)">
+  <div class="p-4">
+    <DsInput Label="نام" @bind-Value="_sheetName" />
+    <DsInput Label="توضیحات" Type="textarea" @bind-Value="_sheetDescription" Rows="3" />
+    <DsToggle Label="فعال" @bind-Value="_sheetActive" />
+  </div>
+</DsSheet>
+
+@code {
+  private string _activeSection = "buttons";
+  private bool _darkMode = false;
+  
+  // Sample data
+  private string _sampleText = "نمونه متن";
+  private string _sampleEmail = "user@example.com";
+  private string _samplePassword = "";
+  private string _sampleNumber = "123";
+  private string _sampleTextarea = "این یک متن نمونه برای textarea است.";
+  private string _sampleErrorEmail = "invalid-email";
+  private string _sampleRequired = "";
+  
+  private int _cardClickCount = 0;
+  
+  private bool _toggle1 = true;
+  private bool _toggle2 = false;
+  private bool _toggle3 = true;
+  private bool _toggle4 = false;
+  private bool _toggle5 = false;
+  private bool _toggle6 = true;
+  private bool _toggle7 = false;
+  private bool _toggle8 = true;
+  
+  private bool _showInfoConfirm = false;
+  private bool _showWarnConfirm = false;
+  private bool _showDangerConfirm = false;
+  private bool _showSheet = false;
+  
+  private string _sheetName = "";
+  private string _sheetDescription = "";
+  private bool _sheetActive = false;
+  
+  // Dropdown sample state
+  private string? _dd1;
+  private string? _dd2 = "middle";
+  private string? _dd3;
+  private IEnumerable<DsDropdown.DsDropdownItem> _ddItems = new []
+  {
+    new DsDropdown.DsDropdownItem { Value = "first", Text = "اول" },
+    new DsDropdown.DsDropdownItem { Value = "middle", Text = "میانی" },
+    new DsDropdown.DsDropdownItem { Value = "last", Text = "آخر" },
+  };
+
+  private void ToggleTheme()
+  {
+    var theme = _darkMode ? "dark" : "light";
+    // This would typically be handled by JavaScript
+    // JS.InvokeVoidAsync("setTheme", theme);
+  }
+
+  private RenderFragment RenderButtons() => @<section class="story-section">
+      <h2>DsButton - دکمه‌ها</h2>
+      <div class="story-group">
+        <h3>انواع مختلف (Variants)</h3>
+        <div class="component-showcase">
+          <DsButton Variant="primary">اصلی</DsButton>
+          <DsButton Variant="secondary">ثانویه</DsButton>
+          <DsButton Variant="danger">خطرناک</DsButton>
+          <DsButton Variant="warn">هشدار</DsButton>
+          <DsButton Variant="outline">خطی</DsButton>
+          <DsButton Variant="ghost">شبح</DsButton>
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>اندازه‌ها (Sizes)</h3>
+        <div class="component-showcase">
+          <DsButton Size="small">کوچک</DsButton>
+          <DsButton Size="medium">متوسط</DsButton>
+          <DsButton Size="large">بزرگ</DsButton>
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>با آیکون و Toast</h3>
+        <div class="component-showcase">
+          <DsButton Icon="fa-solid fa-plus">افزودن</DsButton>
+          <DsButton Icon="fa-solid fa-edit" Variant="secondary">ویرایش</DsButton>
+          <DsButton Icon="fa-solid fa-trash" Variant="danger">حذف</DsButton>
+          <DsButton Variant="primary" @onclick="ShowToast">نمایش Toast</DsButton>
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>حالت‌های مختلف</h3>
+        <div class="component-showcase">
+          <DsButton IsLoading="true">در حال بارگذاری</DsButton>
+          <DsButton Disabled="true">غیرفعال</DsButton>
+        </div>
+      </div>
+    </section>;
+
+  private RenderFragment RenderDropdowns() => @<section class="story-section">
+      <h2>DsDropdown - دراپ‌داون</h2>
+      <div class="story-group">
+        <h3>ساده با Placeholder</h3>
+        <div class="component-showcase">
+          <DsDropdown Label="انتخاب گزینه" Placeholder="انتخاب کنید" Items="_ddItems" Value="@_dd1" ValueChanged="@(v => _dd1 = v)" />
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>با مقدار اولیه</h3>
+        <div class="component-showcase">
+          <DsDropdown Label="گزینه‌ها" Items="_ddItems" Value="@_dd2" ValueChanged="@(v => _dd2 = v)" />
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>با پیام خطا و Help</h3>
+        <div class="component-showcase">
+          <DsDropdown Label="گزینه اجباری" Placeholder="انتخاب کنید" Items="_ddItems" Value="@_dd3" ValueChanged="@(v => _dd3 = v)" ErrorMessage="@(_dd3 is null ? "انتخاب این فیلد الزامی است" : null)" HelperText="یکی از گزینه‌ها را برگزینید" />
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>غیرفعال</h3>
+        <div class="component-showcase">
+          <DsDropdown Label="غیرفعال" Items="_ddItems" Value="middle" Disabled="true" />
+        </div>
+      </div>
+    </section>;
+
+  private RenderFragment RenderInputs() => @<section class="story-section">
+      <h2>DsInput / DsMoneyInput - ورودی‌ها</h2>
+      <div class="story-group">
+        <h3>انواع مختلف</h3>
+        <div class="input-showcase">
+          <DsInput Label="نام" @bind-Value="_sampleText" Placeholder="نام خود را وارد کنید" />
+          <DsInput Label="ایمیل" Type="email" @bind-Value="_sampleEmail" />
+          <DsInput Label="رمز عبور" Type="password" @bind-Value="_samplePassword" />
+          <DsInput Label="عدد" Type="number" @bind-Value="_sampleNumber" />
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>Textarea</h3>
+        <div class="input-showcase">
+          <DsInput Label="توضیحات" Type="textarea" @bind-Value="_sampleTextarea" Rows="4" Placeholder="توضیحات خود را بنویسید..." />
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>با پیام خطا و راهنما</h3>
+        <div class="input-showcase">
+          <DsInput Label="ایمیل" @bind-Value="_sampleErrorEmail" ErrorMessage="@(_sampleErrorEmail?.Contains("@") == false ? "ایمیل معتبر وارد کنید" : "")" HelperText="مثال: user@example.com" />
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>DsMoneyInput</h3>
+        <div class="input-showcase">
+          <DsMoneyInput Label="مبلغ" Value="@_money1" ValueChanged="(v => _money1 = v)" />
+          <DsMoneyInput Label="مبلغ منفی" Value="@_money2" ValueChanged="(v => _money2 = v)" AllowNegative="true" />
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>DsDateText</h3>
+        <div class="input-showcase">
+          <div>
+            <div style="margin-bottom:6px; font-weight:700;">فرمت کوتاه</div>
+            <DsDateText Value="@DateTime.Now" FormatName="Short" />
+          </div>
+          <div>
+            <div style="margin-bottom:6px; font-weight:700;">فرمت بلند</div>
+            <DsDateText Value="@DateTime.Now" FormatName="Long" />
+          </div>
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>حالت‌های مختلف</h3>
+        <div class="input-showcase">
+          <DsInput Label="غیرفعال" @bind-Value="_sampleText" Disabled="true" />
+          <DsInput Label="اجباری" @bind-Value="_sampleRequired" Required="true" />
+        </div>
+      </div>
+    </section>;
+
+  private RenderFragment RenderCards() => @<section class="story-section">
+      <h2>DsCard - کارت‌ها</h2>
+      <div class="story-group">
+        <h3>کارت ساده</h3>
+        <div class="card-showcase">
+          <DsCard Title="عنوان کارت" Subtitle="زیرعنوان">
+            <Content>
+              <p>این یک کارت ساده است که محتوای متنی دارد.</p>
+            </Content>
+          </DsCard>
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>کارت با اکشن</h3>
+        <div class="card-showcase">
+          <DsCard Title="کارت با دکمه‌ها" Subtitle="دارای اکشن‌های مختلف">
+            <Content>
+              <p>این کارت دارای دکمه‌های اکشن در پایین است.</p>
+            </Content>
+            <Actions>
+              <DsButton Variant="outline" Size="small">ویرایش</DsButton>
+              <DsButton Variant="ghost" Size="small">حذف</DsButton>
+            </Actions>
+          </DsCard>
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>کارت قابل کلیک</h3>
+        <div class="card-showcase">
+          <DsCard Title="کارت قابل کلیک" Subtitle="کلیک کنید" IsClickable="true" OnClick="@(() => _cardClickCount++)">
+            <Content>
+              <p>تعداد کلیک: @_cardClickCount</p>
+            </Content>
+          </DsCard>
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>سطوح ارتفاع مختلف</h3>
+        <div class="card-showcase">
+          <DsCard Title="سطح 1" Elevation="1"><Content>سایه کم</Content></DsCard>
+          <DsCard Title="سطح 2" Elevation="2"><Content>سایه متوسط</Content></DsCard>
+          <DsCard Title="سطح 3" Elevation="3"><Content>سایه زیاد</Content></DsCard>
+        </div>
+      </div>
+    </section>;
+
+  private RenderFragment RenderToggles() => @<section class="story-section">
+      <h2>DsToggle - سوییچ‌ها</h2>
+      <div class="story-group">
+        <h3>سوییچ ساده</h3>
+        <div class="toggle-showcase">
+          <DsToggle Label="فعال/غیرفعال" @bind-Value="_toggle1" />
+          <DsToggle Label="اعلان‌ها" @bind-Value="_toggle2" />
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>با توضیحات و آیکون</h3>
+        <div class="toggle-showcase">
+          <DsToggle Label="ایمیل‌های تبلیغاتی" Description="دریافت ایمیل‌های تبلیغاتی و اطلاعیه‌ها" @bind-Value="_toggle3" />
+          <DsToggle Label="اعلان‌ها" Icon="fa-solid fa-bell" @bind-Value="_toggle4" />
+          <DsToggle Label="حالت تیره" Icon="fa-solid fa-moon" @bind-Value="_toggle5" />
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>اندازه‌ها و وضعیت‌ها</h3>
+        <div class="toggle-showcase">
+          <DsToggle Label="کوچک" Size="small" @bind-Value="_toggle6" />
+          <DsToggle Label="متوسط" Size="medium" @bind-Value="_toggle7" />
+          <DsToggle Label="بزرگ" Size="large" @bind-Value="_toggle8" />
+          <DsToggle Label="غیرفعال (خاموش)" Disabled="true" Value="false" />
+          <DsToggle Label="غیرفعال (روشن)" Disabled="true" Value="true" />
+        </div>
+      </div>
+    </section>;
+
+  private RenderFragment RenderModals() => @<section class="story-section">
+      <h2>مودال‌ها و دیالوگ‌ها</h2>
+      <div class="story-group">
+        <h3>DsConfirm - دیالوگ تایید</h3>
+        <div class="component-showcase">
+          <DsButton @onclick="@(() => _showInfoConfirm = true)">اطلاعات</DsButton>
+          <DsButton Variant="warn" @onclick="@(() => _showWarnConfirm = true)">هشدار</DsButton>
+          <DsButton Variant="danger" @onclick="@(() => _showDangerConfirm = true)">خطر</DsButton>
+        </div>
+      </div>
+      <div class="story-group">
+        <h3>DsSheet - شیت iOS</h3>
+        <div class="component-showcase">
+          <DsButton @onclick="@(() => _showSheet = true)">نمایش شیت</DsButton>
+        </div>
+      </div>
+    </section>;
+
+  private void ShowToast() => Toasts.Success("نمونه Toast");
+
+  private string? _money1;
+  private string? _money2;
+}

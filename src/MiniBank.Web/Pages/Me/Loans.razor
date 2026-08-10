@@ -1,0 +1,377 @@
+@page "/me/loans"
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using MiniBank.Web.Models
+@using MiniBank.Web.Models.Reports
+@using Microsoft.AspNetCore.WebUtilities
+@using MiniBank.Web.Utilities
+@using MiniBank.Web.Components.Member
+@using MiniBank.Web.Core.Interfaces
+
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository AuthRepo
+@inject MiniBank.Web.Services.LoanService LoanSvc
+@inject MiniBank.Web.Services.MemberService MemberService
+@inject MiniBank.Web.Infrastructure.Repositories.TransactionReportRepository TxReports
+@inject IHouseholdRepository HouseholdRepo
+
+<MemberSelector OnMemberChanged="OnMemberSelectorChanged" />
+
+<style>
+  :root{--c-bg:#f7f9fc;--c-card:#ffffff;--c-border:#e5e7eb;--c-text:#0f172a;--c-muted:#64748b;--c-brand:#0ea5e9;--c-ok:#16a34a;--c-warn:#f59e0b;--c-bad:#dc2626;--c-violet:#7c3aed}
+  .me-shell{max-width:980px;margin:0 auto;padding:16px 14px 80px;direction:rtl}
+  .card{background:var(--c-card);border:1px solid var(--c-border);border-radius:16px;padding:14px;box-shadow:0 10px 25px rgba(15,23,42,.06)}
+  .card.accent{border-color:#ddd6fe;background:linear-gradient(180deg,#ffffff,#f5f3ff)}
+  .title{font-weight:950;color:#0f172a;margin-bottom:8px}
+  .muted{color:#64748b;font-weight:800;font-size:12px}
+
+  .loan{border:1px solid #eef2f7;border-radius:18px;padding:12px;background:linear-gradient(180deg,#ffffff,#f8fafc)}
+  .loan-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .loan-name{font-weight:950;color:#0f172a;font-size:13px}
+  .loan-meta{font-weight:900;color:#64748b;font-size:11px;white-space:nowrap}
+  .loan-amt{font-weight:950;color:#0f172a;font-size:14px;white-space:nowrap}
+
+  .kpis{margin-top:10px;display:grid;grid-template-columns:1fr;gap:8px}
+  @@media (min-width: 700px){.kpis{grid-template-columns:1fr 1fr}}
+  .kv{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:#fff;border:1px solid #eef2f7}
+  .k{font-weight:800;color:#64748b;font-size:12px}
+  .v{font-weight:950;color:#0f172a;font-size:12px;white-space:nowrap}
+
+  .actions{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+  .btn{border:1px solid #e5e7eb;background:#fff;color:#0f172a;border-radius:12px;padding:9px 12px;font-weight:950;font-size:12px;cursor:pointer}
+  .btn.primary{border-color:#0ea5e9;background:#0ea5e9;color:#fff}
+
+  .inst{margin-top:10px;border-top:1px dashed #e5e7eb;padding-top:10px}
+  .inst-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px 10px;border-radius:14px;border:1px solid #eef2f7;background:#fff;margin-top:8px}
+  .inst-row.paid{border-color:#86efac;background:linear-gradient(180deg,#ecfdf5,#ffffff)}
+  .inst-no{font-weight:950;color:#0f172a;font-size:12px}
+  .inst-sub{font-weight:900;color:#64748b;font-size:11px}
+  .inst-amt{font-weight:950;color:#0f172a;font-size:12px;white-space:nowrap}
+
+  .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 8px;font-weight:950;font-size:11px;border:1px solid transparent;white-space:nowrap}
+  .b-paid{background:#dcfce7;border-color:#86efac;color:#166534}
+  .b-partial{background:#ffedd5;border-color:#fdba74;color:#9a3412}
+  .b-unpaid{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+
+  .b-loan-active{background:#e0f2fe;border-color:#bae6fd;color:#0369a1}
+  .b-loan-settled{background:#dcfce7;border-color:#86efac;color:#166534}
+  .b-loan-cancelled{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+  .b-loan-other{background:#f1f5f9;border-color:#e2e8f0;color:#0f172a}
+
+  .amt{font-variant-numeric:tabular-nums}
+  .amt.primary{color:#0f172a}
+  .amt.good{color:var(--c-ok)}
+  .amt.brand{color:#0369a1}
+</style>
+
+<div class="me-shell">
+  <div class="card accent" style="margin-bottom:12px">
+    <div class="title">وضعیت وام‌ها</div>
+    <div class="muted">لیست وام‌های ثبت‌شده و اقساط هر وام</div>
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+      <div style="margin-top:10px;font-weight:950;color:#b91c1c">@_error</div>
+    }
+  </div>
+
+  @if (_loading)
+  {
+    <div class="card"><div class="muted">در حال بارگذاری...</div></div>
+  }
+  else if (_members.Count == 0)
+  {
+    <div class="card"><div class="muted">اطلاعات اعضای خانوار یافت نشد.</div></div>
+  }
+  else
+  {
+    <div style="display:flex;flex-direction:column;gap:12px">
+      @foreach (var m in _members)
+      {
+        _loansByMember.TryGetValue(m.MemberId, out var loans);
+        <div class="card">
+          <div class="title" style="margin-bottom:6px">@m.MemberName</div>
+          <div class="muted">کد عضویت: @m.MemberId</div>
+
+          @if (loans == null || loans.Count == 0)
+          {
+            <div class="muted" style="margin-top:10px">وامی برای این عضو یافت نشد.</div>
+          }
+          else
+          {
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px">
+              @foreach (var l in loans)
+              {
+                var open = _openLoanId == l.LoanId;
+                _installments.TryGetValue(l.LoanId, out var _instForLoan);
+                var remainingPrincipal = _instForLoan != null
+                  ? _instForLoan.Sum(x => Math.Max(0m, x.PrincipalAmount - x.PaidPrincipal))
+                  : l.OutstandingPrincipal;
+                var remainingInterest = _instForLoan != null
+                  ? _instForLoan.Sum(x => Math.Max(0m, x.InterestAmount - x.PaidInterest))
+                  : 0m;
+                var remainingTotal = remainingPrincipal + remainingInterest;
+                <div class="loan">
+                  <div class="loan-top">
+                    <div style="min-width:0">
+                      <div class="loan-name">وام #@l.LoanId</div>
+                      <div class="loan-meta">@FmtDate(l.DisbursedAt) | <span class="badge @LoanBadge(l.Status)">@FmtLoanStatus(l.Status)</span></div>
+                    </div>
+                  </div>
+
+                  <div class="kpis">
+                    <div class="kv"><span class="k">مدت</span><span class="v">@l.TermMonths ماه</span></div>
+                    <div class="kv"><span class="k">قسط ماهانه</span><span class="v">@FmtMoney(l.EmiAmount)</span></div>
+                    <div class="kv"><span class="k">مانده وام</span><span class="v">@FmtMoney(remainingTotal)</span></div>
+                    @{
+                      DateTime? nextDueDate = null;
+                      if (_instForLoan != null && _instForLoan.Count > 0)
+                      {
+                        nextDueDate = _instForLoan
+                          .Where(x => x.Status != LoanInstallmentStatus.Paid)
+                          .OrderBy(x => x.DueDate)
+                          .Select(x => (DateTime?)x.DueDate)
+                          .FirstOrDefault();
+                      }
+                    }
+                    <div class="kv"><span class="k">تاریخ قسط بعدی</span><span class="v">@(nextDueDate.HasValue ? FmtDate(nextDueDate.Value) : "-")</span></div>
+                  </div>
+
+                  <div class="actions">
+                    <button class="btn primary" @onclick="(()=>ToggleLoan(l.LoanId))">@(open ? "بستن اقساط" : "نمایش اقساط")</button>
+                  </div>
+
+                  @if (open)
+                  {
+                    <div class="inst">
+                      @if (_installments.TryGetValue(l.LoanId, out var insts) && insts.Count > 0)
+                      {
+                        @foreach (var it in insts)
+                        {
+                          <div class="inst-row @(it.Status == LoanInstallmentStatus.Paid ? "paid" : null)">
+                            <div>
+                              <div class="inst-no">قسط @it.InstallmentNo</div>
+                              <div class="inst-sub"><i class="fa-regular fa-clock" style="margin-inline-end:6px"></i>سررسید: @FmtDate(it.DueDate) | <span class="badge @InstallmentBadge(it.Status)">@FmtInstallmentStatus(it.Status)</span></div>
+                            </div>
+                            <div class="inst-amt">@FmtMoney(it.EmiAmount)</div>
+                          </div>
+                        }
+                      }
+                      else
+                      {
+                        <div class="muted">اقساطی برای این وام ثبت نشده است.</div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
+
+@code {
+  private bool _loading = true;
+  private string? _error;
+
+  private List<MemberBankingBalanceRow> _members = new();
+  private Dictionary<long, List<Loan>> _loansByMember = new();
+  private Dictionary<long, List<LoanInstallment>> _installments = new();
+  private long? _openLoanId;
+  private long? _filterMemberId;
+  
+  // Member selector for admin/staff
+  private long? _adminSelectedMemberId;
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      _loading = true;
+      _error = null;
+
+      var memberId = await ResolveMemberIdAsync();
+      if (memberId <= 0)
+      {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var role = state.User?.FindFirst("role")?.Value ?? state.User?.FindFirst(ClaimTypes.Role)?.Value;
+        var isMemberRole = string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase);
+
+        if (!isMemberRole)
+        {
+          _members = new();
+          _loansByMember = new();
+          _installments = new();
+          _error = "برای مشاهده اطلاعات وام‌ها، ابتدا یک عضو را از لیست بالا انتخاب کنید.";
+          return;
+        }
+
+        _error = "اطلاعات عضویت برای این کاربر ثبت نشده است.";
+        return;
+      }
+
+      _filterMemberId = GetRequestedMemberId();
+      if (_adminSelectedMemberId.HasValue && _adminSelectedMemberId.Value > 0)
+        _filterMemberId = null;
+
+      var me = await MemberService.GetByIdAsync(memberId);
+      if (me == null)
+      {
+        _error = "عضو یافت نشد.";
+        return;
+      }
+
+      if (string.IsNullOrWhiteSpace(me.HouseholdCode))
+      {
+        // no household: show only my loans
+        var own = (await LoanSvc.GetByMemberAsync(memberId)).OrderByDescending(x => x.LoanId).ToList();
+        _members = new List<MemberBankingBalanceRow> { new MemberBankingBalanceRow { MemberId = memberId, MemberName = me.FullName ?? $"#{memberId}" } };
+        _loansByMember = new Dictionary<long, List<Loan>> { [memberId] = own };
+      }
+      else
+      {
+        var rows = await TxReports.GetHouseholdMemberBankingBalancesAsync(me.HouseholdCode);
+        _members = rows.ToList();
+
+        if (_filterMemberId.HasValue && _filterMemberId.Value > 0)
+        {
+          if (_members.Any(x => x.MemberId == _filterMemberId.Value))
+            _members = _members.Where(x => x.MemberId == _filterMemberId.Value).ToList();
+          else
+            _filterMemberId = null;
+        }
+
+        _loansByMember = new Dictionary<long, List<Loan>>();
+        foreach (var m in _members)
+        {
+          var loans = (await LoanSvc.GetByMemberAsync(m.MemberId)).OrderByDescending(x => x.LoanId).ToList();
+          _loansByMember[m.MemberId] = loans;
+        }
+      }
+
+      _installments = new();
+      foreach (var list in _loansByMember.Values)
+      {
+        foreach (var l in list)
+        {
+          var rows = (await LoanSvc.GetInstallmentsAsync(l.LoanId)).OrderBy(x => x.InstallmentNo).ToList();
+          _installments[l.LoanId] = rows;
+        }
+      }
+
+      _openLoanId = null;
+    }
+    catch (Exception ex)
+    {
+      _error = $"خطا در بارگذاری وام‌ها: {ex.Message}";
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private void ToggleLoan(long loanId)
+  {
+    _openLoanId = _openLoanId == loanId ? null : loanId;
+  }
+
+  private long? GetRequestedMemberId()
+  {
+    try
+    {
+      var uri = Nav.ToAbsoluteUri(Nav.Uri);
+      var q = QueryHelpers.ParseQuery(uri.Query);
+      if (q.TryGetValue("memberId", out var v) && long.TryParse(v.ToString(), out var id) && id > 0)
+        return id;
+    }
+    catch { }
+    return null;
+  }
+
+  private async Task<long> ResolveMemberIdAsync()
+  {
+    // If admin has selected a member, prioritize that selection
+    if (_adminSelectedMemberId.HasValue && _adminSelectedMemberId.Value > 0)
+      return _adminSelectedMemberId.Value;
+
+    var state = await AuthStateProvider.GetAuthenticationStateAsync();
+    var user = state.User;
+
+    var memberIdClaim = user?.FindFirst("MemberId")?.Value;
+    if (long.TryParse(memberIdClaim, out var memberId) && memberId > 0)
+      return memberId;
+
+    var userIdClaim = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (!long.TryParse(userIdClaim, out var userId) || userId <= 0)
+      return 0;
+
+    var dbUser = await AuthRepo.GetUserByIdAsync(userId);
+    return dbUser?.MemberId ?? 0;
+  }
+
+  private static string FmtMoney(decimal v)
+    => string.Format(System.Globalization.CultureInfo.GetCultureInfo("fa-IR"), "{0:n0}", v) + " ریال";
+
+  private static string FmtDate(DateTime dt)
+    => dt.ToShamsiDateString();
+
+  private static string FmtLoanStatus(LoanStatus s)
+  {
+    return s switch
+    {
+      LoanStatus.Draft => "پیش‌نویس",
+      LoanStatus.Approved => "تایید شده",
+      LoanStatus.Disbursed => "پرداخت شده",
+      LoanStatus.Active => "فعال",
+      LoanStatus.Settled => "تسویه شده",
+      LoanStatus.Cancelled => "لغو شده",
+      _ => s.ToString()
+    };
+  }
+
+  private static string LoanBadge(LoanStatus s)
+  {
+    return s switch
+    {
+      LoanStatus.Active => "b-loan-active",
+      LoanStatus.Settled => "b-loan-settled",
+      LoanStatus.Cancelled => "b-loan-cancelled",
+      _ => "b-loan-other"
+    };
+  }
+
+  private static string FmtInstallmentStatus(LoanInstallmentStatus s)
+  {
+    return s switch
+    {
+      LoanInstallmentStatus.Unpaid => "پرداخت‌نشده",
+      LoanInstallmentStatus.PartiallyPaid => "نیمه‌پرداخت",
+      LoanInstallmentStatus.Paid => "پرداخت‌شده",
+      _ => s.ToString()
+    };
+  }
+
+  private static string InstallmentBadge(LoanInstallmentStatus s)
+  {
+    return s switch
+    {
+      LoanInstallmentStatus.Paid => "b-paid",
+      LoanInstallmentStatus.PartiallyPaid => "b-partial",
+      LoanInstallmentStatus.Unpaid => "b-unpaid",
+      _ => "b-unpaid"
+    };
+  }
+
+  private async Task OnMemberSelectorChanged(long? memberId)
+  {
+    _adminSelectedMemberId = memberId;
+    
+    // Reload loans with new member selection
+    await OnInitializedAsync();
+  }
+}

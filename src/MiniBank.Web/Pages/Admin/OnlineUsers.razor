@@ -1,0 +1,336 @@
+@page "/admin/online-users"
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Services.OnlineUsersTracker Tracker
+@inject MiniBank.Web.Infrastructure.Repositories.MemberRepository Members
+@inject MiniBank.Web.Infrastructure.Repositories.AuthRepository AuthRepo
+@using System.Globalization
+
+<div class="online-users-page">
+  <DsPageHeader Icon="fa-solid fa-signal"
+                Title="کاربران آنلاین"
+                Subtitle="نظارت بر فعالیت کاربران بر اساس آخرین فعالیت"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                OnRefreshClick="RefreshAsync" />
+
+  <div class="ou-controls">
+    <div class="ou-controls-row">
+      <DsSearchCard @bind-Value="_keyword" Placeholder="جستجو: نام و نام خانوادگی، شماره عضویت، نام کاربری، نقش..." />
+      <div class="ou-actions">
+        <DsButton Variant="warn" Disabled="@_loading" Icon="fa-solid fa-arrows-rotate" OnClick="RefreshAsync">
+          بروزرسانی
+        </DsButton>
+        <DsButton Variant="outline" Disabled="@_loading" OnClick="ToggleSort">
+          @(_sortDescending ? "جدیدترین" : "قدیمی‌ترین")
+        </DsButton>
+      </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_lastRefreshText))
+    {
+      <div class="ou-refresh-note">آخرین بروزرسانی: @_lastRefreshText</div>
+    }
+  </div>
+
+  <main class="ou-main">
+    @if (_loading)
+    {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>در حال بارگذاری...</p>
+      </div>
+    }
+    else if (_items.Count == 0)
+    {
+      <div class="empty-state">
+        <div class="empty-icon"><i class="fa-solid fa-user-clock"></i></div>
+        <h3>کاربر فعالی یافت نشد</h3>
+        <p>اگر کاربران در سیستم باشند، در این لیست نمایش داده می‌شوند.</p>
+      </div>
+    }
+    else
+    {
+      <div class="ou-grid">
+        @foreach (var it in _items)
+        {
+          var isOnline = IsOnline(it.LastSeenUtc);
+          <div class="ou-card @(isOnline ? "on" : "off")">
+            <div class="ou-top">
+              <div class="ou-title">
+                <div class="ou-username">@DisplayName(it)</div>
+                @if (!string.IsNullOrWhiteSpace(it.Role))
+                {
+                  <div class="ou-role">@ToFaRole(it.Role)</div>
+                }
+              </div>
+              <div class="ou-badges">
+                <span class="badge status @(isOnline ? "on" : "off")">@(isOnline ? "آنلاین" : "آفلاین")</span>
+              </div>
+            </div>
+
+            <div class="ou-body">
+              <div class="kv"><span class="k">آخرین فعالیت</span><span class="v time">@FormatAgoFaMarkup(it.LastSeenUtc)</span></div>
+              <div class="kv"><span class="k">آخرین مسیر</span><span class="v path" dir="ltr">@(string.IsNullOrWhiteSpace(it.LastPath) ? "-" : it.LastPath)</span></div>
+              <div class="kv"><span class="k">عضو</span><span class="v">@(it.MemberId?.ToString() ?? "-")</span></div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </main>
+</div>
+
+@code {
+  private bool _loading = true;
+  private List<MiniBank.Web.Services.OnlineUsersTracker.OnlineUserItem> _items = new();
+  private List<MiniBank.Web.Services.OnlineUsersTracker.OnlineUserItem> _allItems = new();
+  private CancellationTokenSource? _cts;
+  private Dictionary<long, string> _memberNames = new();
+  private bool _sortDescending = true;
+  private DateTime? _lastRefreshUtc;
+  private string _lastRefreshText = string.Empty;
+
+  private string _kw = string.Empty;
+  private string _keyword
+  {
+    get => _kw;
+    set
+    {
+      _kw = value ?? string.Empty;
+      ApplyFilter();
+    }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    _cts = new CancellationTokenSource();
+    await RefreshAsync();
+  }
+
+  private async Task RefreshAsync()
+  {
+    if (_loading == false)
+      _loading = true;
+
+    var snap = Tracker.Snapshot();
+
+    var users = await AuthRepo.GetUsersAsync(keyword: null, roleId: null, sortBy: null, top: 500);
+
+    // Merge: show all system users. If user has tracker entry, keep its LastSeen/Path.
+    var map = snap.ToDictionary(x => (x.Username ?? string.Empty).Trim(), x => x, StringComparer.Ordinal);
+    var merged = new List<MiniBank.Web.Services.OnlineUsersTracker.OnlineUserItem>(users.Count);
+
+    foreach (var u in users)
+    {
+      var uname = (u.Username ?? string.Empty).Trim();
+      if (string.IsNullOrWhiteSpace(uname))
+        continue;
+
+      if (map.TryGetValue(uname, out var tracked))
+      {
+        merged.Add(tracked);
+        continue;
+      }
+
+      var roleName = (u.Role?.Name ?? string.Empty).Trim();
+      if (string.IsNullOrWhiteSpace(roleName)) roleName = null;
+
+      static DateTime ToUtc(DateTime x)
+      {
+        return x.Kind == DateTimeKind.Utc ? x : DateTime.SpecifyKind(x, DateTimeKind.Utc);
+      }
+
+      var lastSeenUtc = DateTime.MinValue;
+      if (u.LastSeenAt.HasValue) lastSeenUtc = ToUtc(u.LastSeenAt.Value);
+      else if (u.LastLoginAt.HasValue) lastSeenUtc = ToUtc(u.LastLoginAt.Value);
+
+      merged.Add(new MiniBank.Web.Services.OnlineUsersTracker.OnlineUserItem(
+        Key: uname,
+        Username: uname,
+        Role: roleName,
+        UserId: u.UserId,
+        MemberId: u.MemberId,
+        LastSeenUtc: lastSeenUtc,
+        LastPath: null));
+    }
+
+    _allItems = merged;
+
+    try
+    {
+      var memberIds = merged
+        .Where(x => x.MemberId.HasValue)
+        .Select(x => x.MemberId!.Value)
+        .Distinct()
+        .Take(500)
+        .ToList();
+
+      if (memberIds.Count == 0)
+      {
+        _memberNames = new();
+      }
+      else
+      {
+        var rows = await Members.GetByIdsAsync(memberIds);
+        _memberNames = rows
+          .ToDictionary(
+            m => m.MemberId,
+            m => ((m.FirstName ?? string.Empty).Trim() + " " + (m.LastName ?? string.Empty).Trim()).Trim());
+      }
+    }
+    catch
+    {
+      _memberNames = new();
+    }
+
+    Tracker.PurgeOlderThan(TimeSpan.FromHours(24));
+
+    _lastRefreshUtc = DateTime.UtcNow;
+    _lastRefreshText = FormatJalaliDateTime(_lastRefreshUtc.Value);
+    ApplyFilter();
+    _loading = false;
+    StateHasChanged();
+  }
+
+  private void ApplyFilter()
+  {
+    var kw = (_kw ?? string.Empty).Trim();
+    IEnumerable<MiniBank.Web.Services.OnlineUsersTracker.OnlineUserItem> q = _allItems;
+
+    bool Match(MiniBank.Web.Services.OnlineUsersTracker.OnlineUserItem it)
+    {
+      var uname = (it.Username ?? string.Empty);
+      var role = (it.Role ?? string.Empty);
+      var memberId = it.MemberId?.ToString() ?? string.Empty;
+      var name = DisplayName(it);
+
+      return uname.Contains(kw, StringComparison.OrdinalIgnoreCase)
+        || role.Contains(kw, StringComparison.OrdinalIgnoreCase)
+        || memberId.Contains(kw, StringComparison.OrdinalIgnoreCase)
+        || (name ?? string.Empty).Contains(kw, StringComparison.OrdinalIgnoreCase);
+    }
+
+    if (!string.IsNullOrWhiteSpace(kw))
+      q = q.Where(Match);
+
+    q = ApplySort(q);
+    _items = q.ToList();
+    StateHasChanged();
+  }
+
+  private IEnumerable<MiniBank.Web.Services.OnlineUsersTracker.OnlineUserItem> ApplySort(
+    IEnumerable<MiniBank.Web.Services.OnlineUsersTracker.OnlineUserItem> items)
+  {
+    return _sortDescending
+      ? items.OrderByDescending(x => x.LastSeenUtc).ThenBy(x => x.Username)
+      : items.OrderBy(x => x.LastSeenUtc).ThenBy(x => x.Username);
+  }
+
+  private void ToggleSort()
+  {
+    _sortDescending = !_sortDescending;
+    ApplyFilter();
+  }
+
+  private string DisplayName(MiniBank.Web.Services.OnlineUsersTracker.OnlineUserItem it)
+  {
+    if (it.MemberId.HasValue && _memberNames.TryGetValue(it.MemberId.Value, out var name))
+    {
+      var x = (name ?? string.Empty).Trim();
+      if (!string.IsNullOrWhiteSpace(x))
+        return x;
+    }
+    return it.Username;
+  }
+
+  private static bool IsOnline(DateTime lastSeenUtc)
+  {
+    var age = DateTime.UtcNow - lastSeenUtc;
+    return age <= TimeSpan.FromMinutes(1);
+  }
+
+  private static string ToFaDigits(string s)
+  {
+    if (string.IsNullOrEmpty(s)) return string.Empty;
+    return s
+      .Replace('0', '۰').Replace('1', '۱').Replace('2', '۲').Replace('3', '۳').Replace('4', '۴')
+      .Replace('5', '۵').Replace('6', '۶').Replace('7', '۷').Replace('8', '۸').Replace('9', '۹');
+  }
+
+  private static string FormatJalaliDateTime(DateTime utc)
+  {
+    var local = utc.ToLocalTime();
+    var pc = new PersianCalendar();
+    var y = pc.GetYear(local);
+    var m = pc.GetMonth(local);
+    var d = pc.GetDayOfMonth(local);
+    var date = $"{y:0000}/{m:00}/{d:00}";
+    var time = local.ToString("HH:mm");
+    return ToFaDigits($"{time}  {date}");
+  }
+
+  private static string FormatJalaliDateTimeDateFirst(DateTime utc)
+  {
+    var local = utc.ToLocalTime();
+    var pc = new PersianCalendar();
+    var y = pc.GetYear(local);
+    var m = pc.GetMonth(local);
+    var d = pc.GetDayOfMonth(local);
+    var date = $"{y:0000}/{m:00}/{d:00}";
+    var time = local.ToString("HH:mm");
+    return ToFaDigits($"{date}  {time}");
+  }
+
+  private static MarkupString FormatAgoFaMarkup(DateTime lastSeenUtc)
+  {
+    if (lastSeenUtc == DateTime.MinValue)
+      return (MarkupString)"-";
+
+    var age = DateTime.UtcNow - lastSeenUtc;
+    if (age < TimeSpan.Zero) age = TimeSpan.Zero;
+
+    if (age.TotalHours >= 10)
+    {
+      var exactOld = FormatJalaliDateTimeDateFirst(lastSeenUtc);
+      return (MarkupString)$"<span class='ou-dt'>{exactOld}</span>";
+    }
+
+    var exact = FormatJalaliDateTime(lastSeenUtc);
+
+    string rel;
+    if (age.TotalSeconds < 60)
+      rel = ToFaDigits($"{(int)age.TotalSeconds} ثانیه پیش");
+    else if (age.TotalMinutes < 60)
+      rel = ToFaDigits($"{(int)age.TotalMinutes} دقیقه پیش");
+    else
+      rel = ToFaDigits($"{(int)age.TotalHours} ساعت پیش");
+
+    return (MarkupString)$"{rel}    <span class='ou-dt'>{exact}</span>";
+  }
+
+  private static string ToFaRole(string? name)
+  {
+    var x = (name ?? string.Empty).Trim();
+    if (string.IsNullOrWhiteSpace(x)) return "-";
+
+    return x switch
+    {
+      "Developer" => "توسعه‌دهنده",
+      "Admin" => "مدیر سیستم",
+      "Accountant" => "حسابدار",
+      "Member" => "عضو",
+      "Manager" => "مدیر",
+      _ => x
+    };
+  }
+
+  public void Dispose()
+  {
+    try
+    {
+      _cts?.Cancel();
+      _cts?.Dispose();
+    }
+    catch { }
+  }
+}

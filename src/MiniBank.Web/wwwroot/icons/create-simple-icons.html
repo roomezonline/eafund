@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple PWA Icon Creator</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; direction: rtl; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin: 20px 0; }
+        .icon-item { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        canvas { border: 1px solid #ccc; }
+        button { padding: 10px 20px; margin: 5px; background: #6750a4; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .instructions { background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>تولید آیکون‌های PWA برای صندوق امام علی (ع)</h1>
+        
+        <div class="instructions">
+            <h3>دستورالعمل:</h3>
+            <ol>
+                <li>روی دکمه "تولید همه آیکون‌ها" کلیک کنید</li>
+                <li>روی هر آیکون راست کلیک کرده و "Save image as" را انتخاب کنید</li>
+                <li>فایل‌ها را با نام‌های مشخص شده ذخیره کنید</li>
+                <li>فایل‌ها را در پوشه icons قرار دهید</li>
+            </ol>
+        </div>
+        
+        <button onclick="generateAllIcons()">تولید همه آیکون‌ها</button>
+        
+        <div id="icons-container" class="icon-grid"></div>
+    </div>
+
+    <script>
+        const sizes = [
+            { size: 72, name: 'icon-72.png' },
+            { size: 96, name: 'icon-96.png' },
+            { size: 128, name: 'icon-128.png' },
+            { size: 144, name: 'icon-144.png' },
+            { size: 152, name: 'icon-152.png' },
+            { size: 192, name: 'icon-192.png' },
+            { size: 192, name: 'icon-192-maskable.png', maskable: true },
+            { size: 384, name: 'icon-384.png' },
+            { size: 512, name: 'icon-512.png' },
+            { size: 512, name: 'icon-512-maskable.png', maskable: true }
+        ];
+
+        function createIcon(size, isMaskable = false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#6750a4');
+            gradient.addColorStop(1, '#4f378b');
+            ctx.fillStyle = gradient;
+            
+            if (isMaskable) {
+                // Maskable icons need full background
+                ctx.fillRect(0, 0, size, size);
+            } else {
+                // Regular icons with rounded corners
+                const radius = size * 0.15;
+                ctx.beginPath();
+                ctx.roundRect(0, 0, size, size, radius);
+                ctx.fill();
+            }
+
+            // Icon content - Simplified vault symbol
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(2, size * 0.04);
+            ctx.lineCap = 'round';
+
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const iconSize = size * (isMaskable ? 0.35 : 0.55);
+
+            // Draw main circle (vault door)
+            const mainRadius = iconSize * 0.45;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, mainRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // Draw inner circle (combination dial)
+            const innerRadius = iconSize * 0.25;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // Draw center dot
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, size * 0.02, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Draw handle
+            const handleX = centerX + mainRadius * 0.6;
+            const handleY = centerY;
+            const handleRadius = iconSize * 0.08;
+            ctx.beginPath();
+            ctx.arc(handleX, handleY, handleRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Draw dial marks
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * 45) * Math.PI / 180;
+                const x1 = centerX + Math.cos(angle) * innerRadius * 0.7;
+                const y1 = centerY + Math.sin(angle) * innerRadius * 0.7;
+                const x2 = centerX + Math.cos(angle) * innerRadius * 0.9;
+                const y2 = centerY + Math.sin(angle) * innerRadius * 0.9;
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+
+            return canvas;
+        }
+
+        function generateAllIcons() {
+            const container = document.getElementById('icons-container');
+            container.innerHTML = '';
+
+            sizes.forEach(iconConfig => {
+                const canvas = createIcon(iconConfig.size, iconConfig.maskable);
+                
+                const div = document.createElement('div');
+                div.className = 'icon-item';
+                div.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 10px;">${iconConfig.name}</div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">${iconConfig.size}x${iconConfig.size}</div>
+                `;
+                div.appendChild(canvas);
+                
+                // Add download functionality
+                canvas.style.cursor = 'pointer';
+                canvas.title = `راست کلیک و Save image as "${iconConfig.name}"`;
+                
+                container.appendChild(div);
+            });
+        }
+
+        // Auto-generate on load
+        window.addEventListener('load', generateAllIcons);
+    </script>
+</body>
+</html>

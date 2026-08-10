@@ -1,0 +1,228 @@
+@using System.Globalization
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Services.LoanRateService LoanRateService
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+
+@if (_isVisible)
+{
+  <DsSheet Show="_isVisible"
+           Title="@SheetTitle"
+           ConfirmText="تایید"
+           CancelText="لغو"
+           OnConfirm="OnConfirm"
+           OnCancel="Cancel"
+           Open="true"
+           ShowSpinner="_isSaving">
+
+    <div class="ios-form-section">
+      <div class="ios-form-header">
+        <i class="fa-solid fa-percent"></i>
+        <span>مشخصات نرخ وام</span>
+      </div>
+
+      <div class="ios-form-group">
+        <div class="ios-form-grid">
+          <div class="ios-form-col">
+            <DsInput Value="@EffectiveFromString"
+                     ValueChanged="@(v => EffectiveFromString = v)"
+                     Label="تاریخ شروع اعتبار"
+                     Class="center-text"
+                     Required="true"
+                     Placeholder="مثال: 1404/06/27"
+                     ErrorMessage="@(_fromError ? "تاریخ شروع الزامی است" : null)"
+                     data-jdp="true"
+                     data-jdp-only-date="true" />
+          </div>
+          <div class="ios-form-col">
+            <DsInput Value="@EffectiveToString"
+                     ValueChanged="@(v => EffectiveToString = v)"
+                     Label="تاریخ پایان اعتبار (اختیاری)"
+                     Class="center-text"
+                     Placeholder="خالی = بدون محدودیت"
+                     data-jdp="true"
+                     data-jdp-only-date="true" />
+          </div>
+        </div>
+
+        <div class="ios-form-grid">
+          <div class="ios-form-col">
+            <DsInput @bind-Value="_annualRateText"
+                     Label="نرخ سود سالانه (%)"
+                     Type="text"
+                     inputmode="decimal"
+                     pattern="[0-9]*[.,]?[0-9]*"
+                     Class="center-text"
+                     Required="true"
+                     Placeholder="مثال: 24"
+                     ErrorMessage="@(_annualRateError ? "نرخ سود الزامی است" : null)" />
+          </div>
+          <div class="ios-form-col">
+            <DsInput @bind-Value="_penaltyRateText"
+                     Label="نرخ دیرکرد سالانه (%)"
+                     Type="text"
+                     inputmode="decimal"
+                     pattern="[0-9]*[.,]?[0-9]*"
+                     Class="center-text"
+                     Required="true"
+                     Placeholder="مثال: 12"
+                     ErrorMessage="@(_penaltyRateError ? "نرخ دیرکرد الزامی است" : null)" />
+          </div>
+        </div>
+
+        <DsToggle @bind-Value="Model.IsActive"
+                  Label="فعال"
+                  Description="نرخ در بازه زمانی معتبر باشد"
+                  Icon="fa-solid fa-toggle-on" />
+
+        <DsInput @bind-Value="Model.Notes"
+                 Label="یادداشت (اختیاری)"
+                 Placeholder="..." />
+      </div>
+    </div>
+
+  </DsSheet>
+}
+
+@code {
+  [Parameter] public LoanRatePlan Model { get; set; } = new();
+  [Parameter] public bool IsNew { get; set; }
+  [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+  private bool _isVisible;
+  private bool _isSaving;
+  private string _annualRateText = string.Empty;
+  private string _penaltyRateText = string.Empty;
+  private bool _fromError;
+  private bool _annualRateError;
+  private bool _penaltyRateError;
+  private bool _annualRateIntError;
+  private bool _penaltyRateIntError;
+
+  private string SheetTitle => IsNew ? "افزودن نرخ وام" : $"ویرایش نرخ وام #{Model.PlanId}";
+
+  private string EffectiveFromString
+  {
+    get => Model.EffectiveFrom == default ? string.Empty : Model.EffectiveFrom.ToPersianDate();
+    set
+    {
+      if (string.IsNullOrWhiteSpace(value))
+        Model.EffectiveFrom = default;
+      else
+        Model.EffectiveFrom = DateTimeExtensions.FromPersianDate(value);
+    }
+  }
+
+  private string EffectiveToString
+  {
+    get => Model.EffectiveTo?.ToPersianDate() ?? string.Empty;
+    set
+    {
+      if (string.IsNullOrWhiteSpace(value))
+        Model.EffectiveTo = null;
+      else
+        Model.EffectiveTo = DateTimeExtensions.FromPersianDate(value);
+    }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    await Task.Delay(50);
+    _isVisible = true;
+    await InitJalaliPicker();
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (_isVisible) await InitJalaliPicker();
+  }
+
+  protected override void OnParametersSet()
+  {
+    _isVisible = true;
+    if (Model is null) Model = new LoanRatePlan();
+    if (IsNew) Model.IsActive = false;
+
+    _annualRateText = Model.AnnualRatePercent > 0
+      ? Math.Round(Model.AnnualRatePercent, 0, MidpointRounding.AwayFromZero).ToString("0", CultureInfo.InvariantCulture)
+      : string.Empty;
+
+    _penaltyRateText = Model.PenaltyAnnualRatePercent > 0
+      ? Math.Round(Model.PenaltyAnnualRatePercent, 0, MidpointRounding.AwayFromZero).ToString("0", CultureInfo.InvariantCulture)
+      : string.Empty;
+
+    _fromError = false;
+    _annualRateError = false;
+    _penaltyRateError = false;
+    _annualRateIntError = false;
+    _penaltyRateIntError = false;
+  }
+
+  private async Task InitJalaliPicker()
+  {
+    try { await JS.InvokeVoidAsync("initJdp"); } catch { }
+  }
+
+  private static decimal? ParseDecimalNullable(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return null;
+    if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) return d;
+    if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.CurrentCulture, out d)) return d;
+    return null;
+  }
+
+  private static bool IsWholeNumber(decimal d)
+    => d == Math.Truncate(d);
+
+  private async Task OnConfirm()
+  {
+    if (_isSaving) return;
+
+    var annual = ParseDecimalNullable(_annualRateText);
+    var penalty = ParseDecimalNullable(_penaltyRateText);
+
+    _fromError = Model.EffectiveFrom == default;
+    _annualRateError = !annual.HasValue || annual.Value <= 0;
+    _penaltyRateError = !penalty.HasValue || penalty.Value < 0;
+    _annualRateIntError = annual.HasValue && !IsWholeNumber(annual.Value);
+    _penaltyRateIntError = penalty.HasValue && !IsWholeNumber(penalty.Value);
+
+    if (_fromError || _annualRateError || _penaltyRateError || _annualRateIntError || _penaltyRateIntError)
+    {
+      if (_fromError) Toasts.Warning("تاریخ شروع الزامی است");
+      if (_annualRateError) Toasts.Warning("نرخ سود معتبر وارد کنید");
+      if (_penaltyRateError) Toasts.Warning("نرخ دیرکرد معتبر وارد کنید");
+      if (_annualRateIntError) Toasts.Warning("نرخ سود باید عدد صحیح باشد");
+      if (_penaltyRateIntError) Toasts.Warning("نرخ دیرکرد باید عدد صحیح باشد");
+      StateHasChanged();
+      return;
+    }
+
+    Model.AnnualRatePercent = decimal.Truncate(annual.Value);
+    Model.PenaltyAnnualRatePercent = decimal.Truncate(penalty.Value);
+
+    _isSaving = true;
+    try
+    {
+      var id = await LoanRateService.SaveAsync(Model);
+      Model.PlanId = id;
+      await OnClose.InvokeAsync(true);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ذخیره: {ex.Message}");
+    }
+    finally
+    {
+      _isSaving = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task Cancel()
+  {
+    await OnClose.InvokeAsync(false);
+  }
+}

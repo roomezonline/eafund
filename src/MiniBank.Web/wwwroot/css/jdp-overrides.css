@@ -1,0 +1,3 @@
+/* Global overrides to ensure JalaliDatePicker appears above dialogs */
+jdp-container { z-index: 11000 !important; position: fixed !important; }
+jdp-overlay { z-index: 10990 !important; position: fixed !important; }

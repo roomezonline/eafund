@@ -1,0 +1,1155 @@
+2026-02-02 13:45:19.291 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 13:45:19.469 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 13:45:19.475 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 13:45:19.476 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 13:45:19.477 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 13:45:19.478 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 13:45:19.479 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 13:45:19.482 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 13:45:19.986 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 13:45:19.986 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 13:45:20.045 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 13:45:20.046 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 13:45:20.050 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 13:45:20.050 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 13:45:20.051 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 13:45:20.051 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 13:45:20.147 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 13:45:20.148 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 13:45:20.149 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 13:45:20.150 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 13:45:20.293 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 13:45:20.294 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 816.207ms {"Application":"MiniBank"}
+2026-02-02 13:45:32.499 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 13:45:32.499 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 13:45:32.858 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 13:45:33.000 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 14:03:31.083 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 14:03:31.226 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 14:03:31.230 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 14:03:31.241 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 14:03:31.242 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 14:03:31.244 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 14:03:31.245 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 14:03:31.251 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 14:03:31.680 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 14:03:31.684 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 14:03:31.746 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 14:03:31.750 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 14:03:31.752 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:03:31.752 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:03:31.753 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 14:03:31.753 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 14:03:31.825 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 14:03:31.828 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 14:03:31.829 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 14:03:31.830 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 14:03:31.945 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 14:03:31.972 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 727.4347ms {"Application":"MiniBank"}
+2026-02-02 14:03:42.976 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 14:03:42.978 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 14:03:43.377 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 14:03:43.500 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 14:20:56.447 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 14:20:56.592 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 14:20:56.598 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 14:20:56.610 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 14:20:56.612 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 14:20:56.614 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 14:20:56.615 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 14:20:56.619 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 14:20:57.084 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 14:20:57.084 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 14:20:57.149 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 14:20:57.150 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 14:20:57.152 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:20:57.153 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:20:57.153 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 14:20:57.154 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 14:20:57.238 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 14:20:57.238 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 14:20:57.239 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 14:20:57.239 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 14:20:57.345 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 14:20:57.346 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 731.8553ms {"Application":"MiniBank"}
+2026-02-02 14:21:08.509 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 14:21:08.510 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 14:21:08.846 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 14:21:08.970 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 14:25:27.593 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 14:25:27.731 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 14:25:27.735 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 14:25:27.744 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 14:25:27.748 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 14:25:27.748 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 14:25:27.749 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 14:25:27.752 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 14:25:28.220 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 14:25:28.222 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 14:25:28.294 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 14:25:28.294 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 14:25:28.297 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:25:28.297 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:25:28.298 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 14:25:28.298 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 14:25:28.377 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 14:25:28.377 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 14:25:28.380 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 14:25:28.381 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 14:25:28.494 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 14:25:28.494 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 745.7138ms {"Application":"MiniBank"}
+2026-02-02 14:25:39.479 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 14:25:39.481 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 14:25:39.878 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 14:25:40.000 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 14:39:46.287 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 14:39:46.429 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 14:39:46.434 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 14:39:46.443 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 14:39:46.444 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 14:39:46.445 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 14:39:46.446 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 14:39:46.450 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 14:39:46.900 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 14:39:46.914 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 14:39:46.975 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 14:39:46.975 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 14:39:46.978 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:39:46.978 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:39:46.979 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 14:39:46.979 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 14:39:47.065 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 14:39:47.066 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 14:39:47.067 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 14:39:47.067 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 14:39:47.194 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 14:39:47.195 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 749.3153ms {"Application":"MiniBank"}
+2026-02-02 14:39:58.925 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 14:39:58.926 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 14:39:59.275 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 14:39:59.414 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 14:42:26.387 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 14:42:26.529 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 14:42:26.535 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 14:42:26.544 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 14:42:26.546 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 14:42:26.547 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 14:42:26.548 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 14:42:26.551 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 14:42:27.022 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 14:42:27.023 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 14:42:27.080 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 14:42:27.081 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 14:42:27.084 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:42:27.084 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:42:27.085 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 14:42:27.085 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 14:42:27.165 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 14:42:27.166 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 14:42:27.167 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 14:42:27.168 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 14:42:27.281 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 14:42:27.297 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 750.0616ms {"Application":"MiniBank"}
+2026-02-02 14:42:39.805 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 14:42:39.806 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 14:42:40.161 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 14:42:40.303 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 14:47:09.598 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 14:47:09.746 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 14:47:09.752 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 14:47:09.754 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 14:47:09.755 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 14:47:09.757 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 14:47:09.759 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 14:47:09.763 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 14:47:10.257 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 14:47:10.258 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 14:47:10.326 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 14:47:10.327 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 14:47:10.329 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:47:10.330 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 14:47:10.331 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 14:47:10.331 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 14:47:10.413 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 14:47:10.415 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 14:47:10.416 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 14:47:10.417 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 14:47:10.540 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 14:47:10.544 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 785.9856ms {"Application":"MiniBank"}
+2026-02-02 14:47:22.414 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 14:47:22.414 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 14:47:22.810 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 14:47:22.930 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 15:01:46.055 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 15:01:46.230 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 15:01:46.236 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 15:01:46.245 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 15:01:46.246 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 15:01:46.247 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 15:01:46.248 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 15:01:46.251 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 15:01:46.741 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 15:01:46.742 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 15:01:46.818 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 15:01:46.819 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 15:01:46.822 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:01:46.822 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:01:46.823 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 15:01:46.824 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 15:01:46.906 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 15:01:46.906 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 15:01:46.907 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 15:01:46.907 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 15:01:47.032 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 15:01:47.032 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 785.1686ms {"Application":"MiniBank"}
+2026-02-02 15:01:59.510 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 15:01:59.512 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 15:01:59.852 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 15:01:59.986 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 15:33:04.677 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 15:33:04.859 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 15:33:04.863 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 15:33:04.874 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 15:33:04.875 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 15:33:04.877 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 15:33:04.879 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 15:33:04.882 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 15:33:05.307 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 15:33:05.308 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 15:33:05.364 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 15:33:05.365 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 15:33:05.367 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:33:05.368 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:33:05.369 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 15:33:05.369 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 15:33:05.441 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 15:33:05.442 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 15:33:05.443 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 15:33:05.443 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 15:33:05.546 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 15:33:05.547 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 668.7411ms {"Application":"MiniBank"}
+2026-02-02 15:33:16.708 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 15:33:16.709 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 15:33:17.057 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 15:33:17.183 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 15:41:21.576 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 15:41:21.709 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 15:41:21.713 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 15:41:21.719 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 15:41:21.725 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 15:41:21.726 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 15:41:21.727 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 15:41:21.730 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 15:41:22.207 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 15:41:22.207 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 15:41:22.265 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 15:41:22.269 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 15:41:22.272 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:41:22.272 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:41:22.273 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 15:41:22.273 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 15:41:22.381 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 15:41:22.382 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 15:41:22.382 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 15:41:22.383 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 15:41:22.508 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 15:41:22.509 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 782.5729ms {"Application":"MiniBank"}
+2026-02-02 15:41:34.455 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 15:41:34.457 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 15:41:34.790 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 15:41:34.901 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 15:45:41.770 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 15:45:41.910 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 15:45:41.915 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 15:45:41.926 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 15:45:41.927 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 15:45:41.928 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 15:45:41.929 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 15:45:41.937 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 15:45:42.454 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 15:45:42.455 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 15:45:42.507 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 15:45:42.507 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 15:45:42.510 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:45:42.510 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:45:42.511 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 15:45:42.511 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 15:45:42.592 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 15:45:42.606 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 15:45:42.606 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 15:45:42.607 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 15:45:42.720 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 15:45:42.732 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 803.4785ms {"Application":"MiniBank"}
+2026-02-02 15:45:54.957 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 15:45:54.957 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 15:45:55.328 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 15:45:55.458 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 15:49:12.448 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 15:49:12.598 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 15:49:12.602 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 15:49:12.603 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 15:49:12.604 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 15:49:12.605 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 15:49:12.606 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 15:49:12.609 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 15:49:13.062 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 15:49:13.063 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 15:49:13.112 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 15:49:13.114 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 15:49:13.116 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:49:13.117 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:49:13.118 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 15:49:13.119 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 15:49:13.196 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 15:49:13.196 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 15:49:13.197 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 15:49:13.198 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 15:49:13.298 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 15:49:13.298 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 692.7894ms {"Application":"MiniBank"}
+2026-02-02 15:49:24.340 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 15:49:24.340 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 15:49:24.727 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 15:49:24.840 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 15:52:46.684 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 15:52:46.818 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 15:52:46.822 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 15:52:46.831 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 15:52:46.833 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 15:52:46.834 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 15:52:46.835 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 15:52:46.838 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 15:52:47.309 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 15:52:47.309 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 15:52:47.360 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 15:52:47.361 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 15:52:47.363 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:52:47.364 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:52:47.365 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 15:52:47.365 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 15:52:47.444 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 15:52:47.444 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 15:52:47.445 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 15:52:47.446 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 15:52:47.553 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 15:52:47.555 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 720.3146ms {"Application":"MiniBank"}
+2026-02-02 15:52:58.724 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 15:52:58.725 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 15:52:59.121 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 15:52:59.228 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 15:54:49.161 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 15:54:49.368 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 15:54:49.374 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 15:54:49.383 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 15:54:49.386 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 15:54:49.388 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 15:54:49.389 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 15:54:49.392 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 15:54:49.843 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 15:54:49.844 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 15:54:49.897 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 15:54:49.898 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 15:54:49.900 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:54:49.900 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 15:54:49.901 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 15:54:49.902 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 15:54:49.983 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 15:54:49.984 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 15:54:49.985 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 15:54:49.986 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 15:54:50.094 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 15:54:50.096 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 707.4231ms {"Application":"MiniBank"}
+2026-02-02 15:55:01.167 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 15:55:01.168 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 15:55:01.543 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 15:55:01.672 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:13:34.279 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:13:34.424 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:13:34.430 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:13:34.437 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:13:34.441 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:13:34.442 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:13:34.443 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:13:34.447 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:13:35.050 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:13:35.051 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:13:35.109 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:13:35.110 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:13:35.112 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:13:35.113 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:13:35.113 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:13:35.114 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:13:35.213 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:13:35.214 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:13:35.214 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:13:35.215 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:13:35.347 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:13:35.347 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 904.7131ms {"Application":"MiniBank"}
+2026-02-02 16:13:53.879 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:13:54.014 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:13:54.019 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:13:54.028 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:13:54.030 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:13:54.030 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:13:54.032 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:13:54.035 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:13:54.505 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:13:54.506 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:13:54.566 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:13:54.566 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:13:54.569 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:13:54.570 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:13:54.571 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:13:54.571 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:13:54.649 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:13:54.650 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:13:54.651 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:13:54.652 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:13:54.786 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:13:54.787 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 755.8855ms {"Application":"MiniBank"}
+2026-02-02 16:14:07.754 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:14:07.755 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:14:08.156 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:14:08.297 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:15:41.878 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:15:42.030 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:15:42.038 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:15:42.048 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:15:42.051 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:15:42.052 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:15:42.053 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:15:42.057 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:15:42.549 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:15:42.550 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:15:42.607 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:15:42.608 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:15:42.610 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:15:42.611 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:15:42.612 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:15:42.612 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:15:42.707 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:15:42.708 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:15:42.709 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:15:42.710 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:15:42.824 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:15:42.825 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 771.9392ms {"Application":"MiniBank"}
+2026-02-02 16:15:55.342 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:15:55.343 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:15:55.680 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:15:55.806 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:17:42.884 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:17:43.030 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:17:43.037 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:17:43.046 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:17:43.049 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:17:43.050 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:17:43.051 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:17:43.054 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:17:43.602 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:17:43.604 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:17:43.661 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:17:43.662 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:17:43.664 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:17:43.665 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:17:43.665 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:17:43.666 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:17:43.737 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:17:43.739 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:17:43.739 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:17:43.740 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:17:43.838 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:17:43.839 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 788.3646ms {"Application":"MiniBank"}
+2026-02-02 16:17:54.899 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:17:54.901 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:17:55.297 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:17:55.407 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:18:57.829 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:18:57.968 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:18:57.973 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:18:57.982 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:18:57.983 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:18:57.984 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:18:57.985 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:18:57.988 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:18:58.425 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:18:58.426 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:18:58.478 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:18:58.478 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:18:58.481 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:18:58.482 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:18:58.483 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:18:58.483 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:18:58.563 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:18:58.563 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:18:58.564 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:18:58.565 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:18:58.663 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:18:58.664 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 680.2447ms {"Application":"MiniBank"}
+2026-02-02 16:19:09.710 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:19:09.712 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:19:10.059 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:19:10.178 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:27:11.228 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:27:11.366 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:27:11.382 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:27:11.391 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:27:11.393 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:27:11.394 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:27:11.395 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:27:11.398 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:27:11.851 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:27:11.851 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:27:11.901 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:27:11.903 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:27:11.906 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:27:11.907 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:27:11.908 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:27:11.908 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:27:11.987 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:27:11.988 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:27:11.988 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:27:11.989 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:27:12.106 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:27:12.107 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 712.6143ms {"Application":"MiniBank"}
+2026-02-02 16:27:23.053 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:27:23.053 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:27:23.448 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:27:23.558 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:30:50.775 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:30:50.919 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:30:50.925 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:30:50.933 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:30:50.936 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:30:50.936 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:30:50.938 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:30:50.941 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:30:51.387 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:30:51.388 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:30:51.437 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:30:51.438 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:30:51.440 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:30:51.441 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:30:51.442 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:30:51.443 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:30:51.529 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:30:51.530 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:30:51.531 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:30:51.531 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:30:51.634 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:30:51.635 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 697.5904ms {"Application":"MiniBank"}
+2026-02-02 16:31:02.912 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:31:02.913 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:31:03.260 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:31:03.392 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:32:12.516 +03:30 [INF]  - Login failed: hash mismatch for user 1911756311 {"RequestId":"0HNJ2BCFAEE72:00000023","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BCFAEE72","Application":"MiniBank"}
+2026-02-02 16:33:10.774 +03:30 [INF]  - Login failed: hash mismatch for user 1911756311 {"RequestId":"0HNJ2BCFAEE6V:0000004A","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BCFAEE6V","Application":"MiniBank"}
+2026-02-02 16:33:43.782 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:33:43.919 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:33:43.924 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:33:43.931 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:33:43.934 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:33:43.935 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:33:43.936 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:33:43.939 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:33:44.370 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:33:44.370 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:33:44.427 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:33:44.428 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:33:44.431 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:33:44.432 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:33:44.433 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:33:44.434 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:33:44.517 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:33:44.519 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:33:44.520 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:33:44.520 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:33:44.635 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:33:44.637 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 701.1418ms {"Application":"MiniBank"}
+2026-02-02 16:33:55.350 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:33:55.351 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:33:55.744 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:33:55.862 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:36:00.346 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:36:00.489 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:36:00.494 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:36:00.504 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:36:00.511 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:36:00.512 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:36:00.514 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:36:00.517 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:36:00.963 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:36:00.984 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:36:01.042 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:36:01.042 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:36:01.045 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:36:01.045 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:36:01.050 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:36:01.050 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:36:01.133 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:36:01.144 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:36:01.159 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:36:01.190 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:36:01.288 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:36:01.289 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 775.6129ms {"Application":"MiniBank"}
+2026-02-02 16:36:12.541 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:36:12.543 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:36:12.888 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:36:12.998 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:36:47.529 +03:30 [INF]  - Login failed: hash mismatch for user 1911756311 {"RequestId":"0HNJ2BFBMNU72:00000027","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BFBMNU72","Application":"MiniBank"}
+2026-02-02 16:43:15.211 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:43:15.408 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:43:15.413 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:43:15.419 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:43:15.424 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:43:15.424 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:43:15.426 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:43:15.429 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:43:15.852 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:43:15.852 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:43:15.909 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:43:15.910 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:43:15.913 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:43:15.914 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:43:15.915 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:43:15.915 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:43:16.003 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:43:16.004 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:43:16.005 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:43:16.006 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:43:16.116 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:43:16.119 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 694.1289ms {"Application":"MiniBank"}
+2026-02-02 16:43:27.055 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:43:27.056 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:43:27.400 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:43:27.505 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:43:30.341 +03:30 [INF]  - Login failed: hash mismatch for user 1911756311 {"RequestId":"0HNJ2BJD46RJU:00000019","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BJD46RJU","Application":"MiniBank"}
+2026-02-02 16:43:51.987 +03:30 [INF]  - Login failed: hash mismatch for user 1911756311 {"RequestId":"0HNJ2BJD46RJV:00000013","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BJD46RJV","Application":"MiniBank"}
+2026-02-02 16:44:17.527 +03:30 [INF]  - Login failed: hash mismatch for user 1911756311 {"RequestId":"0HNJ2BJD46RK9:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BJD46RK9","Application":"MiniBank"}
+2026-02-02 16:44:21.993 +03:30 [INF]  - Login failed: hash mismatch for user 1911756311 {"RequestId":"0HNJ2BJD46RK9:0000000C","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BJD46RK9","Application":"MiniBank"}
+2026-02-02 16:46:19.899 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:46:20.043 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:46:20.048 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:46:20.057 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:46:20.058 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:46:20.059 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:46:20.060 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:46:20.063 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:46:20.560 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:46:20.561 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:46:20.623 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:46:20.624 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:46:20.626 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:46:20.627 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:46:20.627 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:46:20.628 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:46:20.700 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 16:46:20.701 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 16:46:20.702 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:46:20.703 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:46:20.823 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:46:20.824 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 765.0394ms {"Application":"MiniBank"}
+2026-02-02 16:46:32.610 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:46:32.612 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:46:32.965 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:46:33.095 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:47:15.405 +03:30 [INF]  - Login failed: hash mismatch for user 1841872598 {"RequestId":"0HNJ2BL4G9276:0000001A","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BL4G9276","Application":"MiniBank"}
+2026-02-02 16:52:36.090 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 16:52:36.228 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 16:52:36.235 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 16:52:36.249 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 16:52:36.251 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 16:52:36.252 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 16:52:36.253 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 16:52:36.257 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 16:52:36.691 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 16:52:36.692 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 16:52:36.744 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 16:52:36.774 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 16:52:36.777 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:52:36.779 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 16:52:36.780 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 16:52:36.781 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 16:52:36.864 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📝 Queued for execution: schema.sql (hash: 61C235D2...) {"Application":"MiniBank"}
+2026-02-02 16:52:36.866 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔄 Starting migration execution - 1 files to process {"Application":"MiniBank"}
+2026-02-02 16:52:36.868 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔄 Migration pass 1/8 - processing 1 files {"Application":"MiniBank"}
+2026-02-02 16:52:36.869 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⚡ Executing migration: schema.sql {"Application":"MiniBank"}
+2026-02-02 16:52:43.672 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Successfully applied schema.sql in 6802.2356ms {"Application":"MiniBank"}
+2026-02-02 16:52:43.674 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Pass 1 completed - applied 1 files: schema.sql {"Application":"MiniBank"}
+2026-02-02 16:52:43.675 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🎉 All migrations completed successfully! {"Application":"MiniBank"}
+2026-02-02 16:52:43.676 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 16:52:43.677 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 16:52:43.794 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 16:52:43.803 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 7550.4823ms {"Application":"MiniBank"}
+2026-02-02 16:52:55.105 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 16:52:55.108 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 16:52:55.468 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 16:52:55.590 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 16:53:09.449 +03:30 [INF]  - Login debug: user=1841872598 kind=PBKDF2 encLen=83 hasView=false {"RequestId":"0HNJ2BOMG0FTH:00000015","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTH","Application":"MiniBank"}
+2026-02-02 16:53:09.476 +03:30 [INF]  - Login failed: hash mismatch for user 1841872598 {"RequestId":"0HNJ2BOMG0FTH:00000015","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTH","Application":"MiniBank"}
+2026-02-02 16:53:12.440 +03:30 [INF]  - Login debug: user=admin kind=PBKDF2 encLen=83 hasView=false {"RequestId":"0HNJ2BOMG0FTH:00000016","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTH","Application":"MiniBank"}
+2026-02-02 16:54:15.297 +03:30 [INF]  - Login debug: user=1911756311 kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BOMG0FTK:00000023","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTK","Application":"MiniBank"}
+2026-02-02 16:54:15.321 +03:30 [INF]  - Login failed: hash mismatch for user 1911756311 {"RequestId":"0HNJ2BOMG0FTK:00000023","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTK","Application":"MiniBank"}
+2026-02-02 16:54:20.172 +03:30 [INF]  - Login debug: user=1911756311 kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BOMG0FTK:00000024","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTK","Application":"MiniBank"}
+2026-02-02 16:54:56.184 +03:30 [INF]  - Login debug: user=1911756311 kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BOMG0FTJ:00000028","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:54:56.208 +03:30 [INF]  - Login failed: hash mismatch for user 1911756311 {"RequestId":"0HNJ2BOMG0FTJ:00000028","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:57:59.909 +03:30 [INF]  - Login debug: user=admin kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BOMG0FTJ:00000029","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:57:59.934 +03:30 [INF]  - Login failed: hash mismatch for user admin {"RequestId":"0HNJ2BOMG0FTJ:00000029","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:58:11.275 +03:30 [INF]  - Login debug: user=admin kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BOMG0FTJ:0000002A","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:58:11.304 +03:30 [INF]  - Login failed: hash mismatch for user admin {"RequestId":"0HNJ2BOMG0FTJ:0000002A","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:58:14.966 +03:30 [INF]  - Login debug: user=admin kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BOMG0FTJ:0000002B","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:58:14.991 +03:30 [INF]  - Login failed: hash mismatch for user admin {"RequestId":"0HNJ2BOMG0FTJ:0000002B","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:58:18.887 +03:30 [INF]  - Login debug: user=admin kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BOMG0FTJ:0000002C","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:58:18.912 +03:30 [INF]  - Login failed: hash mismatch for user admin {"RequestId":"0HNJ2BOMG0FTJ:0000002C","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:58:24.383 +03:30 [INF]  - Login debug: user=1910496774 kind=PBKDF2 encLen=83 hasView=false {"RequestId":"0HNJ2BOMG0FTJ:0000002D","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTJ","Application":"MiniBank"}
+2026-02-02 16:58:41.095 +03:30 [INF]  - Login debug: user=1910497177 kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BOMG0FTT:00000019","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FTT","Application":"MiniBank"}
+2026-02-02 16:59:19.233 +03:30 [INF]  - Login debug: user=1911756311 kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BOMG0FU1:0000001E","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BOMG0FU1","Application":"MiniBank"}
+2026-02-02 17:00:39.410 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 17:00:39.549 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 17:00:39.554 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 17:00:39.563 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 17:00:39.564 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 17:00:39.565 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 17:00:39.566 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 17:00:39.569 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 17:00:40.083 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 17:00:40.084 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 17:00:40.142 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 17:00:40.143 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 17:00:40.145 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:00:40.146 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:00:40.147 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 17:00:40.147 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 17:00:40.230 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 17:00:40.231 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 17:00:40.232 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 17:00:40.233 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 17:00:40.360 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 17:00:40.361 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 795.679ms {"Application":"MiniBank"}
+2026-02-02 17:00:52.237 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 17:00:52.238 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 17:00:52.603 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 17:00:52.746 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 17:01:00.817 +03:30 [INF]  - Login debug: user=1911756311 kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2BT4MOG54:0000000A","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BT4MOG54","Application":"MiniBank"}
+2026-02-02 17:01:26.325 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2BT4MOG57:0000001D","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BT4MOG57","Application":"MiniBank"}
+2026-02-02 17:01:26.344 +03:30 [INF]  - Login failed: password mismatch for user 1911756311 {"RequestId":"0HNJ2BT4MOG57:0000001D","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BT4MOG57","Application":"MiniBank"}
+2026-02-02 17:01:36.456 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2BT4MOG57:0000001E","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BT4MOG57","Application":"MiniBank"}
+2026-02-02 17:02:03.840 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2BT4MOG55:0000002C","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BT4MOG55","Application":"MiniBank"}
+2026-02-02 17:02:03.850 +03:30 [INF]  - Login failed: password mismatch for user 1911756311 {"RequestId":"0HNJ2BT4MOG55:0000002C","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BT4MOG55","Application":"MiniBank"}
+2026-02-02 17:02:07.156 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2BT4MOG55:0000002D","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BT4MOG55","Application":"MiniBank"}
+2026-02-02 17:04:07.771 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 17:04:07.918 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 17:04:07.923 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 17:04:07.934 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 17:04:07.935 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 17:04:07.936 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 17:04:07.937 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 17:04:07.940 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 17:04:08.406 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 17:04:08.406 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 17:04:08.468 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 17:04:08.470 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 17:04:08.473 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:04:08.473 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:04:08.474 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 17:04:08.474 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 17:04:08.553 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 17:04:08.554 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 17:04:08.555 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 17:04:08.556 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 17:04:08.670 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 17:04:08.671 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 734.5565ms {"Application":"MiniBank"}
+2026-02-02 17:04:19.899 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 17:04:19.900 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 17:04:20.317 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 17:04:20.426 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 17:04:28.805 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2BV2JAKQS:0000000F","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BV2JAKQS","Application":"MiniBank"}
+2026-02-02 17:04:28.822 +03:30 [INF]  - Login failed: password mismatch for user 1911756311 {"RequestId":"0HNJ2BV2JAKQS:0000000F","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BV2JAKQS","Application":"MiniBank"}
+2026-02-02 17:04:33.823 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2BV2JAKQS:00000010","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BV2JAKQS","Application":"MiniBank"}
+2026-02-02 17:04:33.847 +03:30 [INF]  - Login failed: password mismatch for user 1911756311 {"RequestId":"0HNJ2BV2JAKQS:00000010","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BV2JAKQS","Application":"MiniBank"}
+2026-02-02 17:04:38.582 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2BV2JAKQS:00000011","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2BV2JAKQS","Application":"MiniBank"}
+2026-02-02 17:07:07.097 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 17:07:07.242 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 17:07:07.246 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 17:07:07.256 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 17:07:07.257 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 17:07:07.257 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 17:07:07.258 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 17:07:07.261 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 17:07:07.690 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 17:07:07.690 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 17:07:07.750 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 17:07:07.751 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 17:07:07.753 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:07:07.754 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:07:07.754 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 17:07:07.755 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 17:07:07.850 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 17:07:07.851 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 17:07:07.851 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 17:07:07.852 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 17:07:07.960 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 17:07:07.960 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 702.4023ms {"Application":"MiniBank"}
+2026-02-02 17:07:18.899 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 17:07:18.900 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 17:07:19.314 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 17:07:19.432 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 17:08:17.409 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 17:08:17.651 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 17:08:17.658 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 17:08:17.669 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 17:08:17.670 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 17:08:17.672 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 17:08:17.673 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 17:08:17.678 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 17:08:18.184 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 17:08:18.184 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 17:08:18.234 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 17:08:18.235 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 17:08:18.239 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:08:18.240 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:08:18.241 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 17:08:18.242 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 17:08:18.331 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 17:08:18.332 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 17:08:18.333 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 17:08:18.334 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 17:08:18.459 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 17:08:18.460 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 787.6957ms {"Application":"MiniBank"}
+2026-02-02 17:08:29.655 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 17:08:29.657 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 17:08:30.063 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 17:08:30.174 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 17:09:22.374 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2C1CTJO1V:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2C1CTJO1V","Application":"MiniBank"}
+2026-02-02 17:09:22.388 +03:30 [INF]  - Login failed: password mismatch for user 1911756311 {"RequestId":"0HNJ2C1CTJO1V:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2C1CTJO1V","Application":"MiniBank"}
+2026-02-02 17:09:25.390 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2C1CTJO1V:0000000D","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2C1CTJO1V","Application":"MiniBank"}
+2026-02-02 17:09:25.391 +03:30 [INF]  - Login success: user=1911756311 path=PLAIN {"RequestId":"0HNJ2C1CTJO1V:0000000D","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2C1CTJO1V","Application":"MiniBank"}
+2026-02-02 17:13:06.562 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 17:13:06.718 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 17:13:06.724 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 17:13:06.733 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 17:13:06.735 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 17:13:06.736 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 17:13:06.737 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 17:13:06.743 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 17:13:07.183 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 17:13:07.183 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 17:13:07.235 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 17:13:07.236 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 17:13:07.238 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:13:07.239 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:13:07.239 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 17:13:07.240 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 17:13:07.317 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 17:13:07.318 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 17:13:07.318 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 17:13:07.319 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 17:13:07.426 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 17:13:07.426 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 689.9847ms {"Application":"MiniBank"}
+2026-02-02 17:13:18.417 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 17:13:18.418 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 17:13:18.825 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 17:13:18.945 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 17:19:53.275 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 17:19:53.425 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 17:19:53.431 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 17:19:53.441 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 17:19:53.443 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 17:19:53.444 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 17:19:53.445 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 17:19:53.448 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 17:19:53.939 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 17:19:53.940 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 17:19:53.990 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 17:19:53.990 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 17:19:53.993 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:19:53.993 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:19:53.994 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 17:19:53.994 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 17:19:54.075 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 17:19:54.076 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 17:19:54.076 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 17:19:54.077 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 17:19:54.189 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 17:19:54.190 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 746.1496ms {"Application":"MiniBank"}
+2026-02-02 17:20:04.915 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 17:20:04.915 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 17:20:05.337 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 17:20:05.460 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 17:26:20.372 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 17:26:20.517 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 17:26:20.522 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 17:26:20.531 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 17:26:20.532 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 17:26:20.533 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 17:26:20.534 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 17:26:20.538 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 17:26:20.950 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 17:26:20.952 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 17:26:21.012 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 17:26:21.013 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 17:26:21.015 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:26:21.016 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:26:21.017 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 17:26:21.019 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 17:26:21.100 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 17:26:21.102 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 17:26:21.102 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 17:26:21.103 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 17:26:21.215 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 17:26:21.216 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 681.8272ms {"Application":"MiniBank"}
+2026-02-02 17:26:32.574 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 17:26:32.575 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 17:26:32.981 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 17:26:33.090 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 17:27:22.278 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2CBFP3SAC:00000009","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CBFP3SAC","Application":"MiniBank"}
+2026-02-02 17:27:22.293 +03:30 [INF]  - Login failed: password mismatch for user 1911756311 {"RequestId":"0HNJ2CBFP3SAC:00000009","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CBFP3SAC","Application":"MiniBank"}
+2026-02-02 17:27:26.305 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2CBFP3SAC:0000000A","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CBFP3SAC","Application":"MiniBank"}
+2026-02-02 17:27:26.306 +03:30 [INF]  - Login success: user=1911756311 path=PLAIN {"RequestId":"0HNJ2CBFP3SAC:0000000A","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CBFP3SAC","Application":"MiniBank"}
+2026-02-02 17:51:13.984 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 17:51:14.133 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 17:51:14.139 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 17:51:14.149 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 17:51:14.151 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 17:51:14.152 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 17:51:14.153 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 17:51:14.156 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 17:51:14.802 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 17:51:14.803 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 17:51:14.882 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 17:51:14.883 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 17:51:14.886 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:51:14.886 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 17:51:14.887 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 17:51:14.887 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 17:51:14.980 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 17:51:14.981 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 17:51:14.982 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 17:51:14.983 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 17:51:15.184 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 17:51:15.185 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 1032.4929ms {"Application":"MiniBank"}
+2026-02-02 17:51:27.292 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 17:51:27.293 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 17:51:27.614 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 17:51:27.759 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 17:51:59.393 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2CPD6SFQD:0000000A","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQD","Application":"MiniBank"}
+2026-02-02 17:51:59.396 +03:30 [INF]  - Login success: user=1911756311 path=PLAIN {"RequestId":"0HNJ2CPD6SFQD:0000000A","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQD","Application":"MiniBank"}
+2026-02-02 17:52:14.484 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2CPD6SFQE:00000027","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQE","Application":"MiniBank"}
+2026-02-02 17:52:14.498 +03:30 [INF]  - Login failed: password mismatch for user 1911756311 {"RequestId":"0HNJ2CPD6SFQE:00000027","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQE","Application":"MiniBank"}
+2026-02-02 17:52:18.832 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2CPD6SFQE:00000028","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQE","Application":"MiniBank"}
+2026-02-02 17:52:18.834 +03:30 [INF]  - Login success: user=1911756311 path=PLAIN {"RequestId":"0HNJ2CPD6SFQE:00000028","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQE","Application":"MiniBank"}
+2026-02-02 17:52:28.794 +03:30 [INF]  - Login debug: user=1841872598 kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2CPD6SFQB:00000031","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQB","Application":"MiniBank"}
+2026-02-02 17:52:28.821 +03:30 [INF]  - Login failed: password mismatch for user 1841872598 {"RequestId":"0HNJ2CPD6SFQB:00000031","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQB","Application":"MiniBank"}
+2026-02-02 17:52:32.632 +03:30 [INF]  - Login debug: user=1841872598 kind=PBKDF2 encLen=83 hasView=true {"RequestId":"0HNJ2CPD6SFQB:00000032","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQB","Application":"MiniBank"}
+2026-02-02 17:52:32.719 +03:30 [INF]  - Login migrate: user=1841872598 path=PBKDF2(NORMALIZED) {"RequestId":"0HNJ2CPD6SFQB:00000032","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQB","Application":"MiniBank"}
+2026-02-02 17:52:32.722 +03:30 [INF]  - Login success: user=1841872598 path=PBKDF2(NORMALIZED) {"RequestId":"0HNJ2CPD6SFQB:00000032","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQB","Application":"MiniBank"}
+2026-02-02 17:53:02.841 +03:30 [INF]  - Login debug: user=1841872598 kind=LEGACY encLen=7 hasView=true {"RequestId":"0HNJ2CPD6SFQQ:00000014","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQQ","Application":"MiniBank"}
+2026-02-02 17:53:02.842 +03:30 [INF]  - Login success: user=1841872598 path=PLAIN {"RequestId":"0HNJ2CPD6SFQQ:00000014","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2CPD6SFQQ","Application":"MiniBank"}
+2026-02-02 18:26:19.636 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 18:26:19.785 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 18:26:19.791 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 18:26:19.826 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 18:26:19.827 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 18:26:19.828 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 18:26:19.829 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 18:26:19.833 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 18:26:20.273 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 18:26:20.274 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 18:26:20.346 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 18:26:20.347 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 18:26:20.350 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 18:26:20.350 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 18:26:20.351 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 18:26:20.351 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 18:26:20.437 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 18:26:20.439 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 18:26:20.439 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 18:26:20.440 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 18:26:20.572 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 18:26:20.572 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 743.482ms {"Application":"MiniBank"}
+2026-02-02 18:26:31.834 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 18:26:31.836 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 18:26:32.253 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 18:26:32.364 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 18:28:14.906 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 18:28:15.042 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 18:28:15.046 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 18:28:15.055 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 18:28:15.057 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 18:28:15.057 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 18:28:15.058 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 18:28:15.061 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 18:28:15.504 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 18:28:15.505 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 18:28:15.564 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 18:28:15.565 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 18:28:15.567 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 18:28:15.568 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 18:28:15.568 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 18:28:15.569 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 18:28:15.649 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 18:28:15.650 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 18:28:15.650 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 18:28:15.651 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 18:28:15.771 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 18:28:15.772 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 713.8799ms {"Application":"MiniBank"}
+2026-02-02 18:28:26.580 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 18:28:26.582 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 18:28:26.993 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 18:28:27.111 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 18:29:05.329 +03:30 [INF]  - Login debug: user=1911756311 kind=LEGACY encLen=4 hasView=true {"RequestId":"0HNJ2DE2K54VF:00000030","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2DE2K54VF","Application":"MiniBank"}
+2026-02-02 18:29:05.331 +03:30 [INF]  - Login success: user=1911756311 path=PLAIN {"RequestId":"0HNJ2DE2K54VF:00000030","RequestPath":"/api/auth/login","ConnectionId":"0HNJ2DE2K54VF","Application":"MiniBank"}
+2026-02-02 18:40:37.502 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 18:40:37.639 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 18:40:37.648 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 18:40:37.657 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 18:40:37.659 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 18:40:37.660 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 18:40:37.661 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 18:40:37.664 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 18:40:38.090 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 18:40:38.090 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 18:40:38.151 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 18:40:38.164 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 18:40:38.167 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 18:40:38.168 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 18:40:38.169 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 18:40:38.170 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 18:40:38.252 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 18:40:38.273 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 18:40:38.273 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 18:40:38.274 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 18:40:38.372 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 18:40:38.373 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 711.7503ms {"Application":"MiniBank"}
+2026-02-02 18:40:49.715 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 18:40:49.716 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 18:40:50.093 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 18:40:50.209 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 18:44:33.088 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 18:44:33.221 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 18:44:33.226 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 18:44:33.234 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 18:44:33.237 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 18:44:33.238 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 18:44:33.239 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 18:44:33.243 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 18:44:33.680 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 18:44:33.681 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 18:44:33.734 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 18:44:33.734 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 18:44:33.737 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 18:44:33.737 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 18:44:33.738 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 18:44:33.738 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 18:44:33.812 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 18:44:33.813 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 18:44:33.814 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 18:44:33.815 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 18:44:33.924 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 18:44:33.924 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 685.7135ms {"Application":"MiniBank"}
+2026-02-02 18:44:44.926 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 18:44:44.928 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 18:44:45.287 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 18:44:45.401 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 22:51:46.621 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 22:51:46.798 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 22:51:46.803 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 22:51:46.818 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 22:51:46.820 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 22:51:46.821 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 22:51:46.822 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 22:51:46.826 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 22:51:47.778 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 22:51:47.779 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 22:51:47.906 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 22:51:47.907 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 22:51:47.910 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 22:51:47.911 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 22:51:47.911 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 22:51:47.912 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 22:51:48.087 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 22:51:48.091 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 22:51:48.091 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 22:51:48.092 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 22:51:48.454 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 22:51:48.456 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 1634.91ms {"Application":"MiniBank"}
+2026-02-02 22:52:03.354 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 22:52:03.355 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 22:52:03.705 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 22:52:03.849 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 23:09:39.485 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 23:09:39.636 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 23:09:39.640 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 23:09:39.649 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 23:09:39.651 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 23:09:39.652 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 23:09:39.653 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 23:09:39.656 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 23:09:40.129 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 23:09:40.134 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 23:09:40.209 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 23:09:40.210 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 23:09:40.212 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 23:09:40.212 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 23:09:40.213 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 23:09:40.213 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 23:09:40.301 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 23:09:40.303 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 23:09:40.304 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 23:09:40.307 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 23:09:40.497 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 23:09:40.506 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 854.0014ms {"Application":"MiniBank"}
+2026-02-02 23:09:54.252 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 23:09:54.254 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 23:09:54.571 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 23:09:54.889 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 23:42:56.224 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 23:42:56.376 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 23:42:56.381 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 23:42:56.382 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 23:42:56.383 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 23:42:56.383 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 23:42:56.384 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 23:42:56.387 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 23:42:56.800 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 23:42:56.801 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 23:42:56.855 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 23:42:56.855 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 23:42:56.858 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 23:42:56.858 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 23:42:56.859 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 23:42:56.859 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 23:42:56.947 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 23:42:56.948 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 23:42:56.948 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 23:42:56.949 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 23:42:57.055 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 23:42:57.057 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 672.6883ms {"Application":"MiniBank"}
+2026-02-02 23:43:09.675 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 23:43:09.676 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 23:43:10.094 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 23:43:10.203 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}
+2026-02-02 23:57:44.289 +03:30 [INF]  - 🔨 Building application... {"Application":"MiniBank"}
+2026-02-02 23:57:44.426 +03:30 [INF]  - ✅ Application built successfully {"Application":"MiniBank"}
+2026-02-02 23:57:44.431 +03:30 [INF]  - 🚀 MiniBank Application Starting... {"Application":"MiniBank"}
+2026-02-02 23:57:44.437 +03:30 [INF]  - 📊 Environment: Development {"Application":"MiniBank"}
+2026-02-02 23:57:44.442 +03:30 [INF]  - 🔧 Configuration: RunMigrationsOnStartup = true {"Application":"MiniBank"}
+2026-02-02 23:57:44.443 +03:30 [INF]  - 📋 Starting database migration process... {"Application":"MiniBank"}
+2026-02-02 23:57:44.444 +03:30 [INF]  - 🔍 Checking database connection... {"Application":"MiniBank"}
+2026-02-02 23:57:44.447 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 🔗 Testing database connection... {"Application":"MiniBank"}
+2026-02-02 23:57:44.908 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database connection successful {"Application":"MiniBank"}
+2026-02-02 23:57:44.908 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📋 Ensuring migrations table exists... {"Application":"MiniBank"}
+2026-02-02 23:57:44.976 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Migrations table ready {"Application":"MiniBank"}
+2026-02-02 23:57:44.978 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📁 Searching for database directory... {"Application":"MiniBank"}
+2026-02-02 23:57:44.980 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 23:57:44.981 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ Database directory found: D:\DotNet\Web\Emam_Ali_Sandogh_New\database {"Application":"MiniBank"}
+2026-02-02 23:57:44.982 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📄 Found schema.sql - executing unified schema file only {"Application":"MiniBank"}
+2026-02-02 23:57:44.983 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - 📂 Schema file path: D:\DotNet\Web\Emam_Ali_Sandogh_New\database\schema.sql {"Application":"MiniBank"}
+2026-02-02 23:57:45.061 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ⏭️ Skipping schema.sql - already applied with same hash {"Application":"MiniBank"}
+2026-02-02 23:57:45.062 +03:30 [INF] MiniBank.Web.Services.DatabaseMigrationService - ✅ All migrations already applied - no changes needed {"Application":"MiniBank"}
+2026-02-02 23:57:45.063 +03:30 [INF]  - 🔧 Applying constraint fixes... {"Application":"MiniBank"}
+2026-02-02 23:57:45.063 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - 🔧 Checking and fixing CK_Accounts_Hierarchy constraint... {"Application":"MiniBank"}
+2026-02-02 23:57:45.197 +03:30 [INF] MiniBank.Web.Infrastructure.ConstraintFixService - ✅ CK_Accounts_Hierarchy constraint already allows optional parents for Level 4 {"Application":"MiniBank"}
+2026-02-02 23:57:45.198 +03:30 [INF]  - ✅ Database migrations and fixes completed successfully in 755.0466ms {"Application":"MiniBank"}
+2026-02-02 23:57:58.888 +03:30 [INF]  - 🎉 MiniBank Application started successfully! {"Application":"MiniBank"}
+2026-02-02 23:57:58.889 +03:30 [INF]  - 🌐 Application is ready to serve requests {"Application":"MiniBank"}
+2026-02-02 23:57:59.247 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Loading accounts once to prime DB connection and JIT... {"Application":"MiniBank"}
+2026-02-02 23:57:59.373 +03:30 [INF] MiniBank.Web.Services.WarmupService - Warmup: Accounts primed. {"Application":"MiniBank"}

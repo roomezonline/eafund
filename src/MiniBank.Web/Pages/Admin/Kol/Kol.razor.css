@@ -1,0 +1,153 @@
+/* Duo-styled Kol page (matching AccountTypes form) */
+.kol-duo { padding: 12px; display: grid; gap: 12px; max-width: 820px; margin-inline: auto; direction: rtl; }
+/* Keep kol container within viewport with symmetric gutters */
+.kol-duo { width: 100%; max-width: 820px; padding-inline: 12px; box-sizing: border-box; margin-inline: auto; }
+/* Force RTL for header/controls as well */
+.duo-header, .duo-controls { direction: rtl; }
+
+/* Header */
+.duo-header { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; background: var(--card, #fff); border: 1px solid var(--card-border, var(--border, #d1d5db)); border-radius: 16px; padding: 14px; box-shadow: 0 12px 28px rgba(15,23,42,.10); position: sticky; top: 8px; backdrop-filter: saturate(1.2) blur(8px); z-index: 2; }
+.duo-header { outline: 1px solid color-mix(in srgb, var(--card-border, var(--border, #d1d5db)) 55%, transparent); }
+.duo-header .brand { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+.duo-header .brand .icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #0ea5e9; background: rgba(14,165,233,.15); border: 1px solid rgba(14,165,233,.25); }
+.duo-header .brand .text .title { font-weight: 900; letter-spacing: .2px; }
+.duo-header .brand .text .subtitle { font-size: 12px; color: var(--muted, #6b7280); margin-top: 2px; }
+.duo-header .hdr-actions { display: flex; gap: 8px; }
+.icon-btn { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); box-shadow: 0 4px 14px rgba(15,23,42,.06); cursor: pointer; }
+
+/* Duo Search card (under header) */
+.duo-controls { display: grid; gap: 8px; position: sticky; top: 76px; z-index: 2; }
+.duo-search { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 14px; border-radius: 16px; border: 1px solid var(--border, #d1d5db); background: var(--card, #fff); box-shadow: 0 10px 24px rgba(15,23,42,.08); color: var(--muted, #6b7280); }
+.search-input { height: 38px; border-radius: 10px; border: none; background: transparent; padding: 0 8px; font-weight: 600; color: var(--text, #111827); text-align: right; }
+.duo-search .clear { width: 28px; height: 28px; border-radius: 8px; border: none; background: transparent; color: var(--muted, #6b7280); display: grid; place-items: center; cursor: pointer; }
+/* Filters & sorting pills */
+.duo-filters { display: flex; gap: 10px; overflow: auto; padding: 2px; }
+.duo-sort { display: flex; gap: 10px; overflow: auto; padding: 2px; }
+
+/* Main */
+.duo-main { display: block; }
+.loading-state, .empty-state { text-align: center; color: var(--muted, #6b7280); padding: 18px; }
+.loading-spinner { width: 32px; height: 32px; border: 3px solid rgba(0,0,0,.08); border-top-color: var(--primary, #0ea5e9); border-radius: 50%; margin: 8px auto 12px; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }
+
+/* Cards grid */
+.items-grid { display: grid; gap: 12px; grid-template-columns: 1fr; text-align: right; margin-top: 10px; max-width: 100%; }
+/* Prevent subtle horizontal overflow/clipping on small screens and make gutters symmetric */
+@media (max-width: 768px) {
+  /* Ensure perfect symmetry on small screens */
+  .kol-duo { width: 100%; max-width: 100%; padding-inline: 12px; margin-inline: 0; box-sizing: border-box; }
+  .duo-header, .duo-controls, .items-grid { margin-inline: 0; }
+}
+.item-card { position: relative; border: 1px solid var(--border, #d1d5db); background: var(--card, #fff); border-radius: 16px; padding: 14px; box-shadow: 0 12px 28px rgba(15,23,42,.08); transition: transform .14s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease; animation: fadeUp .25s ease both; box-sizing: border-box; width: 100%; margin: 0; cursor: pointer; }
+.item-card.expanded { border-color: rgba(14,165,233,.35); box-shadow: 0 14px 34px rgba(14,165,233,.15); }
+.item-card:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(15,23,42,.12); }
+.item-card.inactive {
+  /* Stronger contrast for inactive kol accounts */
+  background: linear-gradient(90deg,
+    color-mix(in srgb, #ef4444 16%, #ffffff),
+    color-mix(in srgb, #f59e0b 10%, #ffffff)
+  );
+  border-color: color-mix(in srgb, #ef4444 45%, #d1d5db);
+  box-shadow: 0 14px 34px color-mix(in srgb, #ef4444 18%, rgba(15,23,42,.12));
+  opacity: 1;
+}
+/* Make titles stand out more on inactive cards */
+.item-card.inactive .item-title { color: #dc2626; }
+.item-card.inactive .item-subtitle { color: color-mix(in srgb, #dc2626 55%, var(--muted, #6b7280)); }
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.item-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+.item-info { display: grid; gap: 2px; }
+.item-info.compact { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; justify-content: flex-end; min-width: 0; flex-wrap: nowrap; }
+.id-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #111827; background: rgba(14,165,233,.12); border: 1px solid rgba(14,165,233,.28); flex: 0 0 auto; white-space: nowrap; }
+.item-title { font-weight: 800; font-size: clamp(12px, 3.8vw, 16px); letter-spacing: .2px; text-align: right; flex: 1 1 1px; min-width: 0; white-space: nowrap; word-break: keep-all; overflow-wrap: normal; max-width: 100%; }
+.item-subtitle { font-size: 12px; color: var(--muted, #6b7280); text-align: right; }
+.status-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid transparent; }
+.status-chip.active { background: rgba(34,197,94,.12); color: #22c55e; border-color: rgba(34,197,94,.28); }
+.status-chip.inactive { background: rgba(239,68,68,.12); color: #ef4444; border-color: rgba(239,68,68,.28); }
+
+/* Mobile: keep name on a single line by reducing sizes instead of using ellipsis */
+@media (max-width: 480px) {
+  .item-title { font-size: clamp(10px, 3.8vw, 14px); letter-spacing: .05px; }
+  .item-info.compact { gap: 6px; }
+  .id-chip { font-size: 10px; padding: 1px 6px; }
+}
+
+/* Responsive */
+@media (max-width: 480px) { .kol-duo { padding: 10px; } }
+@media (min-width: 720px) { .items-grid { grid-template-columns: 1fr 1fr; gap: 14px; } }
+
+/* Entry animation */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+.account-type-badge {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.account-type-badge.type-1 {
+    background: #e8f5e8;
+    color: #2d5a2d;
+}
+
+.account-type-badge.type-2 {
+    background: #ffeaea;
+    color: #8b2635;
+}
+
+.account-type-badge.type-3 {
+    background: #e8f4fd;
+    color: #1e3a8a;
+}
+
+.account-type-badge.type-4 {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.account-type-badge.type-5 {
+    background: #f0f9ff;
+    color: #0369a1;
+}
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
+    .kol-duo {
+        padding-bottom: 80px;
+    }
+    
+    .duo-controls,
+    .duo-filters,
+    .duo-sort {
+        padding: 0 16px;
+    }
+    
+    .duo-main {
+        padding: 0 16px 100px;
+    }
+    
+    .items-grid {
+        gap: 8px;
+    }
+    
+    .item-card {
+        padding: 12px;
+    }
+    
+    .item-title {
+        font-size: 15px;
+    }
+}

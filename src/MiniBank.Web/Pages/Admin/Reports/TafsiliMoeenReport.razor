@@ -1,0 +1,403 @@
+@page "/admin/reports/tafsili-moeen/{TafsiliAccountId:long}"
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Models
+@using MiniBank.Web.Infrastructure.Repositories
+@inject TrialBalanceRepository TrialBalanceRepo
+@inject NavigationManager Nav
+@inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+
+<PageTitle>ریز معین‌های تفصیلی</PageTitle>
+
+<style>
+    .report-container { max-width: 1200px; margin: 0 auto; background: white; }
+    .report-header { 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+        padding: 18px; 
+        text-align: center; 
+        border-radius: 12px 12px 0 0; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    .report-title { font-size: 18px; font-weight: 800; margin: 0 0 6px 0; color: #ffffff; position: relative; z-index: 1; }
+    .report-subtitle { font-size: 13px; margin: 0 0 10px 0; color: #f0f4f8; font-weight: 600; position: relative; z-index: 1; }
+    .date-range { font-size: 12px; margin: 0; color: #e2e8f0; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 20px; display: inline-block; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); position: relative; z-index: 1; }
+
+    .toolbar { padding: 10px; border: 1px solid #e5e7eb; border-top: none; background: #f8fafc; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    .btn-back { border: 1px solid #d1d5db; background: #ffffff; border-radius: 10px; padding: 8px 12px; font-weight: 800; cursor: pointer; }
+
+    .turnover-eye-btn { border: 1px solid #d1d5db; background: #ffffff; border-radius: 10px; padding: 6px 10px; cursor: pointer; font-weight: 900; }
+    .turnover-eye-btn i { color: #2563eb; }
+
+    .col-mode-section { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .col-mode-section label {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
+        font-size: 13px;
+        font-weight: 800;
+        color: #111827;
+        line-height: 1.25;
+        cursor: pointer;
+        user-select: none;
+    }
+    .col-mode-section input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: #2563eb; }
+    .col-mode-section label:has(input[type="checkbox"]:checked) { border-color: #93c5fd; background: #eff6ff; }
+
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .report-table { width: 100%; border-collapse: collapse; margin-top: 0; font-size: 15px; }
+    .report-table th { border: 1px solid #000; padding: 10px 12px; text-align: center; font-weight: 800; font-size: 15px; white-space: nowrap; }
+    .report-table td { border: 1px solid #000; padding: 8px 12px; white-space: nowrap; font-size: 15px; }
+    .row-number { text-align: center; width: 50px; }
+    .account-code { text-align: center; width: 120px; }
+    .account-name { text-align: right; min-width: 260px; font-size: 15px; font-weight: 700; }
+    .amount-debit, .amount-credit { text-align: right; width: 150px; direction: ltr; font-weight: 800; font-family: 'Segoe UI', Roboto, Arial, sans-serif; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: 'tnum' 1, 'lnum' 1; }
+
+    .th-yellow { background: #fff200 !important; color: #111827 !important; }
+    .th-blue { background: #7dd3fc !important; color: #111827 !important; }
+    .th-green { background: #b7f7b7 !important; color: #111827 !important; }
+
+    .td-blue { background: #7dd3fc !important; color: #111827 !important; }
+    .td-green { background: #b7f7b7 !important; color: #111827 !important; }
+    .td-red { background: #fecaca !important; color: #7f1d1d !important; }
+    .td-white { background: #ffffff !important; color: #111827 !important; }
+
+    .total-row { font-weight: 900; }
+    .net-row td { border: 2px solid #2e2e2eff !important; }
+    .net-sep td { border: none !important; padding: 0 !important; height: 10px; background: #ffffffff !important; }
+
+    @@media (max-width: 768px) {
+        .report-container { margin: 0; }
+        .toolbar { padding: 10px; }
+        .col-mode-section { width: 100%; }
+        .col-mode-section label { width: 100%; justify-content: flex-start; }
+        .report-table { width: max-content; }
+        .report-table th, .report-table td { padding: 6px 8px; font-size: 12px; }
+        .account-name { font-size: 13px; }
+    }
+</style>
+
+<div class="report-container">
+    <div class="report-header">
+        <div class="report-title">ریز معین‌های تفصیلی</div>
+        <div class="report-subtitle">@TafsiliTitle</div>
+        <div class="date-range">گزارش تهیه شده از تاریخ @FromDate تا تاریخ @ToDate</div>
+    </div>
+
+    <div class="toolbar">
+        <button class="btn-back" @onclick="GoBack">بازگشت</button>
+
+        <div class="col-mode-section">
+            <label>
+                <input type="checkbox" checked="@isBalanceTwoColumn" @onchange="() => SelectReportMode(ReportMode.TwoColumnBalance)" />
+                ۲ ستونی (مانده)
+            </label>
+            <label style="display:none;">
+                <input type="checkbox" checked="@isTurnoverTwoColumn" @onchange="() => SelectReportMode(ReportMode.TwoColumnTurnover)" />
+                ۲ ستونی (گردش)
+            </label>
+            <label>
+                <input type="checkbox" checked="@isFourColumn" @onchange="() => SelectReportMode(ReportMode.FourColumnTurnoverBalance)" />
+                ۴ ستونی (گردش + مانده)
+            </label>
+            <label>
+                <input type="checkbox" class="filter-checkbox" @bind="showOnlyWithBalance" @bind:after="LoadAsync" />
+                حساب‌های با مانده
+            </label>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div style="text-align:center; padding: 30px;">در حال بارگیری...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div style="text-align:center; padding: 30px; color: #b91c1c; font-weight: 800;">@errorMessage</div>
+    }
+    else if (nodes?.Any() == true)
+    {
+        <div class="table-scroll">
+            <table class="report-table">
+                <thead>
+                @if (isFourColumn)
+                {
+                    <tr>
+                        <th class="row-number th-yellow" rowspan="2">ردیف</th>
+                        <th class="account-code th-yellow" rowspan="2">کدینگ</th>
+                        <th class="th-yellow" rowspan="2" style="width: 70px;">گردش</th>
+                        <th class="account-name th-yellow" rowspan="2">شرح حساب</th>
+                        <th class="th-blue" colspan="2">گردش حساب</th>
+                        <th class="th-green" colspan="2">مانده حساب</th>
+                    </tr>
+                    <tr>
+                        <th class="amount-debit th-blue">گردش بدهکار</th>
+                        <th class="amount-credit th-blue">گردش بستانکار</th>
+                        <th class="amount-debit th-green">مانده بدهکار</th>
+                        <th class="amount-credit th-green">مانده بستانکار</th>
+                    </tr>
+                }
+                else if (isBalanceTwoColumn)
+                {
+                    <tr>
+                        <th class="row-number th-yellow">ردیف</th>
+                        <th class="account-code th-yellow">کدینگ</th>
+                        <th class="th-yellow" style="width: 70px;">گردش</th>
+                        <th class="account-name th-yellow">شرح حساب</th>
+                        <th class="amount-debit th-green">مانده بدهکار</th>
+                        <th class="amount-credit th-green">مانده بستانکار</th>
+                    </tr>
+                }
+                else
+                {
+                    <tr>
+                        <th class="row-number th-yellow">ردیف</th>
+                        <th class="account-code th-yellow">کدینگ</th>
+                        <th class="th-yellow" style="width: 70px;">گردش</th>
+                        <th class="account-name th-yellow">شرح حساب</th>
+                        <th class="amount-debit th-blue">گردش بدهکار</th>
+                        <th class="amount-credit th-blue">گردش بستانکار</th>
+                    </tr>
+                }
+                </thead>
+                <tbody>
+                    @{int rowNumber = 1;}
+                    @foreach (var n in nodes)
+                    {
+                        @RenderTableRow(n, rowNumber++)
+                    }
+                    <tr class="total-row">
+                        <td class="account-name td-white" colspan="4" style="text-align:center;">جمع و موازنه</td>
+                        <td class="amount-debit @(isBalanceTwoColumn ? "td-green" : "td-blue")">@(isBalanceTwoColumn ? ComputeTotalDebtorBalance(nodes).ToString("N0") : totalDebit.ToString("N0"))</td>
+                        <td class="amount-credit @(isBalanceTwoColumn ? "td-green" : "td-blue")">@(isBalanceTwoColumn ? ComputeTotalCreditorBalance(nodes).ToString("N0") : totalCredit.ToString("N0"))</td>
+                        @if (isFourColumn)
+                        {
+                            <td class="amount-debit td-green">@ComputeTotalDebtorBalance(nodes).ToString("N0")</td>
+                            <td class="amount-credit td-green">@ComputeTotalCreditorBalance(nodes).ToString("N0")</td>
+                        }
+                    </tr>
+                    @if (isBalanceTwoColumn || isFourColumn)
+                    {
+                        var net = ComputeNetBalance(nodes);
+                        @if (isFourColumn)
+                        {
+                            <tr class="net-sep"><td colspan="8"></td></tr>
+                        }
+                        else
+                        {
+                            <tr class="net-sep"><td colspan="6"></td></tr>
+                        }
+                        <tr class="total-row net-row">
+                            <td class="account-name td-white" colspan="4" style="text-align:center;">خالص طلب یا بدهی</td>
+                            @if (isFourColumn)
+                            {
+                                <td class="amount-debit td-blue">-</td>
+                                <td class="amount-credit td-blue">-</td>
+                                <td class="amount-debit @(net > 0 ? "td-green" : "td-white")">@(net > 0 ? net.ToString("N0") : "-")</td>
+                                <td class="amount-credit @(net < 0 ? "td-red" : "td-white")">@(net < 0 ? Math.Abs(net).ToString("N0") : "-")</td>
+                            }
+                            else
+                            {
+                                <td class="amount-debit @(net > 0 ? "td-green" : "td-white")">@(net > 0 ? net.ToString("N0") : "-")</td>
+                                <td class="amount-credit @(net < 0 ? "td-red" : "td-white")">@(net < 0 ? Math.Abs(net).ToString("N0") : "-")</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div style="text-align:center; padding: 30px;">رکوردی یافت نشد</div>
+    }
+</div>
+
+@code {
+    [Parameter] public long TafsiliAccountId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "fromDate")] public string? FromDate { get; set; }
+    [SupplyParameterFromQuery(Name = "toDate")] public string? ToDate { get; set; }
+
+    private bool isLoading;
+    private string errorMessage = string.Empty;
+
+    private List<TrialBalanceNode> nodes = new();
+
+    private string TafsiliTitle = string.Empty;
+
+    private bool isFourColumn = false;
+    private bool isTurnoverTwoColumn = false;
+    private bool isBalanceTwoColumn = true;
+    private bool showOnlyWithBalance = true;
+
+    private decimal totalDebit => nodes.Sum(n => n.DebitBalance);
+    private decimal totalCredit => nodes.Sum(n => n.CreditBalance);
+
+    private enum ReportMode
+    {
+        TwoColumnBalance = 1,
+        TwoColumnTurnover = 2,
+        FourColumnTurnoverBalance = 3
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))
+        {
+            try
+            {
+                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
+                if (fy != null)
+                {
+                    if (string.IsNullOrWhiteSpace(FromDate)) FromDate = fy.StartDate.ToPersianDate();
+                    if (string.IsNullOrWhiteSpace(ToDate)) ToDate = fy.EndDate.ToPersianDate();
+                }
+            }
+            catch { }
+            if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))
+            {
+                var r = MiniBank.Web.Components.Extensions.DateTimeExtensions.CurrentJalaliYearRange();
+                if (string.IsNullOrWhiteSpace(FromDate)) FromDate = r.From;
+                if (string.IsNullOrWhiteSpace(ToDate)) ToDate = r.To;
+            }
+        }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        nodes = new();
+        TafsiliTitle = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var info = await TrialBalanceRepo.GetAccountInfoAsync(TafsiliAccountId);
+            if (info == null)
+            {
+                errorMessage = "تفصیلی مورد نظر یافت نشد";
+                return;
+            }
+
+            TafsiliTitle = $"{info.Code} - {info.Name}";
+
+            var fromG = ParseJalaliToGregorian(FromDate);
+            var toG = ParseJalaliToGregorian(ToDate);
+            if (toG.HasValue)
+            {
+                toG = toG.Value.Date;
+            }
+
+            nodes = (await TrialBalanceRepo.GetMoeenByTafsiliAsync(TafsiliAccountId, fromG, toG, showOnlyWithBalance)).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack()
+    {
+        Nav.NavigateTo("/admin/reports/trial-balance");
+    }
+
+    private void SelectReportMode(ReportMode mode)
+    {
+        isBalanceTwoColumn = mode == ReportMode.TwoColumnBalance;
+        isTurnoverTwoColumn = mode == ReportMode.TwoColumnTurnover;
+        isFourColumn = mode == ReportMode.FourColumnTurnoverBalance;
+        StateHasChanged();
+    }
+
+    private void GoToTurnover(TrialBalanceNode node)
+    {
+        var fromQ = Uri.EscapeDataString(FromDate ?? string.Empty);
+        var toQ = Uri.EscapeDataString(ToDate ?? string.Empty);
+        Nav.NavigateTo($"/admin/reports/subsidiary-transactions/{node.AccountId}?fromDate={fromQ}&toDate={toQ}&level={node.Level}&tafsiliAccountId={TafsiliAccountId}");
+    }
+
+    private decimal ComputeDebtorBalance(TrialBalanceNode node)
+    {
+        var net = node.DebitBalance - node.CreditBalance;
+        return net > 0 ? net : 0m;
+    }
+
+    private decimal ComputeCreditorBalance(TrialBalanceNode node)
+    {
+        var net = node.DebitBalance - node.CreditBalance;
+        return net < 0 ? Math.Abs(net) : 0m;
+    }
+
+    private decimal ComputeNetBalance(IEnumerable<TrialBalanceNode> list)
+        => ComputeTotalDebtorBalance(list) - ComputeTotalCreditorBalance(list);
+
+    private decimal ComputeTotalDebtorBalance(IEnumerable<TrialBalanceNode> list)
+        => list.Sum(n => ComputeDebtorBalance(n));
+
+    private decimal ComputeTotalCreditorBalance(IEnumerable<TrialBalanceNode> list)
+        => list.Sum(n => ComputeCreditorBalance(n));
+
+    private DateTime? ParseJalaliToGregorian(string? jalali)
+    {
+        if (string.IsNullOrWhiteSpace(jalali)) return null;
+        try
+        {
+            var parts = jalali.Trim().Split('/', '-', '.');
+            if (parts.Length < 3) return null;
+            int y = int.Parse(parts[0]);
+            int m = int.Parse(parts[1]);
+            int d = int.Parse(parts[2]);
+            var pc = new System.Globalization.PersianCalendar();
+            return pc.ToDateTime(y, m, d, 0, 0, 0, 0);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private RenderFragment RenderTableRow(TrialBalanceNode node, int rowNumber) => __builder =>
+    {
+        var debitDisplay = isBalanceTwoColumn ? ComputeDebtorBalance(node) : node.DebitBalance;
+        var creditDisplay = isBalanceTwoColumn ? ComputeCreditorBalance(node) : node.CreditBalance;
+
+        <tr>
+            <td class="row-number">@rowNumber</td>
+            <td class="account-code">@node.Code</td>
+            <td style="text-align: center;">
+                <button type="button" class="turnover-eye-btn" @onclick="() => GoToTurnover(node)">
+                    <i class="fas fa-receipt"></i>
+                </button>
+            </td>
+            <td class="account-name">@node.Name</td>
+            <td class="amount-debit">
+                <span>@debitDisplay.ToString("N0")</span>
+            </td>
+            <td class="amount-credit">
+                <span>@creditDisplay.ToString("N0")</span>
+            </td>
+            @if (isFourColumn)
+            {
+                <td class="amount-debit">
+                    <span>@(ComputeDebtorBalance(node) > 0 ? ComputeDebtorBalance(node).ToString("N0") : "-")</span>
+                </td>
+                <td class="amount-credit">
+                    <span>@(ComputeCreditorBalance(node) > 0 ? ComputeCreditorBalance(node).ToString("N0") : "-")</span>
+                </td>
+            }
+        </tr>
+    };
+}

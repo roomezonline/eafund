@@ -1,0 +1,8 @@
+@using MiniBank.Web.Models
+
+<MiniBank.Web.Admin.Households.HouseholdEditDialog Model="Model" IsNew="IsNew" />
+
+@code {
+    [Parameter] public Household Model { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+}

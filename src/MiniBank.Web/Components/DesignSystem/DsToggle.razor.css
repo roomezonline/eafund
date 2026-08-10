@@ -1,0 +1,169 @@
+/* Design System Toggle Switch Styles */
+.ds-toggle-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3) 0;
+}
+
+.ds-toggle-content {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  flex: 1;
+}
+
+.ds-toggle-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-primary-50);
+  color: var(--ds-primary-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--ds-font-size-lg);
+}
+
+.ds-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+
+.ds-toggle-label {
+  font-size: var(--ds-font-size-md);
+  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-text-primary);
+  line-height: var(--ds-line-height-tight);
+}
+
+.ds-toggle-description {
+  font-size: var(--ds-font-size-sm);
+  color: var(--ds-text-secondary);
+  line-height: var(--ds-line-height-normal);
+}
+
+/* Toggle Switch */
+.ds-toggle {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.ds-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.ds-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--ds-gray-300);
+  border-radius: var(--ds-radius-full);
+  transition: var(--ds-transition-normal);
+}
+
+.ds-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 24px;
+  width: 24px;
+  left: 4px;
+  bottom: 4px;
+  background: var(--ds-surface);
+  border-radius: var(--ds-radius-full);
+  transition: var(--ds-transition-normal);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.ds-toggle input:checked + .ds-toggle-slider {
+  background: var(--ds-primary-500) !important;
+}
+
+.ds-toggle input:checked + .ds-toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.ds-toggle input:focus + .ds-toggle-slider {
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+}
+
+/* Small Size */
+.ds-toggle-sm {
+  width: 44px;
+  height: 26px;
+}
+
+.ds-toggle-sm .ds-toggle-slider:before {
+  height: 18px;
+  width: 18px;
+  left: 4px;
+  bottom: 4px;
+}
+
+.ds-toggle-sm input:checked + .ds-toggle-slider:before {
+  transform: translateX(18px);
+}
+
+/* Disabled State */
+.ds-toggle-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.ds-toggle-disabled .ds-toggle-slider {
+  cursor: not-allowed;
+  background: var(--ds-gray-200);
+}
+
+.ds-toggle-disabled .ds-toggle-icon {
+  background: var(--ds-gray-100);
+  color: var(--ds-gray-400);
+}
+
+.ds-toggle-disabled .ds-toggle-label {
+  color: var(--ds-text-disabled);
+}
+
+.ds-toggle-disabled .ds-toggle-description {
+  color: var(--ds-text-disabled);
+}
+
+/* Hover Effects */
+.ds-toggle:hover .ds-toggle-slider:not(.ds-toggle-disabled .ds-toggle-slider) {
+  background: var(--ds-gray-400);
+}
+
+.ds-toggle input:checked:hover + .ds-toggle-slider {
+  background: var(--ds-primary-600) !important;
+}
+
+/* Active State Animation */
+.ds-toggle-slider:active:before {
+  width: 28px;
+}
+
+.ds-toggle-sm .ds-toggle-slider:active:before {
+  width: 22px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .ds-toggle-container {
+    padding: var(--ds-space-4) 0;
+  }
+  
+  .ds-toggle-icon {
+    width: 36px;
+    height: 36px;
+  }
+}

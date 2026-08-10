@@ -1,0 +1,297 @@
+@page "/admin/households"
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Services.HouseholdService HouseholdService
+@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+
+<div class="households-duo">
+  <DsPageHeader Icon="fa-solid fa-people-roof" 
+                Title="خانوارها" 
+                Subtitle="@($"تعداد کل: {_items.Count}")"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="افزودن"
+                OnRefreshClick="LoadAsync"
+                OnAddClick="ShowCreate">
+  </DsPageHeader>
+
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="_keyword" 
+                  Placeholder="جستجو در خانوارها..." />
+  </div>
+  
+  <div class="duo-filters">
+    <DsPillGroup Mode="filter"
+                 Items="@_filterItems"
+                 ActiveKey="@_activeFilter"
+                 OnFilterChanged="OnFilterChanged" />
+  </div>
+  <div class="duo-sort">
+    <DsPillGroup Mode="sort"
+                 Items="@_sortItems"
+                 ActiveKey="@_sortKey"
+                 ActiveKeyChanged="@(k => _sortKey = k)"
+                 Desc="@_sortDesc"
+                 DescChanged="@(d => _sortDesc = d)"
+                 OnSortChanged="OnSortChanged" />
+  </div>
+
+  <main class="duo-main">
+    @if (_loading)
+    {
+      <div class="duo-list">
+        @for (int i = 0; i < 6; i++)
+        {
+          <div class="duo-item skeleton"></div>
+        }
+      </div>
+    }
+    else if (_items.Count == 0)
+    {
+      <div class="duo-empty">
+        <div class="emoji">📂</div>
+        <div>موردی یافت نشد</div>
+      </div>
+    }
+    else
+    {
+      <div class="duo-list">
+        @foreach (var h in _items)
+        {
+          <article class="duo-item" @onclick="(() => Edit(h))">
+            <div class="top">
+              <div class="name">@h.Name</div>
+              <span class="state @(h.IsActive ? "on" : "off")">@(h.IsActive ? "فعال" : "غیرفعال")</span>
+            </div>
+            <div class="bottom">
+              <div class="code"><span class="label">شناسه:</span> @h.HouseholdCode</div>
+              <div class="date"><DsDateText Value="@h.CreatedAt" FormatName="Short" /></div>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </main>
+
+<DsFab Title="افزودن" Icon="fa-plus" OnClick="ShowCreate" />
+</div>
+
+@if (_showSheet)
+{
+  <HouseholdIOSSheet Model="_currentModel" IsNew="_isNewSheet" OnClose="OnSheetClose" />
+}
+
+@code {
+    private List<MiniBank.Web.Models.Household> _items = new();
+    private List<MiniBank.Web.Models.Household> _allItems = new();
+    private bool _loading;
+    private string _kw = string.Empty;
+    private string _keyword
+    {
+        get => _kw;
+        set
+        {
+            _kw = value ?? string.Empty;
+            ApplyFilter();
+        }
+    }
+    private string _activeFilter = "all"; // all|active|inactive
+    private string _sortKey = "created"; // created|name|code|active
+    private bool _sortDesc = true; // default: جدیدترین => created desc
+    private List<DsPillGroup.DsPillItem> _filterItems = new()
+    {
+      new() { Key = "all", Text = "همه" },
+      new() { Key = "active", Text = "فعال" },
+      new() { Key = "inactive", Text = "غیرفعال" },
+    };
+    private List<DsPillGroup.DsPillItem> _sortItems = new()
+    {
+      new() { Key = "created", Text = "جدیدترین" },
+      new() { Key = "code", Text = "شناسه" },
+      new() { Key = "name", Text = "نام" },
+      new() { Key = "active", Text = "فعال‌ها" },
+    };
+    
+    // iOS Sheet state
+    private bool _showSheet = false;
+    private bool _isNewSheet = false;
+    private MiniBank.Web.Models.Household _currentModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            Loading.Show("صندوق امام علی (ع)", "در حال دریافت خانوارها...", "fa-solid fa-vault");
+            // دریافت یک‌باره داده‌ها و فیلتر کردن در کلاینت برای جستجوی زنده بدون پست‌بک
+            _allItems = (await HouseholdService.GetAsync(null, null)).ToList();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در دریافت اطلاعات: {ex.Message}");
+        }
+        finally
+        {
+            Loading.Hide();
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        IEnumerable<MiniBank.Web.Models.Household> q = _allItems;
+        // فیلتر وضعیت
+        if (_activeFilter == "active") q = q.Where(x => x.IsActive);
+        else if (_activeFilter == "inactive") q = q.Where(x => !x.IsActive);
+
+        // فیلتر جستجو بر اساس نام یا کد
+        var key = (_keyword ?? string.Empty).Trim();
+        if (!string.IsNullOrEmpty(key))
+        {
+            var k = key.ToLowerInvariant();
+            q = q.Where(x => (x.Name ?? string.Empty).ToLowerInvariant().Contains(k)
+                             || (x.HouseholdCode?.ToString() ?? string.Empty).ToLowerInvariant().Contains(k));
+        }
+
+        // مرتب‌سازی دو جهته
+        q = (_sortKey, _sortDesc) switch
+        {
+          ("name", false)    => q.OrderBy(x => x.Name),
+          ("name", true)     => q.OrderByDescending(x => x.Name),
+          // numeric sort for code (avoid lexicographic 1,10,11,...2)
+          ("code", false)    => q.OrderBy(x => long.TryParse(x.HouseholdCode, out var n) ? n : long.MinValue),
+          ("code", true)     => q.OrderByDescending(x => long.TryParse(x.HouseholdCode, out var n) ? n : long.MinValue),
+          ("active", false)  => q.OrderBy(x => x.IsActive).ThenBy(x => x.Name), // غیرفعال‌ها اول
+          ("active", true)   => q.OrderByDescending(x => x.IsActive).ThenBy(x => x.Name), // فعال‌ها اول
+          ("created", true)  => q.OrderByDescending(x => x.CreatedAt),
+          _                   => q.OrderBy(x => x.CreatedAt)
+        };
+
+        _items = q.ToList();
+        StateHasChanged();
+    }
+
+    private async Task ChangeFilter(string filter)
+    {
+        if (_activeFilter == filter) return;
+        _activeFilter = filter;
+        ApplyFilter();
+        await Task.CompletedTask;
+    }
+
+    private bool IsFilter(string f) => string.Equals(_activeFilter, f, StringComparison.Ordinal);
+    private bool IsSortKey(string key) => string.Equals(_sortKey, key, StringComparison.Ordinal);
+    private string SortDirIcon(string key)
+    {
+        if (_sortKey != key) return "fa-sort";
+        return _sortDesc ? "fa-arrow-down-short-wide" : "fa-arrow-up-short-wide";
+    }
+
+    private async Task ChangeSort(string key)
+    {
+        if (_sortKey == key)
+        {
+            _sortDesc = !_sortDesc; // toggle direction
+        }
+        else
+        {
+            _sortKey = key;
+            _sortDesc = key == "created"; // default: created => desc (جدیدترین)
+        }
+        ApplyFilter();
+        await Task.CompletedTask;
+    }
+
+    private Task OnSortChanged((string key, bool desc) s)
+    {
+        _sortKey = s.key; _sortDesc = s.desc; ApplyFilter();
+        return Task.CompletedTask;
+    }
+    private Task OnFilterChanged(string key)
+    {
+        if (_activeFilter == key) return Task.CompletedTask;
+        _activeFilter = key; ApplyFilter();
+        return Task.CompletedTask;
+    }
+
+    private async Task ShowCreate()
+    {
+        _currentModel = new MiniBank.Web.Models.Household { IsActive = true };
+        _isNewSheet = true;
+        _showSheet = true;
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    private Task Back()
+    {
+        return JS.InvokeVoidAsync("appNav.goBack").AsTask();
+    }
+
+    private Task ClearSearch()
+    {
+        _keyword = string.Empty;
+        ApplyFilter();
+        return Task.CompletedTask;
+    }
+
+    private Task SetFilterAll() => ChangeFilter("all");
+    private Task SetFilterActive() => ChangeFilter("active");
+    private Task SetFilterInactive() => ChangeFilter("inactive");
+
+    private async Task Edit(MiniBank.Web.Models.Household h)
+    {
+        _currentModel = new MiniBank.Web.Models.Household
+        {
+            HouseholdId = h.HouseholdId,
+            HouseholdCode = h.HouseholdCode,
+            Name = h.Name,
+            OwnerMemberId = h.OwnerMemberId,
+            IsActive = h.IsActive,
+            CreatedAt = h.CreatedAt
+        };
+        _isNewSheet = false;
+        _showSheet = true;
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    private async Task OnSheetClose(bool success)
+    {
+        _showSheet = false;
+        StateHasChanged();
+        
+        if (success)
+        {
+            await LoadAsync();
+            Toasts.Success("با موفقیت ذخیره شد");
+        }
+    }
+
+    private async Task ToggleSwitch(MiniBank.Web.Models.Household h, bool newValue)
+    {
+        try
+        {
+            Loading.Show("صندوق امام علی (ع)", newValue ? "در حال فعال‌سازی..." : "در حال غیرفعال‌سازی...", "fa-solid fa-vault");
+            await HouseholdService.ToggleActiveAsync(h.HouseholdId, newValue);
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا: {ex.Message}");
+            h.IsActive = !newValue; // revert
+        }
+        finally
+        {
+            Loading.Hide();
+        }
+    }
+}

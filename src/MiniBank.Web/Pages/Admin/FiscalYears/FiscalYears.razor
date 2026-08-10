@@ -1,0 +1,426 @@
+@page "/admin/fiscal-years"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Services.FiscalYearService FiscalYearService
+@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<div class="fy-duo">
+  <DsPageHeader Icon="fa-solid fa-calendar"
+                Title="سال‌های مالی"
+                Subtitle="@($"تعداد: {_items.Count}")"
+                ShowBackButton="true"
+                ShowRefreshButton="true"
+                ShowAddButton="true"
+                AddButtonTitle="افزودن"
+                OnRefreshClick="LoadAsync"
+                OnAddClick="ShowCreate">
+  </DsPageHeader>
+
+  <div class="duo-controls">
+    <DsSearchCard @bind-Value="_keyword"
+                  Placeholder="جستجو در عنوان یا کد سال..." />
+  </div>
+
+  <div class="duo-filters">
+    <DsPillGroup Mode="filter"
+                 Items="@_filterItems"
+                 ActiveKey="@_activeFilter"
+                 OnFilterChanged="@OnFilterChanged" />
+  </div>
+  <div class="duo-sort">
+    <DsPillGroup Mode="sort"
+                 Items="@_sortItems"
+                 ActiveKey="@_sortKey"
+                 ActiveKeyChanged="@(k => _sortKey = k)"
+                 Desc="@_sortDesc"
+                 DescChanged="@(d => _sortDesc = d)"
+                 OnSortChanged="@(EventCallback.Factory.Create<(string, bool)>(this, args => OnSortChanged(args.Item1, args.Item2)))" />
+  </div>
+
+  <main class="duo-content">
+    @if (_loading)
+    {
+      <div class="duo-list">
+        @for (int i = 0; i < 6; i++)
+        {
+          <div class="duo-item skeleton"></div>
+        }
+      </div>
+    }
+    else if (_items.Count == 0)
+    {
+      <div class="duo-empty">
+        <div class="emoji">📅</div>
+        <div>موردی یافت نشد</div>
+      </div>
+    }
+    else
+    {
+      <div class="duo-list">
+        @foreach (var fy in _items)
+        {
+          <article class="duo-item" @onclick="@(() => ShowDetail(fy))">
+            <div class="top">
+              <div class="name">@fy.Title</div>
+              <span class="fy-status @(fy.IsClosed ? "closed" : "open")">
+                @(fy.IsClosed ? "بسته شده" : "باز")
+              </span>
+            </div>
+            <div class="bottom">
+              <div class="code"><span class="label">کد سال:</span> @fy.YearCode</div>
+              <div class="date-range">
+                @($"{fy.StartDate:yyyy/MM/dd} - {fy.EndDate:yyyy/MM/dd}")
+              </div>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </main>
+
+  <DsFab Title="افزودن" Icon="fa-plus" OnClick="ShowCreate" />
+</div>
+
+@if (_showSheet)
+{
+  <FiscalYearIOSSheet Model="_currentModel" IsNew="_isNewSheet" OnClose="OnSheetClose" />
+}
+
+@if (_showDetail)
+{
+  <div class="fy-detail-overlay" @onclick="CloseDetail">
+    <div class="fy-detail-sheet" @onclick:stopPropagation>
+      <div class="detail-header">
+        <div class="detail-title">@(_selectedFy?.Title)</div>
+        <button class="detail-close" @onclick="CloseDetail">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="detail-body">
+        <div class="detail-kv">
+          <div class="kv-row">
+            <span class="kv-lbl">کد سال</span>
+            <span class="kv-val">@(_selectedFy?.YearCode)</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-lbl">تاریخ شروع</span>
+            <span class="kv-val">@(_selectedFy?.StartDate.ToString("yyyy/MM/dd"))</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-lbl">تاریخ پایان</span>
+            <span class="kv-val">@(_selectedFy?.EndDate.ToString("yyyy/MM/dd"))</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-lbl">وضعیت</span>
+            <span class="kv-val">@(_selectedFy?.IsClosed == true ? "بسته شده" : "باز")</span>
+          </div>
+          @if (_selectedFy?.ClosedAt != null)
+          {
+            <div class="kv-row">
+              <span class="kv-lbl">تاریخ بسته شدن</span>
+              <span class="kv-val">@(_selectedFy?.ClosedAt?.ToString("yyyy/MM/dd HH:mm"))</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-lbl">بسته شده توسط</span>
+              <span class="kv-val">@(_selectedFy?.ClosedBy)</span>
+            </div>
+          }
+          @if (!string.IsNullOrEmpty(_selectedFy?.Notes))
+          {
+            <div class="kv-row">
+              <span class="kv-lbl">توضیحات</span>
+              <span class="kv-val">@(_selectedFy?.Notes)</span>
+            </div>
+          }
+        </div>
+
+        <div class="detail-actions">
+          <button class="detail-btn edit-fy" @onclick="ShowEdit">
+            <i class="fa-solid fa-pen"></i>
+            <span>ویرایش</span>
+          </button>
+
+          @if (_selectedFy?.IsClosed == false)
+          {
+            <button class="detail-btn close-fy" @onclick="@(() => NavigateToClosing(_selectedFy!.FiscalYearId))">
+              <i class="fa-solid fa-lock"></i>
+              <span>اختتامیه سال مالی</span>
+            </button>
+          }
+          @if (_selectedFy?.IsClosed == true)
+          {
+            var nextYearCode = (_selectedFy.YearCode + 1);
+            <button class="detail-btn open-fy" @onclick="@(() => NavigateToOpening(_selectedFy.FiscalYearId, nextYearCode))">
+              <i class="fa-solid fa-unlock"></i>
+              <span>افتتاحیه سال @nextYearCode</span>
+            </button>
+            <button class="detail-btn revert-fy" @onclick="RevertClosing">
+              <i class="fa-solid fa-rotate-left"></i>
+              <span>برگشت اختتامیه</span>
+            </button>
+          }
+
+          <button class="detail-btn delete-fy" @onclick="ShowDelete">
+            <i class="fa-solid fa-trash"></i>
+            <span>حذف سال مالی</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<DsConfirm Show="@_showRevertConfirm"
+           Title="@_revertConfirmTitle"
+           Message="@_revertConfirmMessage"
+           Variant="warning"
+           ConfirmText="برگشت اختتامیه"
+           CancelText="انصراف"
+           Loading="@_revertBusy"
+           OnConfirm="ConfirmRevert"
+           OnCancel="CancelRevert" />
+
+<DsConfirm Show="@_showDeleteConfirm"
+           Title="@_deleteConfirmTitle"
+           Message="@_deleteConfirmMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           Loading="@_deleteBusy"
+           OnConfirm="ConfirmDelete"
+           OnCancel="CancelDelete" />
+
+@code {
+  private List<FiscalYear> _items = new();
+  private List<FiscalYear> _allItems = new();
+  private bool _loading;
+  private string _kw = string.Empty;
+  private string _keyword
+  {
+    get => _kw;
+    set { _kw = value; ApplyFiltersAndSort(); }
+  }
+
+  private bool _showSheet;
+  private bool _isNewSheet;
+  private FiscalYear _currentModel = new();
+  private bool _showDetail;
+  private FiscalYear? _selectedFy;
+
+  private string _activeFilter = "all";
+  private string _sortKey = "code";
+  private bool _sortDesc = false;
+
+  private readonly List<DsPillGroup.DsPillItem> _filterItems = new()
+  {
+    new() { Key = "all", Text = "همه", Icon = "fa-solid fa-list" },
+    new() { Key = "open", Text = "باز", Icon = "fa-solid fa-lock-open" },
+    new() { Key = "closed", Text = "بسته", Icon = "fa-solid fa-lock" }
+  };
+
+  private readonly List<DsPillGroup.DsPillItem> _sortItems = new()
+  {
+    new() { Key = "code", Text = "کد سال", Icon = "fa-solid fa-hashtag" },
+    new() { Key = "title", Text = "عنوان", Icon = "fa-solid fa-font" }
+  };
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAsync();
+  }
+
+  private async Task LoadAsync()
+  {
+    _loading = true;
+    try
+    {
+      _allItems = (await FiscalYearService.GetAllAsync()).ToList();
+      ApplyFiltersAndSort();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگذاری سال‌های مالی: {ex.Message}");
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private void ApplyFiltersAndSort()
+  {
+    var filtered = _allItems.AsEnumerable();
+    if (!string.IsNullOrWhiteSpace(_keyword))
+    {
+      filtered = filtered.Where(x =>
+        (x.Title?.Contains(_keyword, StringComparison.OrdinalIgnoreCase) ?? false) ||
+        x.YearCode.ToString().Contains(_keyword));
+    }
+    if (_activeFilter == "open")
+      filtered = filtered.Where(x => !x.IsClosed);
+    else if (_activeFilter == "closed")
+      filtered = filtered.Where(x => x.IsClosed);
+    filtered = _sortKey switch
+    {
+      "code" => _sortDesc ? filtered.OrderByDescending(x => x.YearCode) : filtered.OrderBy(x => x.YearCode),
+      "title" => _sortDesc ? filtered.OrderByDescending(x => x.Title) : filtered.OrderBy(x => x.Title),
+      _ => filtered.OrderByDescending(x => x.YearCode)
+    };
+    _items = filtered.ToList();
+    StateHasChanged();
+  }
+
+  private void OnFilterChanged(string key) { _activeFilter = key; ApplyFiltersAndSort(); }
+  private void OnSortChanged(string key, bool desc) { _sortKey = key; _sortDesc = desc; ApplyFiltersAndSort(); }
+
+  private void ShowCreate()
+  {
+    _currentModel = new FiscalYear { IsOpen = true, IsClosed = false };
+    _isNewSheet = true;
+    _showSheet = true;
+  }
+
+  private void ShowEdit()
+  {
+    if (_selectedFy == null) return;
+    _currentModel = _selectedFy;
+    _isNewSheet = false;
+    _showSheet = true;
+    _showDetail = false;
+  }
+
+  private void ShowDetail(FiscalYear fy)
+  {
+    _selectedFy = fy;
+    _showDetail = true;
+  }
+
+  private void CloseDetail()
+  {
+    _showDetail = false;
+    _selectedFy = null;
+  }
+
+  private async Task OnSheetClose(bool hasChanges)
+  {
+    _showSheet = false;
+    if (hasChanges) await LoadAsync();
+  }
+
+  private bool _showRevertConfirm;
+  private string _revertConfirmTitle = string.Empty;
+  private string _revertConfirmMessage = string.Empty;
+  private bool _revertBusy;
+
+  private void RevertClosing()
+  {
+    if (_selectedFy == null) return;
+    _revertConfirmTitle = $"برگشت اختتامیه سال {_selectedFy.YearCode}";
+    _revertConfirmMessage = $@"
+      سند اختتامیه سال مالی <b>{_selectedFy.Title}</b> حذف و سال مالی دوباره <b>باز</b> می‌شود.
+      <br/><br/>
+      <small style='color:#6b7280;'>
+        <i class='fa-solid fa-triangle-exclamation'></i>
+        این عمل فقط زمانی مجاز است که سال مالی بعدی افتتاحیه نخورده باشد.
+      </small>";
+    _showRevertConfirm = true;
+    StateHasChanged();
+  }
+
+  private async Task ConfirmRevert()
+  {
+    if (_selectedFy == null) return;
+    _revertBusy = true;
+    try
+    {
+      var journalId = await FiscalYearService.RevertClosingAsync(_selectedFy.FiscalYearId);
+      _showRevertConfirm = false;
+      Toasts.Success(journalId > 0
+        ? $"اختتامیه سال {_selectedFy.YearCode} با موفقیت برگردانده شد (سند {journalId} حذف شد)"
+        : $"اختتامیه سال {_selectedFy.YearCode} با موفقیت برگردانده شد");
+      _showDetail = false;
+      _selectedFy = null;
+      await LoadAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در برگشت اختتامیه: {ex.Message}");
+    }
+    finally
+    {
+      _revertBusy = false;
+      StateHasChanged();
+    }
+  }
+
+  private Task CancelRevert()
+  {
+    _showRevertConfirm = false;
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private bool _showDeleteConfirm;
+  private string _deleteConfirmTitle = string.Empty;
+  private string _deleteConfirmMessage = string.Empty;
+  private bool _deleteBusy;
+
+  private void ShowDelete()
+  {
+    if (_selectedFy == null) return;
+    _deleteConfirmTitle = $"حذف سال مالی {_selectedFy.YearCode}";
+    _deleteConfirmMessage = $@"
+      آیا از حذف سال مالی <b>{_selectedFy.Title}</b> اطمینان دارید؟
+      <br/><br/>
+      <small style='color:#991b1b;'>
+        <i class='fa-solid fa-triangle-exclamation'></i>
+        کلیه اطلاعات مرتبط با این سال مالی حذف خواهد شد.
+      </small>";
+    _showDeleteConfirm = true;
+    StateHasChanged();
+  }
+
+  private async Task ConfirmDelete()
+  {
+    if (_selectedFy == null) return;
+    _deleteBusy = true;
+    try
+    {
+      await FiscalYearService.DeleteAsync(_selectedFy.FiscalYearId);
+      _showDeleteConfirm = false;
+      Toasts.Success($"سال مالی {_selectedFy.YearCode} حذف شد");
+      _showDetail = false;
+      _selectedFy = null;
+      await LoadAsync();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در حذف: {ex.Message}");
+    }
+    finally
+    {
+      _deleteBusy = false;
+      StateHasChanged();
+    }
+  }
+
+  private Task CancelDelete()
+  {
+    _showDeleteConfirm = false;
+    StateHasChanged();
+    return Task.CompletedTask;
+  }
+
+  private void NavigateToClosing(int fiscalYearId)
+  {
+    Navigation.NavigateTo($"/admin/fiscal-years/closing/{fiscalYearId}");
+  }
+
+  private void NavigateToOpening(int sourceYearId, int targetYearCode)
+  {
+    Navigation.NavigateTo($"/admin/fiscal-years/opening/{sourceYearId}/{targetYearCode}");
+  }
+}

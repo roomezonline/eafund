@@ -1,0 +1,168 @@
+@page "/admin/fiscal-years/opening/{SourceYearId:int}/{TargetYearCode:int}"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Models
+@inject MiniBank.Web.Services.FiscalYearService FiscalYearService
+@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject NavigationManager Navigation
+
+<div class="fy-opening-shell">
+  <button class="back-btn" @onclick="GoBack">
+    <i class="fa-solid fa-arrow-right"></i>
+    <span>بازگشت</span>
+  </button>
+
+  @if (_loading)
+  {
+    <div class="fy-loading">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+  }
+  else if (_error != null)
+  {
+    <div class="fy-error">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <div>@_error</div>
+      <button class="btn primary" @onclick="LoadData">تلاش مجدد</button>
+    </div>
+  }
+  else if (_preview != null)
+  {
+    <div class="fy-card">
+      <div class="card-title">
+        <i class="fa-solid fa-unlock"></i>
+        <span>افتتاحیه سال مالی @_preview.TargetFiscalYear!.YearCode</span>
+      </div>
+      <div class="card-sub">
+        انتقال مانده از سال @_preview.SourceFiscalYear!.YearCode
+      </div>
+      <div class="kv-row">
+        <span class="kv-lbl">سال مبدأ</span>
+        <span class="kv-val">@_preview.SourceFiscalYear.Title (@_preview.SourceFiscalYear.YearCode)</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-lbl">سال مقصد</span>
+        <span class="kv-val">@_preview.TargetFiscalYear.Title (@_preview.TargetFiscalYear.YearCode)</span>
+      </div>
+    </div>
+
+    <div class="fy-card">
+      <div class="card-title">
+        <i class="fa-solid fa-receipt"></i>
+        <span>سند افتتاحیه (@_preview.JournalLines.Count ردیف)</span>
+      </div>
+      <div class="fy-table-wrap">
+        <table class="fy-table">
+          <thead>
+            <tr>
+              <th>ردیف</th>
+              <th>کد حساب</th>
+              <th>نام حساب</th>
+              <th>بدهکار</th>
+              <th>بستانکار</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var line in _preview.JournalLines)
+            {
+              <tr>
+                <td>@line.LineNo</td>
+                <td>@line.AccountCode</td>
+                <td>@line.AccountName</td>
+                <td class="num">@(line.Debit > 0 ? line.Debit.ToString("N0") : "-")</td>
+                <td class="num">@(line.Credit > 0 ? line.Credit.ToString("N0") : "-")</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3">جمع</td>
+              <td class="num">@_preview.TotalDebit.ToString("N0")</td>
+              <td class="num">@_preview.TotalCredit.ToString("N0")</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      @if (_preview.TotalDebit != _preview.TotalCredit)
+      {
+        <div class="fy-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>سند نامتوازن است (اختلاف: @(Math.Abs(_preview.TotalDebit - _preview.TotalCredit).ToString("N0")) ریال)</span>
+        </div>
+      }
+    </div>
+
+    <div class="fy-actions">
+      <button class="btn primary" @onclick="ExecuteOpening" disabled="@_executing">
+        @if (_executing)
+        {
+          <span>در حال اجرا...</span>
+        }
+        else
+        {
+          <span>تأیید و ثبت افتتاحیه</span>
+        }
+      </button>
+    </div>
+  }
+</div>
+
+@code {
+  [Parameter] public int SourceYearId { get; set; }
+  [Parameter] public int TargetYearCode { get; set; }
+
+  private bool _loading = true;
+  private string? _error;
+  private FiscalYearService.OpeningPreview? _preview;
+  private bool _executing;
+
+  protected override async Task OnInitializedAsync() => await LoadData();
+
+  private async Task LoadData()
+  {
+    _loading = true;
+    _error = null;
+    try
+    {
+      var targetFy = await FiscalYearService.GetByYearCodeAsync(TargetYearCode);
+      if (targetFy == null)
+      {
+        _error = $"سال مالی {TargetYearCode} یافت نشد. ابتدا سال مقصد را ایجاد کنید.";
+        return;
+      }
+      _preview = await FiscalYearService.BuildOpeningPreviewAsync(SourceYearId, targetFy.FiscalYearId);
+    }
+    catch (Exception ex)
+    {
+      _error = ex.Message;
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private async Task ExecuteOpening()
+  {
+    if (_preview == null) return;
+    _executing = true;
+    try
+    {
+      var journalId = await FiscalYearService.ExecuteOpeningAsync(
+        SourceYearId, _preview.TargetFiscalYear!.FiscalYearId, "admin");
+      Toasts.Success($"افتتاحیه با موفقیت ثبت شد (سند شماره {journalId})");
+      Navigation.NavigateTo("/admin/fiscal-years");
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ثبت افتتاحیه: {ex.Message}");
+    }
+    finally
+    {
+      _executing = false;
+    }
+  }
+
+  private void GoBack() => Navigation.NavigateTo("/admin/fiscal-years");
+}

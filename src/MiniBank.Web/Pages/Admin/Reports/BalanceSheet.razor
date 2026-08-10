@@ -1,0 +1,227 @@
+@page "/admin/reports/balance-sheet"
+@inject HttpClient Http
+@inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
+@inject IJSRuntime JS
+
+<MiniBank.Web.Components.DesignSystem.DsPageHeader 
+    Icon="fa-solid fa-chart-line" 
+    Title="ترازنامه" 
+    Subtitle="گزارش وضعیت مالی تا تاریخ مشخص" />
+
+<div class="balance-sheet-container">
+    <div class="filter-card">
+        <div class="filter-header">
+            <i class="fa-solid fa-calendar-alt"></i>
+            <h3>انتخاب تاریخ گزارش</h3>
+        </div>
+        <div class="filter-content">
+            <div class="date-picker-wrapper">
+                <label class="date-label">تاریخ گزارش:</label>
+                <input id="persianDatePicker" 
+                       class="persian-date-input" 
+                       type="text" 
+                       placeholder="انتخاب تاریخ..." 
+                       readonly />
+            </div>
+            <button class="btn-generate" @onclick="LoadData" disabled="@loading">
+                @if (loading)
+                {
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    <span>در حال بارگذاری...</span>
+                }
+                else
+                {
+                    <i class="fa-solid fa-chart-bar"></i>
+                    <span>تولید گزارش</span>
+                }
+            </button>
+        </div>
+    </div>
+
+    @if (snapshot is not null)
+    {
+        <div class="report-card">
+            <div class="report-header">
+                <div class="report-title">
+                    <i class="fa-solid fa-balance-scale"></i>
+                    <h3>ترازنامه</h3>
+                </div>
+                <div class="report-date">
+                    <i class="fa-solid fa-calendar"></i>
+                    <span>تا تاریخ: @asOfLocal.ToString("yyyy/MM/dd")</span>
+                </div>
+            </div>
+            
+            <div class="balance-grid">
+                <div class="balance-item assets">
+                    <div class="balance-icon">
+                        <i class="fa-solid fa-coins"></i>
+                    </div>
+                    <div class="balance-info">
+                        <h4>دارایی‌ها</h4>
+                        <div class="balance-amount">
+                            <span class="amount">@snapshot.Assets.ToString("N0")</span>
+                            <span class="currency">ریال</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="balance-item liabilities">
+                    <div class="balance-icon">
+                        <i class="fa-solid fa-credit-card"></i>
+                    </div>
+                    <div class="balance-info">
+                        <h4>بدهی‌ها</h4>
+                        <div class="balance-amount">
+                            <span class="amount">@snapshot.Liabilities.ToString("N0")</span>
+                            <span class="currency">ریال</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="balance-item equity">
+                    <div class="balance-icon">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <div class="balance-info">
+                        <h4>حقوق مالکانه</h4>
+                        <div class="balance-amount">
+                            <span class="amount">@snapshot.Equity.ToString("N0")</span>
+                            <span class="currency">ریال</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="balance-item income">
+                    <div class="balance-icon">
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+                    </div>
+                    <div class="balance-info">
+                        <h4>درآمد</h4>
+                        <div class="balance-amount">
+                            <span class="amount">@snapshot.Income.ToString("N0")</span>
+                            <span class="currency">ریال</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="balance-item expense">
+                    <div class="balance-icon">
+                        <i class="fa-solid fa-arrow-trend-down"></i>
+                    </div>
+                    <div class="balance-info">
+                        <h4>هزینه</h4>
+                        <div class="balance-amount">
+                            <span class="amount">@snapshot.Expense.ToString("N0")</span>
+                            <span class="currency">ریال</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="balance-item net-income">
+                    <div class="balance-icon">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div class="balance-info">
+                        <h4>سود خالص</h4>
+                        <div class="balance-amount">
+                            <span class="amount">@((snapshot.Income - snapshot.Expense).ToString("N0"))</span>
+                            <span class="currency">ریال</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (!loading)
+    {
+        <div class="empty-state">
+            <i class="fa-solid fa-chart-line"></i>
+            <h3>گزارش ترازنامه</h3>
+            <p>برای مشاهده گزارش، تاریخ مورد نظر را انتخاب کرده و دکمه تولید گزارش را کلیک کنید.</p>
+        </div>
+    }
+</div>
+
+@code {
+  private DateTime asOfLocal = DateTime.Today;
+  private bool loading = false;
+  private BalanceSheetDto? snapshot;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await InitializePersianDatePicker();
+    // Don't auto-load data on init, let user select date first
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      await InitializePersianDatePicker();
+    }
+  }
+
+  private async Task InitializePersianDatePicker()
+  {
+    try
+    {
+      await JS.InvokeVoidAsync("initPersianDatePicker", "persianDatePicker", DotNetObjectReference.Create(this));
+    }
+    catch (Exception ex)
+    {
+      // Fallback if Persian date picker fails
+      Console.WriteLine($"Persian date picker initialization failed: {ex.Message}");
+    }
+  }
+
+  [JSInvokable]
+  public async Task OnPersianDateSelected(string persianDate, string gregorianDate)
+  {
+    try
+    {
+      if (DateTime.TryParse(gregorianDate, out var date))
+      {
+        asOfLocal = date;
+        StateHasChanged();
+      }
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در تبدیل تاریخ: {ex.Message}");
+    }
+  }
+
+  private async Task LoadData()
+  {
+    try
+    {
+      loading = true;
+      StateHasChanged();
+      
+      var dt = asOfLocal.ToUniversalTime();
+      var url = $"/api/reports/balance-sheet?asOf={Uri.EscapeDataString(dt.ToString("o"))}";
+      var resp = await Http.GetFromJsonAsync<BalanceSheetResponse>(url);
+      snapshot = resp?.snapshot != null ? new BalanceSheetDto
+      {
+        Assets = resp.snapshot.Assets,
+        Liabilities = resp.snapshot.Liabilities,
+        Equity = resp.snapshot.Equity,
+        Income = resp.snapshot.Income,
+        Expense = resp.snapshot.Expense
+      } : null;
+    }
+    catch (Exception ex)
+    {
+      Toast.Error($"خطا در بارگذاری گزارش: {ex.Message}");
+    }
+    finally
+    {
+      loading = false;
+      StateHasChanged();
+    }
+  }
+
+  private class BalanceSheetResponse { public DateTime asOf { get; set; } public BalanceSheetDto snapshot { get; set; } = new(); }
+  private class BalanceSheetDto { public decimal Assets { get; set; } public decimal Liabilities { get; set; } public decimal Equity { get; set; } public decimal Income { get; set; } public decimal Expense { get; set; } }
+}

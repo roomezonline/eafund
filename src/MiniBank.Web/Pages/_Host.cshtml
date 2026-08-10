@@ -1,0 +1,651 @@
+@page "/"
+@namespace MiniBank.Web.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>صندوق امام علی (ع)</title>
+    <base href="~/" />
+    <!-- Disable HTTP caching in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <script>
+      (function(){
+        try{
+          var k='mb.theme';
+          var saved=localStorage.getItem(k);
+          var theme=(saved==='light'||saved==='dark')?saved:(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+          document.documentElement.setAttribute('data-theme', theme);
+        }catch(e){document.documentElement.setAttribute('data-theme','dark');}
+      })();
+    </script>
+    <script>
+      (function(){
+        try{
+          var k='mb.adminCardTheme';
+          var raw=localStorage.getItem(k);
+          var t=raw?JSON.parse(raw):null;
+          t=t&&typeof t==='object'?t:{};
+          var g1=(typeof t.grad1==='string'&&t.grad1.trim())?t.grad1.trim():'#667eea';
+          var g2=(typeof t.grad2==='string'&&t.grad2.trim())?t.grad2.trim():'#6f5bd3';
+          var g3=(typeof t.grad3==='string'&&t.grad3.trim())?t.grad3.trim():'#764ba2';
+          var txt=(typeof t.text==='string'&&t.text.trim())?t.text.trim():'#ffffff';
+          var r=document.documentElement;
+          r.style.setProperty('--admin-card-grad-1', g1);
+          r.style.setProperty('--admin-card-grad-2', g2);
+          r.style.setProperty('--admin-card-grad-3', g3);
+          r.style.setProperty('--admin-card-text', txt);
+        }catch(e){}
+      })();
+    </script>
+    <link rel="stylesheet" href="/lib/fontawesome/css/all.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
+    
+    <!-- Material Design 3 Tokens -->
+    <link rel="stylesheet" href="/css/tokens/colors.css" asp-append-version="true" />
+    <link rel="stylesheet" href="/css/tokens/typography.css" asp-append-version="true" />
+    <link rel="stylesheet" href="/css/tokens/elevation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="/css/tokens/motion.css" asp-append-version="true" />
+    
+    <!-- Design System Tokens -->
+    <link rel="stylesheet" href="/css/ds/tokens.css" asp-append-version="true" />
+    <link rel="stylesheet" href="/css/ds/themes.css" asp-append-version="true" />
+    <link rel="stylesheet" href="/css/ds/utilities.css" asp-append-version="true" />
+    
+    <!-- Material Design 3 Components -->
+    <link href="~/css/components/button.css" rel="stylesheet" />
+    <link href="~/css/components/textfield.css" rel="stylesheet" />
+    <link href="~/css/components/navigation.css" rel="stylesheet" />
+    <link href="~/css/components/snackbar.css" rel="stylesheet" />
+    
+    <!-- Layout -->
+    <!-- <link href="~/css/layout/mobile-first.css" rel="stylesheet" /> -->
+    
+    <!-- Original Styles -->
+    <link rel="stylesheet" href="css/site.css" asp-append-version="true" />
+    <!-- JalaliDatePicker local assets -->
+    <link rel="stylesheet" href="/lib/jalalidatepicker/jalalidatepicker.min.css" />
+    <link rel="stylesheet" href="/css/jdp-overrides.css" />
+    <link rel="stylesheet" href="MiniBank.Web.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="/css/loading.css" asp-append-version="true" />
+    <link rel="stylesheet" href="/css/toast-fix.css" asp-append-version="true" />
+    <link rel="manifest" href="/manifest.webmanifest" asp-append-version="true" />
+    <!-- PWA Theming -->
+    <meta name="theme-color" content="#6750a4" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="صندوق امام علی (ع)">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="صندوق امام علی (ع)">
+    <meta name="msapplication-TileColor" content="#6750a4">
+    <meta name="msapplication-config" content="/browserconfig.xml">
+    <link rel="apple-touch-icon" href="/icons/logo_emam_ali.png">
+    <link rel="mask-icon" href="/icons/logo_emam_ali.png" color="#6750a4">
+    
+    <!-- iOS Splash Screens -->
+    <link rel="apple-touch-startup-image" href="/icons/logo_emam_ali.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="/icons/logo_emam_ali.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="/icons/logo_emam_ali.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="/icons/logo_emam_ali.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="/icons/logo_emam_ali.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="/icons/logo_emam_ali.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="/icons/logo_emam_ali.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="/icons/logo_emam_ali.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="/icons/logo_emam_ali.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="icon" href="/icons/logo_emam_ali.png" type="image/png" />
+    <link rel="preload" href="/fonts/vazir/Vazir-Regular.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+<body>
+    <app>
+        <component type="typeof(App)" render-mode="ServerPrerendered" />
+    </app>
+    <div id="global-loading-root"></div>
+    <!-- disable-pull-refresh removed to fix overscroll-behavior forcing -->
+    <script src="/js/normalize-digits.js" defer asp-append-version="true"></script>
+    <script src="/js/theme.js" defer asp-append-version="true"></script>
+    <script src="/js/admin-card-theme.js" defer asp-append-version="true"></script>
+    <script src="/js/footer-nav.js" defer asp-append-version="true"></script>
+    <script src="/js/app-nav.js" defer asp-append-version="true"></script>
+    <script src="/js/tx-share.js" defer asp-append-version="true"></script>
+    <script src="/js/duo-ripple.js" defer asp-append-version="true"></script>
+    <script src="~/js/app-install.js" asp-append-version="true"></script>
+    <script src="~/js/drag-groups.js" asp-append-version="true"></script>
+    <script src="~/js/pwa-splash.js" asp-append-version="true"></script>
+    <script src="~/js/navigation.js" asp-append-version="true"></script>
+    <script src="~/js/ds-dropdown-fixed.js" asp-append-version="true"></script>
+    <script src="~/js/update.js" asp-append-version="true"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_framework/blazor.server.js" autostart="false"></script>
+    <!-- JalaliDatePicker local assets -->
+    <script src="/lib/jalalidatepicker/jalalidatepicker.min.js"></script>
+    <!-- Persian Date Picker -->
+    <script src="/js/persian-datepicker.js" asp-append-version="true"></script>
+    <!-- Collapse Toggle for Detailed Balance Sheet -->
+    <script src="~/js/collapse-toggle.js" asp-append-version="true"></script>
+    <script>
+      // Global initializer for JalaliDatePicker - safe to call multiple times
+      window.initJdp = function(){
+        try { jalaliDatepicker.startWatch({ autoInit: true }); } catch(e) { console.warn('JDP init failed', e); }
+      };
+      // Initialize on first load as well
+      document.addEventListener('DOMContentLoaded', function(){
+        if (window.initJdp) window.initJdp();
+      });
+    </script>
+    <script>
+      (function(){
+        const STORE_PREFIX = 'mb.history.';
+        const MAX_ITEMS = 20;
+
+        function safeId(s){
+          return String(s || '').replace(/[^a-zA-Z0-9_\-]/g, '_');
+        }
+
+        function loadList(key){
+          try {
+            const raw = localStorage.getItem(STORE_PREFIX + key);
+            const arr = raw ? JSON.parse(raw) : [];
+            return Array.isArray(arr) ? arr : [];
+          } catch { return []; }
+        }
+
+        function saveList(key, arr){
+          try { localStorage.setItem(STORE_PREFIX + key, JSON.stringify(arr.slice(0, MAX_ITEMS))); } catch { }
+        }
+
+        function addValue(key, value){
+          const v = (value || '').toString().trim();
+          if (!v || v.length < 2) return;
+          const list = loadList(key);
+          const next = [v, ...list.filter(x => (x || '').toString() !== v)];
+          saveList(key, next);
+        }
+
+        function ensureDatalist(key){
+          const id = 'mb-dl-' + safeId(key);
+          let dl = document.getElementById(id);
+          if (!dl) {
+            dl = document.createElement('datalist');
+            dl.id = id;
+            document.body.appendChild(dl);
+          }
+          return dl;
+        }
+
+        function fillDatalist(dl, key){
+          const values = loadList(key);
+          dl.innerHTML = '';
+          for (const v of values) {
+            const opt = document.createElement('option');
+            opt.value = v;
+            dl.appendChild(opt);
+          }
+        }
+
+        let taPanel = null;
+        let taHideTimer = null;
+
+        function ensureTextareaPanel(){
+          if (taPanel) return taPanel;
+          const el = document.createElement('div');
+          el.id = 'mb-ta-suggest';
+          el.style.position = 'fixed';
+          el.style.zIndex = '10000';
+          el.style.display = 'none';
+          el.style.maxWidth = 'min(92vw, 420px)';
+          el.style.background = 'var(--md-sys-color-surface, #1e1b24)';
+          el.style.color = 'var(--md-sys-color-on-surface, #fff)';
+          el.style.border = '1px solid rgba(255,255,255,.12)';
+          el.style.borderRadius = '10px';
+          el.style.boxShadow = '0 8px 24px rgba(0,0,0,.3)';
+          el.style.padding = '8px';
+          el.style.overflow = 'auto';
+          el.style.maxHeight = '240px';
+          document.body.appendChild(el);
+          taPanel = el;
+          return taPanel;
+        }
+
+        function showPanelSuggest(target){
+          const key = target.getAttribute('data-history-key');
+          if (!key) return;
+          if (taHideTimer) { try { clearTimeout(taHideTimer); } catch(_) { } }
+          const list = loadList(key);
+          if (!list.length) return;
+
+          const q = (target.value || '').toString().trim().toLowerCase();
+          const filtered = q
+            ? list.filter(x => (x || '').toString().toLowerCase().includes(q))
+            : list;
+          if (!filtered.length) return;
+
+          const panel = ensureTextareaPanel();
+          panel.innerHTML = '';
+
+          for (const v of filtered) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = v;
+            btn.style.width = '100%';
+            btn.style.textAlign = 'right';
+            btn.style.direction = 'rtl';
+            btn.style.background = 'transparent';
+            btn.style.color = 'inherit';
+            btn.style.border = '0';
+            btn.style.padding = '8px 10px';
+            btn.style.borderRadius = '8px';
+            btn.style.cursor = 'pointer';
+            btn.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              target.value = v;
+              target.dispatchEvent(new Event('input', { bubbles: true }));
+              panel.style.display = 'none';
+            });
+            btn.addEventListener('mouseover', () => { btn.style.background = 'rgba(255,255,255,.08)'; });
+            btn.addEventListener('mouseout', () => { btn.style.background = 'transparent'; });
+            panel.appendChild(btn);
+          }
+
+          const r = target.getBoundingClientRect();
+          const top = Math.min(window.innerHeight - 10, r.bottom + 6);
+          panel.style.left = Math.max(10, Math.min(window.innerWidth - 10, r.left)) + 'px';
+          panel.style.top = top + 'px';
+          panel.style.display = 'block';
+        }
+
+        function showTextareaSuggest(target){
+          const key = target.getAttribute('data-history-key');
+          if (!key) return;
+          if (taHideTimer) { try { clearTimeout(taHideTimer); } catch(_) { } }
+          const list = loadList(key);
+          if (!list.length) return;
+
+          const q = (target.value || '').toString().trim().toLowerCase();
+          const filtered = q
+            ? list.filter(x => (x || '').toString().toLowerCase().includes(q))
+            : list;
+          if (!filtered.length) return;
+
+          const panel = ensureTextareaPanel();
+          panel.innerHTML = '';
+
+          for (const v of filtered) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = v;
+            btn.style.width = '100%';
+            btn.style.textAlign = 'right';
+            btn.style.direction = 'rtl';
+            btn.style.background = 'transparent';
+            btn.style.color = 'inherit';
+            btn.style.border = '0';
+            btn.style.padding = '8px 10px';
+            btn.style.borderRadius = '8px';
+            btn.style.cursor = 'pointer';
+            btn.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              target.value = v;
+              target.dispatchEvent(new Event('input', { bubbles: true }));
+              panel.style.display = 'none';
+            });
+            btn.addEventListener('mouseover', () => { btn.style.background = 'rgba(255,255,255,.08)'; });
+            btn.addEventListener('mouseout', () => { btn.style.background = 'transparent'; });
+            panel.appendChild(btn);
+          }
+
+          const r = target.getBoundingClientRect();
+          const top = Math.min(window.innerHeight - 10, r.bottom + 6);
+          panel.style.left = Math.max(10, Math.min(window.innerWidth - 10, r.left)) + 'px';
+          panel.style.top = top + 'px';
+          panel.style.display = 'block';
+        }
+
+        function hideTextareaSuggestSoon(){
+          if (taHideTimer) clearTimeout(taHideTimer);
+          taHideTimer = setTimeout(() => {
+            if (taPanel) taPanel.style.display = 'none';
+          }, 150);
+        }
+
+        function wireInput(el){
+          const key = el.getAttribute('data-history-key');
+          if (!key) return;
+          const mode = (el.getAttribute('data-history-mode') || 'auto').toLowerCase();
+          const ui = (el.getAttribute('data-history-ui') || '').toLowerCase();
+
+          if (el.tagName === 'INPUT') {
+            el.setAttribute('autocomplete', 'on');
+
+            if (ui === 'panel') {
+              el.addEventListener('focus', () => showPanelSuggest(el));
+              el.addEventListener('input', () => showPanelSuggest(el));
+              el.addEventListener('blur', () => { hideTextareaSuggestSoon(); });
+              if (mode !== 'commit') {
+                el.addEventListener('change', () => { addValue(key, el.value); });
+              }
+
+              // When Blazor wires on focusin, the focus event already happened.
+              // Show suggestions immediately for the first focus.
+              try { if (document.activeElement === el) showPanelSuggest(el); } catch(_) { }
+            } else {
+              const dl = ensureDatalist(key);
+              fillDatalist(dl, key);
+              el.setAttribute('list', dl.id);
+              el.addEventListener('focus', () => fillDatalist(dl, key));
+              el.addEventListener('input', () => fillDatalist(dl, key));
+              if (mode !== 'commit') {
+                el.addEventListener('change', () => { addValue(key, el.value); fillDatalist(dl, key); });
+                el.addEventListener('blur', () => { addValue(key, el.value); });
+              }
+
+              try { if (document.activeElement === el) fillDatalist(dl, key); } catch(_) { }
+            }
+          } else if (el.tagName === 'TEXTAREA') {
+            el.setAttribute('autocomplete', 'on');
+            el.addEventListener('focus', () => showTextareaSuggest(el));
+            el.addEventListener('input', () => showTextareaSuggest(el));
+
+            if (mode !== 'commit') {
+              el.addEventListener('blur', () => { addValue(key, el.value); hideTextareaSuggestSoon(); });
+              el.addEventListener('change', () => { addValue(key, el.value); });
+            } else {
+              el.addEventListener('blur', () => { hideTextareaSuggestSoon(); });
+            }
+
+            try { if (document.activeElement === el) showTextareaSuggest(el); } catch(_) { }
+          }
+        }
+
+        window.mbHistorySuggest = {
+          init: function(){
+            try {
+              const nodes = document.querySelectorAll('input[data-history-key], textarea[data-history-key]');
+              for (const el of nodes) {
+                if (el.__mbHistoryWired) continue;
+                el.__mbHistoryWired = true;
+                wireInput(el);
+              }
+            } catch (e) { console.warn('mbHistorySuggest init failed', e); }
+          },
+          commit: function(key, value){
+            try { addValue(key, value); } catch(e) { }
+          }
+        };
+
+        document.addEventListener('DOMContentLoaded', function(){
+          if (window.mbHistorySuggest) window.mbHistorySuggest.init();
+        });
+
+        // Blazor renders pages dynamically without re-firing DOMContentLoaded.
+        // Wire inputs lazily when user focuses them.
+        document.addEventListener('focusin', function(e){
+          try {
+            const el = e && e.target;
+            if (!el) return;
+            if (el.__mbHistoryWired) return;
+            if (el.matches && el.matches('input[data-history-key], textarea[data-history-key]')) {
+              el.__mbHistoryWired = true;
+              wireInput(el);
+            }
+          } catch(_) { }
+        });
+      })();
+    </script>
+    <!-- Blazor reconnect banner (Persian, non-blocking) -->
+    <style>
+      #reconnect-banner { position: fixed; top: 0; left: 0; right: 0; display: none; align-items: center; justify-content: center; gap: 10px; padding: 10px 14px; background: #fef3c7; border-bottom: 2px solid #f59e0b; color: #92400e; font-size: 13px; font-weight: 800; z-index: 9999; direction: rtl; box-shadow: 0 2px 10px rgba(0,0,0,.08); flex-wrap: wrap; }
+      #reconnect-banner-text { flex: 1 1 auto; text-align: center; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #reconnect-banner button { appearance: none; border: 0; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 900; cursor: pointer; white-space: nowrap; transition: background .15s; }
+      #reconnect-banner .btn-retry { background: #f59e0b; color: #fff; }
+      #reconnect-banner .btn-retry:hover { background: #d97706; }
+      #reconnect-banner .btn-reload { background: #e2e8f0; color: #334155; }
+      #reconnect-banner .btn-reload:hover { background: #cbd5e1; }
+      #reconnect-banner.reconnect-failed { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+      #reconnect-banner.reconnect-failed .btn-retry { background: #ef4444; }
+      #reconnect-banner.reconnect-failed .btn-retry:hover { background: #dc2626; }
+      #reconnect-banner .spinner { display: inline-block; width: 14px; height: 14px; margin-left: 8px; border: 2px solid #f59e0b; border-top-color: transparent; border-radius: 50%; animation: reconnect-spin .8s linear infinite; vertical-align: middle; }
+      #reconnect-banner.reconnect-failed .spinner { border-color: #ef4444; border-top-color: transparent; }
+      @@keyframes reconnect-spin { to { transform: rotate(360deg); } }
+      /* Hide Blazor's default English reconnect modal */
+      #components-reconnect-modal,
+      .components-reconnect-show,
+      .components-reconnect-hide,
+      .components-reconnect-failed { display: none !important; }
+    </style>
+    <div id="reconnect-banner">
+      <span class="spinner"></span>
+      <span id="reconnect-banner-text">اتصال اینترنت/سرور قطع شد. در حال تلاش برای اتصال مجدد...</span>
+      <button class="btn-retry" id="btn-retry">اتصال مجدد</button>
+      <button class="btn-reload" id="btn-reload">بارگذاری مجدد</button>
+    </div>
+    <script>
+      (function(){
+        const banner = document.getElementById('reconnect-banner');
+        const btnRetry = document.getElementById('btn-retry');
+        const btnReload = document.getElementById('btn-reload');
+        const desc = document.getElementById('reconnect-banner-text');
+
+        function showBanner(){ banner.style.display = 'flex'; }
+        function hideBanner(){ banner.style.display = 'none'; banner.classList.remove('reconnect-failed'); }
+
+        // Track user activity to avoid showing reconnect UI during brief hiccups.
+        const INACTIVITY_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+        const SHOW_BANNER_AFTER_MS = 150 * 1000; // 150 seconds (2.5 min) continuous disconnect
+        const OFFLINE_BANNER_AFTER_MS = 10 * 1000; // 10 seconds when device is actually offline
+        const BANNER_COOLDOWN_MS = 5 * 60 * 1000; // avoid repeated popups
+        let lastActivityAt = Date.now();
+        let downSince = null;
+        let bannerShown = false;
+        let lastBannerShownAt = 0;
+        let showBannerTimerId = null;
+        let messageTimerId = null;
+
+        function markActivity(){ lastActivityAt = Date.now(); }
+        ['click','keydown','touchstart','touchmove','scroll','mousemove'].forEach(evt => {
+          window.addEventListener(evt, markActivity, { passive: true });
+        });
+
+        function isInactiveLong(){ return (Date.now() - lastActivityAt) >= INACTIVITY_THRESHOLD_MS; }
+
+        function scheduleBannerIfNeeded(){
+          if (bannerShown) return;
+          if (showBannerTimerId) return;
+
+          const offlineNow = (typeof navigator !== 'undefined') ? (navigator.onLine === false) : false;
+          const now = Date.now();
+          if (!offlineNow && lastBannerShownAt && (now - lastBannerShownAt) < BANNER_COOLDOWN_MS)
+            return;
+
+          showBannerTimerId = setTimeout(() => {
+            showBannerTimerId = null;
+            if (!downSince) return;
+            const downMs = Date.now() - downSince;
+            const offline = (typeof navigator !== 'undefined') ? (navigator.onLine === false) : false;
+            const threshold = offline ? OFFLINE_BANNER_AFTER_MS : SHOW_BANNER_AFTER_MS;
+            if (downMs < threshold) return;
+
+            if (!offline && lastBannerShownAt && (Date.now() - lastBannerShownAt) < BANNER_COOLDOWN_MS)
+              return;
+
+            if (offline || isInactiveLong() || downMs >= SHOW_BANNER_AFTER_MS)
+            {
+              bannerShown = true;
+              lastBannerShownAt = Date.now();
+              showBanner();
+              if (desc) desc.textContent = offline
+                ? 'اتصال اینترنت قطع است. در حال تلاش برای اتصال مجدد...'
+                : 'اتصال به سرور قطع شد. در حال تلاش برای اتصال مجدد...';
+
+              if (!messageTimerId) {
+                messageTimerId = setInterval(() => {
+                  if (!bannerShown || !downSince) return;
+                  const seconds = Math.floor((Date.now() - downSince) / 1000);
+                  if (desc) desc.textContent = `در حال تلاش برای اتصال مجدد... ${seconds} ثانیه`;
+                }, 2000);
+              }
+            }
+          }, SHOW_BANNER_AFTER_MS);
+        }
+
+        function clearBannerTimers(){
+          if (showBannerTimerId) { clearTimeout(showBannerTimerId); showBannerTimerId = null; }
+          if (messageTimerId) { clearInterval(messageTimerId); messageTimerId = null; }
+        }
+
+        function setRetryBusy(isBusy){
+          try {
+            if (!btnRetry) return;
+            btnRetry.disabled = !!isBusy;
+            btnRetry.style.opacity = isBusy ? '0.75' : '1';
+          } catch(_) { }
+        }
+
+        async function attemptReconnect(reason){
+          try {
+            if (!banner || banner.style.display === 'none') return;
+            downSince = downSince ?? Date.now();
+            if (desc) desc.textContent = reason || 'در حال تلاش برای اتصال مجدد...';
+            banner.classList.remove('reconnect-failed');
+            setRetryBusy(true);
+            let ok = false;
+            try {
+              const r = Blazor.reconnect();
+              if (r && typeof r.then === 'function') ok = await r;
+              else ok = true;
+            } catch(e) {
+              ok = false;
+              console.warn('Manual reconnect failed', e);
+            }
+
+            if (ok) {
+              hideBanner();
+              bannerShown = false;
+              downSince = null;
+              clearBannerTimers();
+              if (window.initJdp) setTimeout(() => window.initJdp(), 0);
+              if (window.mbHistorySuggest) setTimeout(() => window.mbHistorySuggest.init(), 0);
+              return;
+            }
+
+            if (desc) desc.textContent = 'اتصال برقرار نشد. اگر مشکل ادامه دارد، دکمه «بارگذاری مجدد» را بزنید.';
+            banner.classList.add('reconnect-failed');
+            setRetryBusy(false);
+          } catch(_) {
+            setRetryBusy(false);
+          }
+        }
+
+        // Wire buttons
+        if (btnRetry) btnRetry.addEventListener('click', () => { attemptReconnect('در حال اتصال مجدد...'); });
+        if (btnReload) btnReload.addEventListener('click', () => { location.reload(); });
+
+        // Start Blazor with extended reconnection options and custom UI handling
+        const totalMinutes = 5;
+        const retryIntervalMilliseconds = 2000;
+        const maxRetries = Math.ceil((totalMinutes * 60 * 1000) / retryIntervalMilliseconds);
+
+        Blazor.start({
+          reconnectionOptions: {
+            maxRetries,
+            retryIntervalMilliseconds
+          },
+          configureSignalR: function(builder) {
+            try {
+              builder.withServerTimeout(300000);
+              builder.withKeepAliveInterval(30000);
+            } catch (e) {
+              console.warn('configureSignalR not available', e);
+            }
+          },
+          reconnectionHandler: {
+            onConnectionDown: (options, error) => {
+              downSince = downSince ?? Date.now();
+              scheduleBannerIfNeeded();
+              console.warn('Blazor connection down', error);
+            },
+            onConnectionUp: () => {
+              hideBanner();
+              bannerShown = false;
+              downSince = null;
+              clearBannerTimers();
+              if (window.initJdp) setTimeout(() => window.initJdp(), 0);
+              if (window.mbHistorySuggest) setTimeout(() => window.mbHistorySuggest.init(), 0);
+            }
+          }
+        }).catch(err => {
+          console.error('Blazor start failed', err);
+          downSince = downSince ?? Date.now();
+          scheduleBannerIfNeeded();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden && banner && banner.style.display !== 'none') {
+            try { 
+              console.log('User returned to app, attempting reconnect...');
+              attemptReconnect('در حال تلاش برای اتصال مجدد...');
+            } catch(e) {
+              console.warn('Auto-reconnect on visibility change failed', e);
+            }
+          }
+        });
+
+        window.addEventListener('online', () => {
+          console.log('Network back online, attempting reconnect...');
+          if (banner && banner.style.display !== 'none') {
+            try { attemptReconnect('اتصال اینترنت برگشت. در حال اتصال مجدد...'); } catch(e) { console.warn('Auto-reconnect on online failed', e); }
+          }
+        });
+
+        setTimeout(() => {
+          if (banner && banner.style.display !== 'none') {
+            if (messageTimerId) { clearInterval(messageTimerId); messageTimerId = null; }
+            if (desc) desc.textContent = 'تلاش‌های خودکار به پایان رسید. دکمه «اتصال مجدد» را بزنید یا صفحه را بارگذاری مجدد کنید.';
+          }
+        }, totalMinutes * 60 * 1000);
+      })();
+    </script>
+    <script>
+      // Service Worker registration (enable caching for PWA install)
+      (function(){
+        const disableCaching = false; // set to false to enable PWA install behavior
+        if (!('serviceWorker' in navigator)) return;
+        window.addEventListener('load', async () => {
+          if (!disableCaching) {
+            // Only register SW when caching is re-enabled
+            try {
+              const reg = await navigator.serviceWorker.register('/service-worker.js');
+              console.log('Service worker registered successfully', reg.scope);
+            } catch (err) {
+              console.warn('Service worker registration failed:', err);
+            }
+          } else {
+            // In dev mode, you can optionally unregister and clear caches
+            try {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              for (const reg of regs) { await reg.unregister(); }
+            } catch (e) { console.warn('SW unregister failed', e); }
+            try {
+              if (window.caches && caches.keys) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+              }
+            } catch (e) { console.warn('Cache clear failed', e); }
+            console.log('Caching is disabled. SW not registered and caches cleared.');
+          }
+
+          // Keep install prompt listener if needed; won't affect caching
+          window.addEventListener('beforeinstallprompt', function(e) {
+            console.log('Install prompt event captured - browser should show install icon');
+            window.deferredPrompt = e;
+          });
+        });
+      })();
+    </script>
+</body>
+</html>

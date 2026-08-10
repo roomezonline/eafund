@@ -1,0 +1,60 @@
+/* Duo-styled Households page */
+.households-duo { padding: 12px; display: flex; flex-direction: column; gap: 12px; max-width: 820px; margin-inline: auto; min-height: 100vh; }
+
+.duo-header { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; background: var(--card, #fff); border: 1px solid var(--card-border, var(--border, #d1d5db)); border-radius: 16px; padding: 14px; box-shadow: 0 12px 28px rgba(15,23,42,.10); position: sticky; top: 8px; backdrop-filter: saturate(1.2) blur(8px); z-index: 2; flex-shrink: 0; }
+.duo-header { outline: 1px solid color-mix(in srgb, var(--card-border, var(--border, #d1d5db)) 55%, transparent); }
+.duo-header .brand { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+.duo-header .brand .icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #0ea5e9; background: rgba(14,165,233,.15); border: 1px solid rgba(14,165,233,.25); }
+.duo-header .brand .text .title { font-weight: 900; letter-spacing: .2px; }
+.duo-header .brand .text .subtitle { font-size: 12px; color: var(--muted, #6b7280); margin-top: 2px; }
+.duo-header .hdr-actions { display: flex; gap: 8px; }
+.icon-btn { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); box-shadow: 0 4px 14px rgba(15,23,42,.06); }
+
+.duo-controls { display: grid; gap: 8px; position: sticky; top: 76px; z-index: 2; flex-shrink: 0; }
+.duo-search { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 14px; border-radius: 16px; border: 1px solid var(--border, #d1d5db); background: var(--card, #fff); box-shadow: 0 10px 24px rgba(15,23,42,.08); color: var(--muted, #6b7280); }
+.search-input.mud-input-root { background: transparent !important; box-shadow: none !important; border: none !important; }
+.search-input .mud-input-slot input { text-align: right; font-weight: 600; background: transparent !important; }
+/* Constant light gray underline, no focus animation */
+.search-input.mud-input-root .mud-input-slot::after { display: none !important; }
+.search-input.mud-input-root .mud-input-slot::before { background-color: #e5e7eb !important; opacity: 1 !important; transform: none !important; height: 2px; }
+.duo-search .clear { width: 28px; height: 28px; border-radius: 8px; border: none; background: transparent; color: var(--muted, #6b7280); }
+.duo-filters { display: flex; gap: 10px; overflow: auto; padding: 2px; }
+.pill { border: 1px solid var(--border, #d1d5db); background: var(--card, #fff); border-radius: 999px; padding: 10px 14px; font-size: 13px; font-weight: 800; color: var(--muted, #475569); box-shadow: 0 3px 10px rgba(15,23,42,.08); transition: all .18s ease; }
+.pill:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15,23,42,.10); }
+.pill.active { background: linear-gradient(45deg, #0ea5e9, #3b82f6); color: #fff; border-color: transparent; box-shadow: 0 12px 22px rgba(59,130,246,.26); }
+
+.duo-content { display: block; overflow-y: auto; flex: 1; }
+.duo-list { display: grid; gap: 12px; grid-template-columns: 1fr; }
+.duo-item { position: relative; border: 1px solid var(--border, #d1d5db); background: var(--card, #fff); border-radius: 16px; padding: 14px; box-shadow: 0 12px 28px rgba(15,23,42,.08); cursor: pointer; overflow: hidden; transition: transform .14s ease, box-shadow .2s ease, border-color .2s ease; min-height: 78px; animation: fadeUp .25s ease both; }
+.duo-item::after { content: ""; position: absolute; inset: 0; background: radial-gradient(420px 420px at var(--rx,100%) var(--ry,0), rgba(59,130,246,.18), transparent 60%); opacity: 0; transition: opacity .25s ease; pointer-events: none; }
+.duo-item:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(15,23,42,.12); }
+.duo-item:active { transform: translateY(0); }
+.duo-item .top { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+.duo-item .bottom { display: grid; grid-template-columns: 1fr auto; align-items: center; color: var(--muted, #6b7280); font-size: 12px; margin-top: 6px; }
+.duo-item .bottom .code .label { color: #0ea5e9; font-weight: 900; margin-inline-end: 4px; }
+.duo-item .name { font-weight: 800; font-size: 16px; letter-spacing: .2px; }
+.state { border-radius: 999px; padding: 4px 10px; font-size: 12px; border: 1px solid var(--border, #cbd5e1); font-weight: 800; }
+.state.on { background: rgba(34,197,94,.12); color: #16a34a; border-color: rgba(34,197,94,.28); }
+.state.off { background: rgba(239,68,68,.10); color: #dc2626; border-color: rgba(239,68,68,.28); }
+
+.skeleton { height: 78px; border-radius: 16px; background: linear-gradient(90deg, rgba(0,0,0,.04), rgba(0,0,0,.06), rgba(0,0,0,.04)); background-size: 200% 100%; animation: sh 1.2s infinite; }
+@keyframes sh { 0% { background-position: 0 0; } 100% { background-position: -200% 0; } }
+.duo-empty { text-align: center; color: var(--muted, #6b7280); padding: 18px; }
+.duo-empty .emoji { font-size: 28px; margin-bottom: 6px; }
+
+/* Local FAB styles removed - using DsFab component instead */
+
+@media (max-width: 480px) {
+  .households-duo { padding: 10px; }
+}
+
+/* Two-column layout for tablets/desktops */
+@media (min-width: 720px) {
+  .duo-list { grid-template-columns: 1fr 1fr; gap: 14px; }
+}
+
+/* Entry animation */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Ripple hover origin based on mouse position (JS-free via CSS vars, set in markup JS if needed) */
+.duo-item:hover::after { opacity: 1; }

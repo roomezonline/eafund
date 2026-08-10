@@ -1,0 +1,323 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using MiniBank.Web.Models
+@using MiniBank.Web.Services
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Components.DesignSystem
+
+@if (_show)
+{
+  <div class="member-selector-bar">
+    <div class="member-selector-inner">
+      <div class="member-selector-top-actions">
+        <button type="button" class="member-admin-home" @onclick="GoToAdminDashboard" title="داشبورد مدیریت">
+          <i class="fa-solid fa-gauge"></i>
+          <span>داشبورد مدیریت</span>
+        </button>
+      </div>
+      <div class="member-selector-label">
+        <i class="fa-solid fa-users"></i>
+        <span>نمایش به عنوان:</span>
+      </div>
+      <div class="member-selector-control-row">
+        <div class="member-selector-dropdown">
+          <DsDropdown Placeholder="انتخاب عضو..."
+                      UseFixedMenu="true"
+                      Searchable="true"
+                      SearchPlaceholder="جستجو (کد عضویت / نام)..."
+                      Value="@_selectedMemberId"
+                      ValueChanged="@(async (string? value) => { _selectedMemberId = (value ?? string.Empty).Trim(); await OnSelectedMemberChanged(); })"
+                      Items="@MemberItems" />
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<style>
+  .member-selector-bar {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-bottom: 1px solid #e2e8f0;
+    padding: 12px 0;
+    margin-bottom: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .member-selector-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .member-selector-top-actions {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .member-selector-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 13px;
+    color: #475569;
+    white-space: nowrap;
+  }
+
+  .member-selector-dropdown {
+    flex: 1;
+    min-width: 280px;
+    max-width: 520px;
+  }
+
+  .member-selector-control-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+
+  .member-selector-dropdown { direction: rtl; }
+
+  .member-selector-dropdown :global(.ds-dropdown-button) {
+    text-align: right;
+  }
+
+  .member-selector-dropdown :global(.ds-dropdown-value) {
+    text-align: right;
+    direction: rtl;
+  }
+
+  .member-selector-dropdown :global(.ds-dropdown-menu) {
+    direction: rtl;
+    text-align: right;
+  }
+
+  .member-selector-dropdown :global(.ds-dropdown-item) {
+    justify-content: flex-start;
+    text-align: right;
+  }
+
+  .member-admin-home {
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid #16a34a;
+    background: #16a34a;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .member-admin-home:hover {
+    background: #15803d;
+    border-color: #15803d;
+  }
+
+  @@media (max-width: 640px) {
+    .member-selector-inner {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      max-width: none;
+      width: 100%;
+      padding: 0 10px;
+    }
+
+    .member-selector-control-row {
+      width: 100%;
+    }
+
+    .member-selector-dropdown {
+      min-width: 0;
+      max-width: none;
+    }
+
+    .member-selector-control-row {
+      flex-wrap: nowrap;
+    }
+  }
+
+  @@media (min-width: 641px) {
+    .member-selector-inner {
+      justify-content: center;
+    }
+  }
+</style>
+
+@code {
+  [CascadingParameter]
+  private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+  [Inject]
+  private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+
+  [Inject]
+  private MemberService MemberService { get; set; } = default!;
+
+  [Inject]
+  private AuthRepository AuthRepo { get; set; } = default!;
+
+  [Inject]
+  private IJSRuntime JS { get; set; } = default!;
+
+  [Inject]
+  private NavigationManager NavigationManager { get; set; } = default!;
+
+  [Parameter]
+  public EventCallback<long?> OnMemberChanged { get; set; }
+
+  private bool _show = false;
+  private string _selectedMemberId = string.Empty;
+  private List<Member> _members = new();
+  private List<DsDropdown.DsDropdownItem> MemberItems { get; set; } = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    await CheckVisibilityAndLoadAsync();
+  }
+
+  private async Task CheckVisibilityAndLoadAsync()
+  {
+    try
+    {
+      var state = await AuthStateProvider.GetAuthenticationStateAsync();
+      var user = state.User;
+
+      if (user?.Identity?.IsAuthenticated != true)
+      {
+        _show = false;
+        return;
+      }
+
+      // Check if user is NOT a Member role
+      var role = user.FindFirst("role")?.Value ?? user.FindFirst(ClaimTypes.Role)?.Value;
+      if (string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase))
+      {
+        _show = false;
+        return;
+      }
+
+      // User is admin/staff, show selector
+      _show = true;
+
+      // Load all members for selection
+      await LoadMembersAsync();
+
+      // Load saved selection from sessionStorage
+      await LoadSavedSelectionAsync();
+    }
+    catch (Exception ex)
+    {
+      _show = false;
+      // Silently fail - selector won't be shown
+    }
+  }
+
+  private async Task LoadMembersAsync()
+  {
+    try
+    {
+      var members = await MemberService.GetAsync(top: 5000); // Load all active members
+      _members = members.Where(m => m.MemberId > 0)
+                       .OrderBy(m => m.MemberId)
+                       .ToList();
+
+      MemberItems = _members
+        .Select(m => new DsDropdown.DsDropdownItem
+        {
+          Value = m.MemberId.ToString(),
+          Text = BuildMemberText(m)
+        })
+        .ToList();
+    }
+    catch (Exception ex)
+    {
+      _members = new();
+      MemberItems = new();
+    }
+  }
+
+  private async Task LoadSavedSelectionAsync()
+  {
+    try
+    {
+      var saved = await JS.InvokeAsync<string>("sessionStorage.getItem", "memberSelector_selectedMemberId");
+      if (!string.IsNullOrWhiteSpace(saved))
+      {
+        // Validate that the saved member ID still exists in our list
+        if (long.TryParse(saved, out var savedId) && _members.Any(m => m.MemberId == savedId))
+        {
+          _selectedMemberId = saved;
+
+          // Propagate initial selection so pages can load data immediately
+          await OnMemberChanged.InvokeAsync(savedId);
+          StateHasChanged(); // Ensure UI reflects the loaded value
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+      // Silently fail - no saved selection
+    }
+  }
+
+  private static string BuildMemberText(Member m)
+  {
+    var name = (m.FullName ?? m.FirstName ?? string.Empty).Trim();
+    return string.IsNullOrWhiteSpace(name) ? m.MemberId.ToString() : $"{m.MemberId} - {name}";
+  }
+
+  private async Task OnSelectedMemberChanged()
+  {
+    try
+    {
+      // Save to sessionStorage
+      if (string.IsNullOrWhiteSpace(_selectedMemberId))
+      {
+        await JS.InvokeVoidAsync("sessionStorage.removeItem", "memberSelector_selectedMemberId");
+        await OnMemberChanged.InvokeAsync(null);
+      }
+      else
+      {
+        await JS.InvokeVoidAsync("sessionStorage.setItem", "memberSelector_selectedMemberId", _selectedMemberId);
+        if (long.TryParse(_selectedMemberId, out var memberId))
+        {
+          await OnMemberChanged.InvokeAsync(memberId);
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+      // Silently fail - selection change won't be persisted
+    }
+  }
+
+  private void GoToAdminDashboard()
+  {
+    NavigationManager.NavigateTo("/admin/dashboard2");
+  }
+
+  public async Task<long?> GetSelectedMemberIdAsync()
+  {
+    if (!_show) return null;
+
+    if (!string.IsNullOrWhiteSpace(_selectedMemberId) && long.TryParse(_selectedMemberId, out var id))
+      return id;
+
+    return null;
+  }
+}

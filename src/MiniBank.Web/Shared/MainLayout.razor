@@ -1,0 +1,1288 @@
+@inherits LayoutComponentBase
+@using MiniBank.Web.Components.DesignSystem
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components
+
+<PageTitle>صندوق امام علی (ع)</PageTitle>
+
+<style>
+    .app-shell.member-area .app-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 5000 !important;
+        background: linear-gradient(135deg, #7c3aed, #0ea5e9) !important;
+        border-bottom: 1px solid rgba(255,255,255,.06) !important;
+    }
+    .app-header #theme-toggle,
+    .app-header .header-actions .header-notifications,
+    .app-header .header-actions .header-more {
+        display: none !important;
+    }
+
+    .menu-card.user-menu-card {
+        background: #ffffff;
+        color: #0f172a;
+        border-color: #e5e7eb;
+    }
+
+    .menu-card.user-menu-card .user-menu__name {
+        color: #0f172a;
+    }
+
+    .menu-card.user-menu-card .user-chip {
+        color: #0f172a;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+    }
+
+    .menu-card.user-menu-card .menu-item {
+        color: #0f172a;
+    }
+
+    .menu-card.user-menu-card .menu-item:hover {
+        background: #f1f5f9;
+    }
+
+    .menu-card.user-menu-card .menu-item.danger {
+        color: #b91c1c;
+    }
+
+    .menu-card.user-menu-card .menu-item.danger:hover {
+        background: #fee2e2;
+    }
+
+    .app-shell.member-area .menu-card.user-menu-card,
+    .app-shell.member-area .menu-card.user-menu-card .user-menu__name,
+    .app-shell.member-area .menu-card.user-menu-card .user-chip,
+    .app-shell.member-area .menu-card.user-menu-card .menu-item {
+        color: #0f172a !important;
+    }
+
+    .app-shell.member-area .menu-card.user-menu-card .menu-item.danger {
+        color: #b91c1c !important;
+    }
+
+    .app-shell.member-area .menu-card.user-menu-card .user-chip {
+        background: #f1f5f9 !important;
+        border-color: #e2e8f0 !important;
+    }
+
+    .app-shell.member-area .menu-card.user-menu-card .menu-item:hover {
+        background: #f1f5f9 !important;
+    }
+
+    .app-shell.member-area .menu-card.user-menu-card .menu-item.danger:hover {
+        background: #fee2e2 !important;
+    }
+
+    .app-shell.member-area .app-title {
+        color: #ffffff !important;
+        text-shadow: 0 1px 1px rgba(0,0,0,.18);
+    }
+    .fy-row {
+        display: flex;
+        align-items: center;
+        padding: 0px 16px 4px;
+        margin-top: -14px;
+    }
+    .fiscal-year-badge {
+        font-size: 12px;
+        color: #ffffffcc;
+        background: rgba(255,255,255,.10);
+        padding: 1px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+        font-weight: 500;
+    }
+    .app-shell.member-area .header-row-2 {
+        color: #ffffff;
+    }
+    .app-shell.member-area .header-row-2 .header-date-full {
+        color: #ffffff;
+    }
+    .app-shell.member-area .header-actions,
+    .app-shell.member-area .header-actions i,
+    .app-shell.member-area .header-actions summary,
+    .app-shell.member-area .header-actions button {
+        color: #ffffff !important;
+    }
+    .app-shell.member-area .user-trigger,
+    .app-shell.member-area .md-text-button {
+        background: rgba(255,255,255,.18) !important;
+        border-color: rgba(255,255,255,.35) !important;
+    }
+    .app-shell.member-area .app-header::after {
+        opacity: 1;
+    }
+
+    .member-footer-nav,
+    .admin-footer-nav{
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 0;
+        z-index: 1200;
+        pointer-events: none;
+    }
+    .member-footer-nav .nav-list,
+    .admin-footer-nav .nav-list{
+        --ink: #0f172a;
+        --shadow: 0 22px 34px -18px rgba(15,23,42,.30);
+
+        pointer-events: auto;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        align-items: center;
+        list-style: none;
+        margin: 0;
+        max-width: none;
+        height: 76px;
+        padding: 18px 0 10px;
+        border-radius: 0;
+        position: relative;
+        box-shadow: var(--shadow);
+        overflow: visible;
+        background: transparent;
+    }
+
+    /* The bar background (wave + center notch) */
+    .member-footer-nav .nav-list::before,
+    .admin-footer-nav .nav-list::before{
+        content:"";
+        position:absolute;
+        inset:0;
+        border-radius: 0;
+        background:
+          url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='%230ea5e9'/><stop offset='1' stop-color='%237c3aed'/></linearGradient><mask id='m'><rect x='0' y='0' width='400' height='80' fill='white'/><circle cx='200' cy='16' r='40' fill='black'/></mask></defs><path mask='url(%23m)' fill='url(%23g)' d='M0,18 C55,18 70,2 110,2 C150,2 158,18 200,18 C242,18 250,2 290,2 C330,2 345,18 400,18 L400,80 L0,80 Z'/></svg>") center/100% 100% no-repeat;
+        z-index: 0;
+    }
+    .member-footer-nav .nav-list::after,
+    .admin-footer-nav .nav-list::after{content:none}
+
+    .member-footer-nav .nav-link,
+    .admin-footer-nav .nav-link{
+        position: relative;
+        z-index: 2;
+        text-decoration: none;
+        display: grid;
+        place-items: center;
+        gap: 6px;
+        min-height: 52px;
+        padding: 8px 0 6px;
+        color: #ffffff;
+        -webkit-tap-highlight-color: transparent;
+        transition: transform .18s ease, filter .18s ease;
+    }
+    .member-footer-nav .nav-link .nav-icon,
+    .admin-footer-nav .nav-link .nav-icon{
+        width: 46px;
+        height: 34px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        position: relative;
+        transition: transform .18s ease, background-color .18s ease, color .18s ease;
+    }
+    .member-footer-nav .nav-link:not(.nav-center) .nav-icon,
+    .admin-footer-nav .nav-link:not(.nav-center) .nav-icon{
+        margin-top: -8px;
+        background: rgba(255,255,255,.92);
+        color: #0f172a;
+        border: 2px dashed rgba(255,255,255,.65);
+        box-shadow: 0 10px 22px rgba(15,23,42,.18);
+        backdrop-filter: blur(6px);
+    }
+    .member-footer-nav .nav-link .nav-icon i,
+    .admin-footer-nav .nav-link .nav-icon i{font-size:20px;line-height:1}
+    .member-footer-nav .nav-link .nav-text,
+    .admin-footer-nav .nav-link .nav-text{display:none}
+
+    .member-footer-nav .nav-link:not(.nav-center)::after,
+    .admin-footer-nav .nav-link:not(.nav-center)::after{
+        content: attr(data-tip);
+        position: absolute;
+        bottom: calc(100% - 8px);
+        left: 50%;
+        transform: translate(-50%, 8px);
+        background: rgba(15,23,42,.82);
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 900;
+        padding: 6px 9px;
+        border-radius: 999px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .14s ease, transform .14s ease;
+        box-shadow: 0 10px 22px rgba(15,23,42,.22);
+    }
+    .member-footer-nav .nav-link:not(.nav-center):hover::after,
+    .member-footer-nav .nav-link:not(.nav-center):focus-visible::after,
+    .member-footer-nav .nav-link:not(.nav-center).active::after,
+    .admin-footer-nav .nav-link:not(.nav-center):hover::after,
+    .admin-footer-nav .nav-link:not(.nav-center):focus-visible::after,
+    .admin-footer-nav .nav-link:not(.nav-center).active::after{
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+
+    /* Active state (non-center) */
+    .member-footer-nav .nav-link.active:not(.nav-center),
+    .admin-footer-nav .nav-link.active:not(.nav-center){
+        transform: translateY(-1px);
+        filter: drop-shadow(0 6px 12px rgba(15,23,42,.22));
+    }
+    .member-footer-nav .nav-link.active:not(.nav-center) .nav-icon,
+    .admin-footer-nav .nav-link.active:not(.nav-center) .nav-icon{
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--ink);
+        transform: translateY(-1px) scale(1.04);
+        margin-top: -10px;
+        border-style: solid;
+    }
+
+    /* Center floating action button */
+    .member-footer-nav .nav-link.nav-center,
+    .admin-footer-nav .nav-link.nav-center{
+        position: absolute;
+        left: 50%;
+        top: 18px;
+        transform: translate(-50%, -42px);
+        z-index: 3;
+    }
+    .member-footer-nav .nav-link.nav-center .nav-icon,
+    .admin-footer-nav .nav-link.nav-center .nav-icon{
+        margin-top: -10px;
+        width: 64px;
+        height: 64px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.98);
+        color: #0f172a;
+        box-shadow: 0 14px 30px rgba(15,23,42,.28);
+        border: 1px solid rgba(226,232,240,.9);
+    }
+    .member-footer-nav .nav-link.nav-center .nav-icon::before,
+    .admin-footer-nav .nav-link.nav-center .nav-icon::before{
+        content:"";
+        position:absolute;
+        inset: -4px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #0ea5e9, #7c3aed, #22c55e, #0ea5e9);
+        background-size: 300% 300%;
+        animation: homeRing 3.2s ease-in-out infinite;
+        z-index: -1;
+        filter: saturate(1.1);
+    }
+    .member-footer-nav .nav-link.nav-center .nav-icon::after,
+    .admin-footer-nav .nav-link.nav-center .nav-icon::after{
+        content:"";
+        position:absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.75) 45%, transparent 70%);
+        transform: translateX(-120%) rotate(-12deg);
+        opacity: .55;
+        animation: homeShine 2.8s ease-in-out infinite;
+        pointer-events:none;
+    }
+
+    @@keyframes homeRing{
+        0%{background-position: 0% 50%}
+        50%{background-position: 100% 50%}
+        100%{background-position: 0% 50%}
+    }
+    @@keyframes homeShine{
+        0%, 45%{transform: translateX(-130%) rotate(-12deg); opacity: .0}
+        60%{opacity: .55}
+        100%{transform: translateX(130%) rotate(-12deg); opacity: .0}
+    }
+    .member-footer-nav .nav-link.nav-center.active .nav-icon,
+    .admin-footer-nav .nav-link.nav-center.active .nav-icon{
+        background: rgba(255,255,255,.96);
+        color: #0f172a;
+        transform: scale(1.04);
+    }
+
+    @@media (max-width: 520px){
+        .member-footer-nav{padding: 0;}
+        .member-footer-nav .nav-list{height: 72px; padding: 18px 8px 10px; border-radius: 24px;}
+        .member-footer-nav .nav-link{padding: 8px 0 6px; gap: 0;}
+        .member-footer-nav .nav-link .nav-icon{width: 44px; height: 34px;}
+        .member-footer-nav .nav-link:not(.nav-center) .nav-icon{margin-top: -6px;}
+        .member-footer-nav .nav-link.nav-center{top: 18px; transform: translate(-50%, -40px);}
+
+        .admin-footer-nav{padding: 0;}
+        .admin-footer-nav .nav-list{height: 72px; padding: 18px 8px 10px; border-radius: 24px;}
+        .admin-footer-nav .nav-link{padding: 8px 0 6px; gap: 0;}
+        .admin-footer-nav .nav-link .nav-icon{width: 44px; height: 34px;}
+        .admin-footer-nav .nav-link:not(.nav-center) .nav-icon{margin-top: -6px;}
+        .admin-footer-nav .nav-link.nav-center{top: 18px; transform: translate(-50%, -40px);}
+    }
+
+    @@media (min-width: 900px){
+        .member-footer-nav{display:none}
+        .admin-footer-nav{display:none}
+    }
+
+    @@media (prefers-reduced-motion: reduce){
+        .member-footer-nav .nav-link,
+        .member-footer-nav .nav-link .nav-icon,
+        .admin-footer-nav .nav-link,
+        .admin-footer-nav .nav-link .nav-icon{transition:none}
+        .member-footer-nav .nav-link.active:not(.nav-center),
+        .admin-footer-nav .nav-link.active:not(.nav-center){transform:none; filter:none}
+        .member-footer-nav .nav-link.active:not(.nav-center) .nav-icon,
+        .admin-footer-nav .nav-link.active:not(.nav-center) .nav-icon{transform:none}
+        .member-footer-nav .nav-link.nav-center,
+        .admin-footer-nav .nav-link.nav-center{transform: translate(-50%, -42px)}
+        .member-footer-nav .nav-link.nav-center.active .nav-icon,
+        .admin-footer-nav .nav-link.nav-center.active .nav-icon{transform:none}
+        .member-footer-nav .nav-link.nav-center .nav-icon::before,
+        .member-footer-nav .nav-link.nav-center .nav-icon::after,
+        .admin-footer-nav .nav-link.nav-center .nav-icon::before,
+        .admin-footer-nav .nav-link.nav-center .nav-icon::after{animation:none}
+        .member-footer-nav .nav-link:not(.nav-center)::after,
+        .admin-footer-nav .nav-link:not(.nav-center)::after{transition:none}
+    }
+
+    .header-menu { position: relative; }
+    .header-menu > summary { list-style: none; }
+    .header-menu > summary::-webkit-details-marker { display: none; }
+
+    .user-trigger {
+        list-style: none;
+        cursor: pointer;
+        background: rgba(255,255,255,.18);
+        border: 1px solid rgba(255,255,255,.35);
+        color: #fff;
+        border-radius: 999px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 34px;
+    }
+
+    .user-avatar {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(255,255,255,.22);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .5px;
+    }
+
+    .menu-card {
+        position: absolute;
+        inset-inline-end: 0;
+        margin-top: 10px;
+        background: #ffffff;
+        color: #111827;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        box-shadow: 0 14px 35px rgba(0,0,0,.18);
+        width: clamp(240px, calc(100vw - 16px), 340px);
+        max-width: calc(100vw - 16px);
+        z-index: 2000;
+        padding: 10px;
+        direction: rtl;
+        text-align: right;
+        overflow: hidden;
+    }
+
+    .user-menu__header {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 8px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 10px;
+    }
+
+    .user-menu__avatarLg {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3730a3;
+        font-weight: 900;
+    }
+
+    .user-menu__name { font-weight: 900; line-height: 1.2; }
+    .user-menu__sub { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
+
+    .user-chip {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        column-gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        color: #111827;
+        white-space: nowrap;
+        max-width: 100%;
+    }
+
+    .user-chip i { opacity: .9; }
+
+    .user-chip .chip-text { grid-column: 1; min-width: 0; }
+    .user-chip .chip-icon { grid-column: 2; }
+
+    .menu-item {
+        width: 100%;
+        text-align: inherit;
+        background: transparent;
+        border: 0;
+        color: inherit;
+        padding: 10px;
+        border-radius: 12px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        column-gap: 10px;
+        cursor: pointer;
+        transition: background .15s ease, transform .15s ease;
+    }
+
+    .menu-item:hover { background: rgba(255,255,255,.07); }
+    .menu-item:active { transform: translateY(1px); }
+
+    .menu-item .mi-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: #e0f2fe;
+        border: 1px solid #bae6fd;
+        color: #0369a1;
+        grid-column: 2;
+    }
+
+    .menu-item.danger { color: #fecaca; }
+    .menu-item.danger .mi-icon {
+        background: #fee2e2;
+        border-color: #fecaca;
+        color: #b91c1c;
+    }
+
+    @@media (max-width: 640px) {
+        .user-menu-card {
+            position: fixed;
+            inset-inline-start: 8px;
+            inset-inline-end: 8px;
+            top: 62px;
+            width: auto;
+            max-width: none;
+        }
+
+        .user-menu__sub {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .user-chip {
+            width: 100%;
+            justify-content: flex-end;
+        }
+    }
+
+    /* ========== Hamburger ========== */
+    .hamburger-btn {
+        background: rgba(255,255,255,.18);
+        border: 1px solid rgba(255,255,255,.35);
+        border-radius: 10px;
+        padding: 8px 6px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        min-height: 36px;
+    }
+    .hamburger-btn:hover {
+        background: rgba(255,255,255,.28);
+    }
+    .hamburger-line {
+        display: block;
+        width: 18px;
+        height: 2px;
+        background: #fff;
+        border-radius: 2px;
+    }
+
+    /* ========== Drawer ========== */
+    .drawer-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15,23,42,.55);
+        z-index: 10001;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s ease;
+    }
+    .drawer-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(320px, calc(100vw - 50px));
+        background: #fff;
+        z-index: 10002;
+        transform: translateX(100%);
+        transition: transform .3s cubic-bezier(.4,0,.2,1);
+        display: flex;
+        flex-direction: column;
+        direction: rtl;
+        box-shadow: -4px 0 24px rgba(0,0,0,.15);
+    }
+    .drawer.open {
+        transform: translateX(0);
+    }
+
+    .drawer-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f8fafc;
+    }
+    .drawer-title {
+        font-weight: 900;
+        font-size: 16px;
+        color: #0f172a;
+    }
+    .drawer-close {
+        border: none;
+        background: #f1f5f9;
+        color: #475569;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        font-size: 22px;
+        line-height: 22px;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+    }
+    .drawer-close:hover {
+        background: #e2e8f0;
+    }
+
+    .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 0;
+    }
+
+    .drawer-category {
+        padding: 4px 0;
+    }
+    .drawer-cat-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 900;
+        font-size: 13px;
+        color: #1e40af;
+        padding: 10px 16px 6px;
+        border-bottom: 1px solid #eef2f7;
+        margin-bottom: 2px;
+    }
+    .drawer-cat-title i {
+        width: 18px;
+        text-align: center;
+        font-size: 14px;
+    }
+    .drawer-cat-title.cat-popular {
+        color: #b91c1c;
+    }
+
+    .drawer-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 16px 9px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        text-decoration: none;
+        transition: background .15s;
+        margin: 0 8px;
+        border-radius: 8px;
+    }
+    .drawer-item:hover {
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+    .drawer-item i {
+        width: 18px;
+        text-align: center;
+        font-size: 13px;
+        color: #64748b;
+    }
+    .drawer-item:hover i {
+        color: #1d4ed8;
+    }
+
+</style>
+
+<div class="app-shell @(_isMemberArea ? "member-area" : null)">
+    <OnlinePresencePing />
+    <header class="app-header">
+        <div class="header-inner">
+            <div style="display:flex; align-items:center; gap:10px;">
+                @if (!_isMemberArea)
+                {
+                    <button type="button" class="hamburger-btn" @onclick="ToggleDrawer" aria-label="فهرست">
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                    </button>
+                }
+                <h1 class="app-title">صندوق امام علی (ع)</h1>
+            </div>
+            <div class="header-actions" style="display:flex; align-items:center; gap:6px;">
+                @if (!_isMemberArea)
+                {
+                    <button id="theme-toggle" class="theme-toggle" title="تغییر حالت"></button>
+                }
+                <!-- Notifications dropdown -->
+                <details class="header-menu header-notifications" style="position:relative;">
+                    <summary class="md-text-button" style="list-style:none; cursor:pointer; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); color:#fff; border-radius:10px; padding:6px 10px; display:grid; place-items:center; position:relative;">
+                        <i class="fa-regular fa-bell" title="اعلان‌ها"></i>
+                        @if (_unreadCount > 0)
+                        {
+                            <span style="position:absolute; top:-6px; inset-inline-start:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:#ef4444; color:#fff; font-size:11px; font-weight:900; display:grid; place-items:center; border:1px solid rgba(255,255,255,.7);">@_unreadCount</span>
+                        }
+                    </summary>
+                    <div class="menu-card" style="position:absolute; inset-inline-end:0; margin-top:8px; background:var(--panel, #111827); color:var(--text, #e5e7eb); border:1px solid var(--border, #1f2937); border-radius:12px; box-shadow: var(--shadow, 0 10px 25px rgba(0,0,0,.2)); min-width:280px; z-index:2000; padding:8px; direction: rtl; text-align: right;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px;">
+                            <div style="font-weight:900;">اعلان‌ها</div>
+                            <span style="font-size:11px; opacity:.7;">@(_unreadCount > 0 ? $"{_unreadCount} مورد جدید" : "مورد خوانده‌نشده‌ای نیست")</span>
+                        </div>
+                        <div class="menu-item" style="padding:8px 10px; border-radius:10px; display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center;">
+                            <i class="fa-solid fa-envelope-open-text" style="color:#60a5fa;"></i>
+                            <div style="display:grid; gap:2px;">
+                                <div style="font-weight:800;">پیام جدید از مدیر</div>
+                                <div style="font-size:12px; opacity:.8;">لطفاً گزارش ماهانه را بررسی کنید</div>
+                            </div>
+                            <span style="font-size:11px; opacity:.7;">۱ دقیقه</span>
+                        </div>
+                        <div class="menu-item" style="padding:8px 10px; border-radius:10px; display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center;">
+                            <i class="fa-solid fa-receipt" style="color:#34d399;"></i>
+                            <div style="display:grid; gap:2px;">
+                                <div style="font-weight:800;">واریز جدید ثبت شد</div>
+                                <div style="font-size:12px; opacity:.8;">مبلغ ۲٬۵۰۰٬۰۰۰ تومان</div>
+                            </div>
+                            <span style="font-size:11px; opacity:.7;">۱۰ دقیقه</span>
+                        </div>
+                        <div class="menu-item" style="padding:8px 10px; border-radius:10px; display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center;">
+                            <i class="fa-solid fa-exclamation-circle" style="color:#fbbf24;"></i>
+                            <div style="display:grid; gap:2px;">
+                                <div style="font-weight:800;">یادآوری سررسید</div>
+                                <div style="font-size:12px; opacity:.8;">قسط شماره ۳ فردا</div>
+                            </div>
+                            <span style="font-size:11px; opacity:.7;">۱ ساعت</span>
+                        </div>
+                        <div style="display:flex; justify-content:center; padding-top:6px;">
+                            <a href="#" style="font-size:12px; color:#93c5fd; text-decoration:none;">مشاهده همه اعلان‌ها</a>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- User profile dropdown -->
+                <details class="header-menu">
+                    <summary class="user-trigger">
+                        <span class="user-avatar">@_userInitials</span>
+                    </summary>
+                    <div class="menu-card user-menu-card" role="menu" aria-label="منوی کاربری">
+                        <div class="user-menu__header">
+                            <div class="user-menu__avatarLg">@_userInitials</div>
+                            <div>
+                                <div class="user-menu__name">@_userDisplayName</div>
+                                <div class="user-menu__sub">
+                                    <span class="user-chip">
+                                        <span class="chip-text">@_userUsername</span>
+                                        <span class="chip-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></span>
+                                    </span>
+                                    @if (!string.IsNullOrWhiteSpace(_userRole))
+                                    {
+                                        <span class="user-chip">
+                                            <span class="chip-text">@_userRole</span>
+                                            <span class="chip-icon"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span>
+                                        </span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(_userNationalCode))
+                                    {
+                                        <span class="user-chip">
+                                            <span class="chip-text">@_userNationalCode</span>
+                                            <span class="chip-icon"><i class="fa-solid fa-id-card" aria-hidden="true"></i></span>
+                                        </span>
+                                    }
+                                    @if (_userMemberId.HasValue)
+                                    {
+                                        <span class="user-chip">
+                                            <span class="chip-text">عضو #@_userMemberId</span>
+                                            <span class="chip-icon"><i class="fa-solid fa-hashtag" aria-hidden="true"></i></span>
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="menu-item" type="button" @onclick="GoToProfile">
+                            <span>پروفایل من</span>
+                            <span class="mi-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></span>
+                        </button>
+
+                        <button class="menu-item" type="button" @onclick="GoToAccountSettings">
+                            <span>تنظیمات حساب</span>
+                            <span class="mi-icon"><i class="fa-solid fa-gear" aria-hidden="true"></i></span>
+                        </button>
+
+                        <button class="menu-item danger" type="button" @onclick="LogoutAsync">
+                            <span>خروج از حساب</span>
+                            <span class="mi-icon"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i></span>
+                        </button>
+                    </div>
+                </details>
+                @if (!_isMemberArea)
+                {
+                    <details class="header-menu header-more" style="position:relative;">
+                        <summary class="md-text-button" style="list-style:none; cursor:pointer; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); color:#fff; border-radius:10px; padding:6px 10px; display:grid; place-items:center;">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </summary>
+                        <div class="menu-card" style="position:absolute; inset-inline-end:0; margin-top:8px; background:var(--panel, #111827); color:var(--text, #e5e7eb); border:1px solid var(--border, #1f2937); border-radius:12px; box-shadow: var(--shadow, 0 10px 25px rgba(0,0,0,.2)); min-width:220px; z-index:2000; padding:8px; direction: rtl; text-align: right;">
+                            <div class="menu-item" style="padding:8px 10px; border-radius:8px; display:flex; align-items:center; gap:8px; justify-content:flex-end; flex-direction: row-reverse;">
+                                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                                <div style="display:grid; gap:2px;">
+                                    <div style="font-size:12px; opacity:.8;">نسخه فعلی</div>
+                                    <div style="font-weight:800;">@(_currentVersion ?? "—")</div>
+                                </div>
+                            </div>
+                            <button class="menu-item" id="menu-install" style="width:100%; text-align:inherit; background:transparent; border:0; color:inherit; padding:8px 10px; border-radius:8px; display:flex; align-items:center; gap:8px; cursor:pointer; justify-content:flex-end; flex-direction: row-reverse;" @onclick="ShowInstallDialog">
+                                <i class="fa-solid fa-download" aria-hidden="true"></i>
+                                <span>نصب اپ</span>
+                            </button>
+                            <button class="menu-item" id="menu-theme-toggle" style="width:100%; text-align:inherit; background:transparent; border:0; color:inherit; padding:8px 10px; border-radius:8px; display:flex; align-items:center; gap:8px; cursor:pointer; justify-content:flex-end; flex-direction: row-reverse;">
+                                <i class="fa-solid fa-adjust" aria-hidden="true"></i>
+                                <span>تغییر حالت (شب/روز)</span>
+                            </button>
+                            <button class="menu-item danger" type="button" @onclick="LogoutAsync">
+                                <span class="mi-icon"><i class="fa-solid fa-power-off" aria-hidden="true"></i></span>
+                                <span>خروج از حساب</span>
+                            </button>
+                        </div>
+                    </details>
+                }
+            </div>
+        </div>
+        <div class="header-row-2">
+            <div class="header-date-full" aria-label="today-date-full">
+                <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+                <DsDateText Value="@_today" FormatName="Long" />
+            </div>
+            <div class="header-back">
+                <button class="icon-btn back" @onclick="Back" title="بازگشت" aria-label="بازگشت">بازگشت</button>
+            </div>
+        </div>
+        <FiscalYearBadge />
+    </header>
+
+    @* --- Drawer overlay --- *@
+    <div class="drawer-overlay @(_drawerOpen ? "open" : "")" @onclick="CloseDrawer"></div>
+
+    @* --- Drawer menu --- *@
+    <aside class="drawer @(_drawerOpen ? "open" : "")">
+        <div class="drawer-header">
+            <div class="drawer-title">فهرست</div>
+            <button type="button" class="drawer-close" @onclick="CloseDrawer">&times;</button>
+        </div>
+        <nav class="drawer-body">
+
+            <PermittedAnyContent Paths="@(new[]{"/admin/manual-journal-entry-v2","/admin/reports/trial-balance","/admin/reports/financial-statements","/admin/loans","/admin/deposit-interest-calc","/admin/loan-installment-reminders","/admin/cashflow-budget"})">
+            <div class="drawer-category">
+                <div class="drawer-cat-title cat-popular"><i class="fa-solid fa-star"></i> پرکاربرد</div>
+                <PermittedContent Path="/admin/manual-journal-entry-v2"><a href="/admin/manual-journal-entry-v2" class="drawer-item"><i class="fa-solid fa-file-invoice"></i> صدور سند حسابداری</a></PermittedContent>
+                <PermittedContent Path="/admin/reports/trial-balance"><a href="/admin/reports/trial-balance" class="drawer-item"><i class="fa-solid fa-balance-scale"></i> مرور حساب‌ها</a></PermittedContent>
+                <PermittedContent Path="/admin/reports/financial-statements"><a href="/admin/reports/financial-statements" class="drawer-item"><i class="fa-solid fa-file-lines"></i> صورت‌های مالی</a></PermittedContent>
+                <PermittedContent Path="/admin/loans"><a href="/admin/loans" class="drawer-item"><i class="fa-solid fa-money-check-dollar"></i> وام‌ها</a></PermittedContent>
+                <PermittedContent Path="/admin/deposit-interest-calc"><a href="/admin/deposit-interest-calc" class="drawer-item"><i class="fa-solid fa-calculator"></i> محاسبه سود</a></PermittedContent>
+                <PermittedContent Path="/admin/loan-installment-reminders"><a href="/admin/loan-installment-reminders" class="drawer-item"><i class="fa-solid fa-bell"></i> یادآوری اقساط</a></PermittedContent>
+                <PermittedContent Path="/admin/cashflow-budget"><a href="/admin/cashflow-budget" class="drawer-item"><i class="fa-solid fa-chart-pie"></i> بودجه‌بندی نقدینگی</a></PermittedContent>
+            </div>
+            </PermittedAnyContent>
+
+            <PermittedAnyContent Paths="@(new[]{"/admin/dashboard2","/dashboard"})">
+            <div class="drawer-category">
+                <div class="drawer-cat-title"><i class="fa-solid fa-gauge-high"></i> داشبورد</div>
+                <PermittedContent Path="/admin/dashboard2"><a href="/admin/dashboard2" class="drawer-item"><i class="fa-solid fa-gauge"></i> پیشخوان مدیریت</a></PermittedContent>
+                <PermittedContent Path="/dashboard"><a href="/dashboard" class="drawer-item"><i class="fa-solid fa-users"></i> داشبورد اعضا</a></PermittedContent>
+            </div>
+            </PermittedAnyContent>
+
+            <PermittedAnyContent Paths="@(new[]{"/admin/members","/admin/households","/admin/deposit-types","/admin/loan-rates"})">
+            <div class="drawer-category">
+                <div class="drawer-cat-title"><i class="fa-solid fa-user-group"></i> مدیریت اعضا</div>
+                <PermittedContent Path="/admin/members"><a href="/admin/members" class="drawer-item"><i class="fa-solid fa-user"></i> مدیریت کاربران</a></PermittedContent>
+                <PermittedContent Path="/admin/households"><a href="/admin/households" class="drawer-item"><i class="fa-solid fa-house-user"></i> مدیریت خانوار</a></PermittedContent>
+                <PermittedContent Path="/admin/deposit-types"><a href="/admin/deposit-types" class="drawer-item"><i class="fa-solid fa-piggy-bank"></i> نرخ سود سپرده</a></PermittedContent>
+                <PermittedContent Path="/admin/loan-rates"><a href="/admin/loan-rates" class="drawer-item"><i class="fa-solid fa-hand-holding-dollar"></i> نرخ سود وام</a></PermittedContent>
+            </div>
+            </PermittedAnyContent>
+
+            <PermittedAnyContent Paths="@(new[]{"/admin/accounting/accounts","/admin/moeen","/admin/subsidiary","/admin/manual-journal-entry-v2","/admin/manual-journal-entry-v2/history","/admin/posting-templates","/admin/accounting/profit-loss"})">
+            <div class="drawer-category">
+                <div class="drawer-cat-title"><i class="fa-solid fa-book"></i> حسابداری</div>
+                <PermittedContent Path="/admin/accounting/accounts"><a href="/admin/accounting/accounts" class="drawer-item"><i class="fa-solid fa-sitemap"></i> حساب‌ها</a></PermittedContent>
+                <PermittedContent Path="/admin/moeen"><a href="/admin/moeen" class="drawer-item"><i class="fa-solid fa-layer-group"></i> معین</a></PermittedContent>
+                <PermittedContent Path="/admin/subsidiary"><a href="/admin/subsidiary" class="drawer-item"><i class="fa-solid fa-list"></i> تفصیلی</a></PermittedContent>
+                <PermittedContent Path="/admin/manual-journal-entry-v2"><a href="/admin/manual-journal-entry-v2" class="drawer-item"><i class="fa-solid fa-file-invoice"></i> صدور سند حسابداری</a></PermittedContent>
+                <PermittedContent Path="/admin/manual-journal-entry-v2/history"><a href="/admin/manual-journal-entry-v2/history" class="drawer-item"><i class="fa-solid fa-clock-rotate-left"></i> تاریخچه اسناد</a></PermittedContent>
+                <PermittedContent Path="/admin/posting-templates"><a href="/admin/posting-templates" class="drawer-item"><i class="fa-solid fa-copy"></i> الگوهای حسابداری</a></PermittedContent>
+                <PermittedContent Path="/admin/accounting/profit-loss"><a href="/admin/accounting/profit-loss" class="drawer-item"><i class="fa-solid fa-chart-pie"></i> سود و زیان</a></PermittedContent>
+            </div>
+            </PermittedAnyContent>
+
+            <PermittedAnyContent Paths="@(new[]{"/admin/reports/trial-balance","/admin/reports/financial-statements","/admin/reports/balance-sheet","/admin/reports/transactions","/admin/reports/tx-summary","/admin/reports/member-banking","/admin/reports/loans"})">
+            <div class="drawer-category">
+                <div class="drawer-cat-title"><i class="fa-solid fa-chart-bar"></i> گزارش‌ها</div>
+                <PermittedContent Path="/admin/reports/trial-balance"><a href="/admin/reports/trial-balance" class="drawer-item"><i class="fa-solid fa-balance-scale"></i> تراز آزمایشی</a></PermittedContent>
+                <PermittedContent Path="/admin/reports/financial-statements"><a href="/admin/reports/financial-statements" class="drawer-item"><i class="fa-solid fa-file-lines"></i> صورت‌های مالی</a></PermittedContent>
+                <PermittedContent Path="/admin/reports/balance-sheet"><a href="/admin/reports/balance-sheet" class="drawer-item"><i class="fa-solid fa-scale-balanced"></i> ترازنامه</a></PermittedContent>
+                <PermittedContent Path="/admin/reports/transactions"><a href="/admin/reports/transactions" class="drawer-item"><i class="fa-solid fa-arrow-right-arrow-left"></i> تراکنش‌ها</a></PermittedContent>
+                <PermittedContent Path="/admin/reports/tx-summary"><a href="/admin/reports/tx-summary" class="drawer-item"><i class="fa-solid fa-table"></i> خلاصه تراکنش</a></PermittedContent>
+                <PermittedContent Path="/admin/reports/member-banking"><a href="/admin/reports/member-banking" class="drawer-item"><i class="fa-solid fa-building-columns"></i> صورتحساب بانکی</a></PermittedContent>
+                <PermittedContent Path="/admin/reports/loans"><a href="/admin/reports/loans" class="drawer-item"><i class="fa-solid fa-money-check-dollar"></i> گزارش وام</a></PermittedContent>
+            </div>
+            </PermittedAnyContent>
+
+            <PermittedAnyContent Paths="@(new[]{"/admin/loans","/admin/loan-installment-reminders"})">
+            <div class="drawer-category">
+                <div class="drawer-cat-title"><i class="fa-solid fa-hand-holding"></i> وام‌ها</div>
+                <PermittedContent Path="/admin/loans"><a href="/admin/loans" class="drawer-item"><i class="fa-solid fa-list"></i> لیست وام‌ها</a></PermittedContent>
+                <PermittedContent Path="/admin/loan-installment-reminders"><a href="/admin/loan-installment-reminders" class="drawer-item"><i class="fa-solid fa-bell"></i> یادآوری اقساط</a></PermittedContent>
+            </div>
+            </PermittedAnyContent>
+
+            <PermittedAnyContent Paths="@(new[]{"/admin/deposit-interest-calc","/admin/receipts/household-wizard-v2","/admin/bank-accounts"})">
+            <div class="drawer-category">
+                <div class="drawer-cat-title"><i class="fa-solid fa-calculator"></i> خدمات</div>
+                <PermittedContent Path="/admin/deposit-interest-calc"><a href="/admin/deposit-interest-calc" class="drawer-item"><i class="fa-solid fa-calculator"></i> محاسبه سود سپرده</a></PermittedContent>
+                <PermittedContent Path="/admin/receipts/household-wizard-v2"><a href="/admin/receipts/household-wizard-v2" class="drawer-item"><i class="fa-solid fa-receipt"></i> دریافت خانوار</a></PermittedContent>
+                <PermittedContent Path="/admin/bank-accounts"><a href="/admin/bank-accounts" class="drawer-item"><i class="fa-solid fa-building-columns"></i> حساب‌های بانکی</a></PermittedContent>
+            </div>
+            </PermittedAnyContent>
+
+            <PermittedAnyContent Paths="@(new[]{"/admin/auth/users","/admin/auth/roles"})">
+            <div class="drawer-category">
+                <div class="drawer-cat-title"><i class="fa-solid fa-shield-halved"></i> مدیریت دسترسی‌ها</div>
+                <PermittedContent Path="/admin/auth/users"><a href="/admin/auth/users" class="drawer-item"><i class="fa-solid fa-user-shield"></i> کاربران سیستم</a></PermittedContent>
+                <PermittedContent Path="/admin/auth/roles"><a href="/admin/auth/roles" class="drawer-item"><i class="fa-solid fa-shield"></i> نقش‌ها و دسترسی‌ها</a></PermittedContent>
+            </div>
+            </PermittedAnyContent>
+
+            <PermittedAnyContent Paths="@(new[]{"/admin/fiscal-years","/admin/settings","/admin/db-backups","/admin/sms-panel","/admin/online-users","/admin/my-profile"})">
+            <div class="drawer-category">
+                <div class="drawer-cat-title"><i class="fa-solid fa-gears"></i> مدیریت سیستم</div>
+                <PermittedContent Path="/admin/fiscal-years"><a href="/admin/fiscal-years" class="drawer-item"><i class="fa-solid fa-calendar"></i> سال‌های مالی</a></PermittedContent>
+                <PermittedContent Path="/admin/settings"><a href="/admin/settings" class="drawer-item"><i class="fa-solid fa-sliders"></i> تنظیمات</a></PermittedContent>
+                <PermittedContent Path="/admin/db-backups"><a href="/admin/db-backups" class="drawer-item"><i class="fa-solid fa-database"></i> پشتیبان‌گیری</a></PermittedContent>
+                <PermittedContent Path="/admin/sms-panel"><a href="/admin/sms-panel" class="drawer-item"><i class="fa-solid fa-comment-sms"></i> پنل پیامک</a></PermittedContent>
+                <PermittedContent Path="/admin/online-users"><a href="/admin/online-users" class="drawer-item"><i class="fa-solid fa-wifi"></i> کاربران آنلاین</a></PermittedContent>
+                <PermittedContent Path="/admin/my-profile"><a href="/admin/my-profile" class="drawer-item"><i class="fa-solid fa-id-card"></i> پروفایل من</a></PermittedContent>
+            </div>
+            </PermittedAnyContent>
+
+        </nav>
+    </aside>
+
+    <div class="app-body">
+        <main class="content">@Body</main>
+    </div>
+
+    <footer class="app-footer" role="navigation" aria-label="Bottom navigation">
+        @if (_isMemberArea)
+        {
+            <nav class="member-footer-nav" aria-label="member bottom toolbar">
+                <ul class="nav-list">
+                    <li>
+                        <NavLink href="/me/loans" class="nav-link nav-loans" title="وام‌ها" aria-label="وام‌ها" data-tip="وام" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-hand-holding-dollar" aria-hidden="true"></i></span>
+                            <span class="nav-text">وام</span>
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink href="/me/transactions" class="nav-link nav-tx" title="تراکنش‌ها" aria-label="تراکنش‌ها" data-tip="تراکنش" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-receipt" aria-hidden="true"></i></span>
+                            <span class="nav-text">تراکنش</span>
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink href="/dashboard" class="nav-link nav-home nav-center" title="خانه" aria-label="خانه" Match="NavLinkMatch.All">
+                            <span class="nav-icon"><i class="fa-solid fa-house" aria-hidden="true"></i></span>
+                            <span class="nav-text">خانه</span>
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink href="/me/profile" class="nav-link nav-profile" title="پروفایل" aria-label="پروفایل" data-tip="پروفایل" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></span>
+                            <span class="nav-text">پروفایل</span>
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink href="/me/household" class="nav-link nav-household" title="خانوار" aria-label="خانوار" data-tip="خانوار" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-people-group" aria-hidden="true"></i></span>
+                            <span class="nav-text">خانوار</span>
+                        </NavLink>
+                    </li>
+                </ul>
+            </nav>
+        }
+        else if (_isAdminArea)
+        {
+            <nav class="footer-nav footer-nav-admin" aria-label="admin bottom toolbar">
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <NavLink href="/admin/manual-journal-entry-v2" class="nav-link" title="اسناد" aria-label="اسناد" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-file-invoice" aria-hidden="true"></i></span>
+                            <span class="nav-text">اسناد</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink href="/admin/reports/trial-balance" class="nav-link" title="مرور حسابها" aria-label="مرور حسابها" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-balance-scale" aria-hidden="true"></i></span>
+                            <span class="nav-text">مرورحسابها</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-item nav-home">
+                        <NavLink href="/admin/dashboard2" class="nav-link" title="خانه" aria-label="خانه" Match="NavLinkMatch.All">
+                            <span class="nav-icon"><i class="fa-solid fa-house" aria-hidden="true"></i></span>
+                            <span class="nav-text">خانه</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink href="/admin/reports/loans" class="nav-link" title="گزارش وامها" aria-label="گزارش وامها" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-list-check" aria-hidden="true"></i></span>
+                            <span class="nav-text">گ وام ها</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink href="/dashboard" class="nav-link" title="داشبورد اعضا" aria-label="داشبورد اعضا" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-users" aria-hidden="true"></i></span>
+                            <span class="nav-text">داشبورداعضا</span>
+                        </NavLink>
+                    </li>
+                </ul>
+            </nav>
+        }
+        else
+        {
+            <nav class="footer-nav" aria-label="bottom toolbar">
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <NavLink href="/components" class="nav-link" title="کامپوننت" aria-label="کامپوننت" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span>
+                            <span class="nav-text">کامپوننت</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink href="/pages" class="nav-link" title="صفحات" aria-label="صفحات" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-table-cells-large" aria-hidden="true"></i></span>
+                            <span class="nav-text">صفحات</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-item nav-home">
+                        <NavLink href="/" class="nav-link" title="خانه" aria-label="خانه" Match="NavLinkMatch.All">
+                            <span class="nav-icon"><i class="fa-solid fa-house" aria-hidden="true"></i></span>
+                            <span class="nav-text">خانه</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink href="/search" class="nav-link" title="جستجو" aria-label="جستجو" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+                            <span class="nav-text">جستجو</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink href="/settings" class="nav-link" title="تنظیمات" aria-label="تنظیمات" Match="NavLinkMatch.Prefix">
+                            <span class="nav-icon"><i class="fa-solid fa-sliders" aria-hidden="true"></i></span>
+                            <span class="nav-text">تنظیمات</span>
+                        </NavLink>
+                    </li>
+                </ul>
+            </nav>
+        }
+    </footer>
+</div>
+
+<LoadingOverlay Show="@_showLoading" Title="صندوق امام علی (ع)" Subtitle="لطفاً صبر کنید..." Icon="fa-solid fa-vault" />
+<MudSnackbarProvider />
+<DsToastContainer />
+<InstallPromptDialog @ref="_installDialog" />
+
+@* Centralized confirmation dialog for app-level confirmations (e.g., Exit) *@
+
+@code {
+    [Inject] NavigationManager Nav { get; set; } = default!;
+    [Inject] IJSRuntime JS { get; set; } = default!;
+    [Inject] MiniBank.Web.Services.Auth.AuthActivityService Activity { get; set; } = default!;
+    [Inject] MemberRepository MemberRepo { get; set; } = default!;
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool _showLoading;
+    private EventHandler<LocationChangedEventArgs>? _locationChangedHandler;
+    private DateTime _today = DateTime.Now;
+    private InstallPromptDialog? _installDialog;
+    private string? _currentVersion;
+    private int _unreadCount = 3; // test data for unread notifications
+
+    private bool _isMemberArea;
+    private bool _isAdminArea;
+    private bool _drawerOpen;
+
+    private string _userDisplayName = "کاربر";
+    private string _userUsername = "";
+    private string _userRole = "";
+    private long? _userMemberId;
+    private string _userNationalCode = "";
+    private string _userInitials = "—";
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("MainLayout: OnInitialized called");
+        UpdateMemberAreaFlag(Nav.Uri);
+        _locationChangedHandler = (_, args) =>
+        {
+            _showLoading = true;
+            UpdateMemberAreaFlag(args.Location);
+            InvokeAsync(StateHasChanged);
+            _ = HideSoonAsync();
+
+            try { _ = Activity.TouchSeenThrottledAsync(TimeSpan.FromMinutes(5)); } catch { }
+            
+            // حذف نمایش خودکار دیالوگ نصب در داشبورد — فقط از منوی سه‌نقطه نشان داده می‌شود
+
+            // Inform app-nav about navigation to manage back barrier on dashboard
+            try { JS.InvokeVoidAsync("appNav.onNavigated", args.Location); } catch {}
+        };
+        Nav.LocationChanged += _locationChangedHandler;
+    }
+
+    private void UpdateMemberAreaFlag(string location)
+    {
+        try
+        {
+            var rel = Nav.ToBaseRelativePath(location);
+            rel = rel.StartsWith("/") ? rel : "/" + rel;
+            _isMemberArea = rel.Equals("/dashboard", StringComparison.OrdinalIgnoreCase)
+                || rel.StartsWith("/me/", StringComparison.OrdinalIgnoreCase)
+                || rel.Equals("/me", StringComparison.OrdinalIgnoreCase);
+
+            _isAdminArea = rel.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            _isMemberArea = false;
+            _isAdminArea = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var local = await JS.InvokeAsync<LocalVersion>("SWUpdate.getLocalVersion");
+                _currentVersion = local?.version;
+                StateHasChanged();
+                // Initialize back barrier for current URL (handles direct land on dashboard)
+                try { await JS.InvokeVoidAsync("appNav.onNavigated", Nav.Uri); } catch {}
+                try { await Activity.TouchSeenThrottledAsync(TimeSpan.FromMinutes(5)); } catch { }
+            }
+            catch { }
+
+            await LoadUserInfoAsync();
+        }
+    }
+
+    private async Task LoadUserInfoAsync()
+    {
+        try
+        {
+            if (AuthenticationStateTask == null)
+                return;
+
+            var auth = await AuthenticationStateTask;
+            var user = auth.User;
+            if (user?.Identity?.IsAuthenticated != true)
+                return;
+
+            _userUsername = user.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
+            _userRole = ToFaRoleName(user.FindFirstValue(ClaimTypes.Role) ?? string.Empty);
+            _userDisplayName = _userUsername;
+
+            var memberIdStr = user.FindFirstValue("MemberId");
+            if (long.TryParse(memberIdStr, out var mid) && mid > 0)
+            {
+                _userMemberId = mid;
+                try
+                {
+                    var member = await MemberRepo.GetByIdAsync(mid);
+                    if (member != null)
+                    {
+                        _userDisplayName = member.FullName;
+                        _userNationalCode = member.NationalCode ?? string.Empty;
+                    }
+                }
+                catch { }
+            }
+
+            _userInitials = BuildInitials(_userDisplayName);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch { }
+    }
+
+    private static string BuildInitials(string? name)
+    {
+        var n = (name ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(n)) return "—";
+        var parts = n.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1)
+            return SafeTwoChars(parts[0]);
+        return SafeOneChar(parts[0]) + SafeOneChar(parts[^1]);
+    }
+
+    private static string SafeOneChar(string s)
+    {
+        var t = (s ?? string.Empty).Trim();
+        if (t.Length == 0) return "";
+        return t.Substring(0, 1);
+    }
+
+    private static string SafeTwoChars(string s)
+    {
+        var t = (s ?? string.Empty).Trim();
+        if (t.Length == 0) return "—";
+        if (t.Length == 1) return t;
+        return t.Substring(0, 2);
+    }
+
+    private static string ToFaRoleName(string? role)
+    {
+        var r = (role ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(r)) return string.Empty;
+
+        return r switch
+        {
+            "Admin" => "مدیر سیستم",
+            "Developer" => "توسعه‌دهنده",
+            "Accountant" => "حسابدار",
+            "Member" => "عضو",
+            "Manager" => "مدیر",
+            _ => r
+        };
+    }
+
+    private Task GoToProfile()
+    {
+        Nav.NavigateTo("/admin/profile");
+        return Task.CompletedTask;
+    }
+
+    private Task GoToAccountSettings()
+    {
+        Nav.NavigateTo("/settings");
+        return Task.CompletedTask;
+    }
+
+    private async Task LogoutAsync()
+    {
+        try { await JS.InvokeVoidAsync("appNav.closeMenus"); } catch { }
+        Nav.NavigateTo("/logout", forceLoad: true);
+    }
+
+    private async Task ShowInstallDialog()
+    {
+        try { await JS.InvokeVoidAsync("appNav.closeMenus"); } catch {}
+        if (_installDialog is not null)
+        {
+            // نمایش دیالوگ نصب فقط به صورت دستی
+            await _installDialog.ForceShowOnDashboard();
+        }
+    }
+
+    private async Task HideSoonAsync()
+    {
+        try
+        {
+            await Task.Delay(600);
+        }
+        catch { }
+        _showLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void CloseDrawer()
+    {
+        _drawerOpen = false;
+    }
+
+    public void Dispose()
+    {
+        if (_locationChangedHandler is not null)
+        {
+            Nav.LocationChanged -= _locationChangedHandler;
+            _locationChangedHandler = null;
+        }
+    }
+
+    private Task Back()
+    {
+        return JS.InvokeVoidAsync("appNav.goBack").AsTask();
+    }
+
+
+    private class LocalVersion
+    {
+        public string? version { get; set; }
+        public string? date { get; set; }
+        public List<string> notes { get; set; } = new();
+    }
+
+}
