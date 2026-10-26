@@ -1,28 +1,198 @@
+@using MiniBank.Web.Models
 @using MiniBank.Web.Infrastructure.Repositories
+@implements IDisposable
 
-@if (!_displayText.Equals(""))
-{
-    <div class="fy-row"><span class="fiscal-year-badge">@_displayText</span></div>
-}
+@inject NavigationManager Nav
+@inject FiscalYearRepository Repo
+@inject MiniBank.Web.Services.FiscalYearContext FyContext
+
+<div class="fy-row">
+  <button type="button"
+          class="fiscal-year-badge @(IsNonCurrent ? "is-noncurrent" : "") @(_open ? "is-open" : "")"
+          title="انتخاب سال مالی"
+          @onclick="ToggleAsync">
+    <i class="fa-regular fa-calendar"></i>
+    <span class="fy-text">@_displayText</span>
+    @if (IsNonCurrent)
+    {
+      <span class="fy-dot"></span>
+    }
+    <i class="fa-solid fa-chevron-down fy-caret"></i>
+  </button>
+
+  @if (_open)
+  {
+    <div class="fy-backdrop" @onclick="Close"></div>
+
+    <div class="fy-menu" @onclick:stopPropagation>
+      <div class="fy-menu-head">
+        <span>سال مالیِ در حالِ نمایش</span>
+        <button type="button" class="fy-close" @onclick="Close" aria-label="بستن">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="fy-menu-list">
+        @if (_openToday != null)
+        {
+          <button type="button"
+                  class="fy-option @(!IsNonCurrent ? "active" : "")"
+                  @onclick="ResetAsync">
+            <span class="fy-opt-main">
+              <i class="fa-solid fa-calendar-day"></i>
+              <span class="fy-opt-title">سال جاری — @_openToday.Title</span>
+            </span>
+            <span class="fy-opt-side">@_openToday.YearCode</span>
+          </button>
+        }
+
+        @foreach (var fy in _years)
+        {
+          var active = _selected != null && _selected.FiscalYearId == fy.FiscalYearId;
+          <button type="button"
+                  class="fy-option @(active ? "active" : "")"
+                  @onclick="@(() => SelectAsync(fy))">
+            <span class="fy-opt-main">
+              <i class="fa-regular fa-calendar"></i>
+              <span class="fy-opt-title">@fy.Title</span>
+            </span>
+            <span class="fy-opt-side">
+              <span class="fy-opt-year">@fy.YearCode</span>
+              <span class="fy-opt-state @(fy.IsClosed ? "closed" : "open")">@(fy.IsClosed ? "بسته" : "باز")</span>
+            </span>
+          </button>
+        }
+      </div>
+
+      <div class="fy-menu-foot">
+        <a href="/admin/fiscal-years" class="fy-menu-link" @onclick="Close">
+          <i class="fa-solid fa-gear"></i>
+          <span>مدیریت سال‌های مالی</span>
+        </a>
+      </div>
+    </div>
+  }
+</div>
 
 @code {
-    [Inject] private FiscalYearRepository Repo { get; set; } = null!;
+  private string _displayText = "";
+  private bool _open;
+  private FiscalYear? _selected;
+  private FiscalYear? _openToday;
+  private List<FiscalYear> _years = new();
 
-    private string _displayText = "";
+  private bool IsNonCurrent => _selected != null
+    && (_openToday == null || _selected.FiscalYearId != _openToday.FiscalYearId);
 
-    protected override async Task OnInitializedAsync()
+  protected override async Task OnInitializedAsync()
+  {
+    FyContext.OnChange += OnContextChanged;
+    try
     {
-        try
-        {
-            var fy = await Repo.GetOpenYearForDateAsync(DateTime.Now);
-            if (fy != null)
-            {
-                _displayText = fy.Title;
-            }
-        }
-        catch
-        {
-            _displayText = "";
-        }
+      await FyContext.EnsureLoadedAsync();
+      _selected = FyContext.Selected;
+      _openToday = await FyContext.GetOpenTodayAsync();
+      SetText();
     }
+    catch
+    {
+      _displayText = "";
+    }
+  }
+
+  private void OnContextChanged()
+  {
+    _ = InvokeAsync(RefreshAsync);
+  }
+
+  private async Task RefreshAsync()
+  {
+    try
+    {
+      await FyContext.EnsureLoadedAsync();
+      _selected = FyContext.Selected;
+      _openToday = await FyContext.GetOpenTodayAsync();
+      SetText();
+      StateHasChanged();
+    }
+    catch { }
+  }
+
+  public void Dispose()
+  {
+    FyContext.OnChange -= OnContextChanged;
+  }
+
+  private void SetText()
+  {
+    if (_selected != null)
+    {
+      _displayText = $"سال مالی {_selected.YearCode}" + (IsNonCurrent ? " (غیرجاری)" : "");
+    }
+    else
+    {
+      _displayText = _openToday?.Title ?? "";
+    }
+  }
+
+  private async Task ToggleAsync()
+  {
+    if (_open) { Close(); return; }
+
+    if (_years.Count == 0)
+    {
+      try { _years = (await Repo.GetAllAsync()).OrderByDescending(x => x.YearCode).ToList(); }
+      catch { _years = new(); }
+    }
+
+    _open = true;
+    StateHasChanged();
+    await Task.CompletedTask;
+  }
+
+  private void Close()
+  {
+    _open = false;
+    StateHasChanged();
+  }
+
+  private async Task SelectAsync(FiscalYear fy)
+  {
+    try
+    {
+      await FyContext.SetAsync(fy.YearCode);
+      _selected = FyContext.Selected ?? fy;
+      SetText();
+      _open = false;
+      Reload();
+    }
+    catch
+    {
+      _open = false;
+    }
+  }
+
+  private async Task ResetAsync()
+  {
+    try
+    {
+      await FyContext.ResetAsync();
+      _selected = null;
+      _openToday = await FyContext.GetOpenTodayAsync();
+      SetText();
+      _open = false;
+      Reload();
+    }
+    catch
+    {
+      _open = false;
+    }
+  }
+
+  private void Reload()
+  {
+    // انتخاب سال مالی باید بلافاصله در کل سامانه اعمال شود؛
+    // رفرش کامل مطمئن‌ترین راه است چون همه‌ی صفحات OnInitializedAsync دوباره اجرا می‌کنند.
+    Nav.NavigateTo(Nav.Uri, forceLoad: true);
+  }
 }

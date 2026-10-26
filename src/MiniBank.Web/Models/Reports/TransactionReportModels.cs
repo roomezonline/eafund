@@ -199,4 +199,34 @@ namespace MiniBank.Web.Models.Reports
         public string? Description { get; set; }
         public string? Notes { get; set; }
     }
+
+    /// <summary>
+    /// تراکنش عضو با مانده‌های در حال اجرا (سبد سپرده و وام)
+    /// </summary>
+    public class MemberTransactionWithBalanceRow
+    {
+        public long? TransactionId { get; set; }
+        public long? JournalId { get; set; }
+        public DateTime OccurredAt { get; set; }
+        public long TypeId { get; set; }
+        public string TypeName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public decimal Net { get; set; }
+        public string? Operation { get; set; }
+        public string MemberCode { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? Notes { get; set; }
+
+        // مانده‌ها پس از این تراکنش
+        public decimal DepositBalanceAfter { get; set; }  // مانده سپرده (اصل + سود)
+        public decimal LoanBalanceAfter { get; set; }     // مانده وام (اصل + سود قسط)
+        
+        // جزئیات مانده سپرده
+        public decimal DepositPrincipalBalanceAfter { get; set; }
+        public decimal DepositInterestBalanceAfter { get; set; }
+        
+        // جزئیات مانده وام
+        public decimal LoanPrincipalBalanceAfter { get; set; }
+        public decimal LoanInterestBalanceAfter { get; set; }
+    }
 }

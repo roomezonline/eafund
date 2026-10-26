@@ -3,20 +3,19 @@
 @using MiniBank.Web.Infrastructure.Repositories
 @using MiniBank.Web.Models.Sms
 @using MiniBank.Web.Services
+@using MiniBank.Web.Services.Notifications
 @using System.Globalization
 @using System.Text.Json
 @inject DsToastService Toasts
 @inject LoanInstallmentReminderRepository ReminderRepo
-@inject SmsPanelRepository SmsPanelRepo
-@inject SmsSendService SmsSendService
-@inject SmsSender SmsSender
 @inject SmsMessageLogRepository SmsLogRepo
+@inject NotificationService Notifications
 
 <PageTitle>یادآوری اقساط</PageTitle>
 
 <DsPageHeader Title="یادآوری اقساط"
              Icon="fa-solid fa-bell"
-             Subtitle="اقساط نزدیک سررسید یا معوق + ارسال دستی پیامک با تاریخچه"
+             Subtitle="اقساط نزدیک سررسید یا معوق + ارسال دستی یادآوری با تاریخچه"
              ShowBackButton="true" />
 
 <style>
@@ -183,7 +182,7 @@
                                 </div>
 
                                 <div class="lir-row-action">
-                                    <button class="lir-send" @onclick:stopPropagation="true" @onclick="(() => AskSendReminder(x))" disabled="@_sending">
+                                    <button class="lir-send" @onclick:stopPropagation="true" @onclick="(() => AskSendReminderAsync(x))" disabled="@_sending">
                                         ارسال یادآوری
                                     </button>
                                 </div>
@@ -245,7 +244,7 @@
 </section>
 
 <DsConfirm Show="@_showSendConfirm"
-           Title="ارسال پیامک یادآوری"
+           Title="@($"ارسال یادآوری ({_sendChannelLabel})")"
            Message="@_sendConfirmMessage"
            Variant="info"
            ShowWarning="false"
@@ -276,6 +275,8 @@
     private bool _showSendConfirm;
     private LoanInstallmentReminderRepository.ReminderRow? _pendingSend;
     private string _sendConfirmMessage = string.Empty;
+    private string _sendChannelLabel = "پیامک";
+    private bool _sendBaleReady;
 
     protected override async Task OnInitializedAsync()
     {
@@ -395,8 +396,28 @@
         _query = e?.Value?.ToString() ?? string.Empty;
     }
 
-    private void AskSendReminder(LoanInstallmentReminderRepository.ReminderRow row)
+    private async Task AskSendReminderAsync(LoanInstallmentReminderRepository.ReminderRow row)
     {
+        _pendingSend = null;
+
+        try
+        {
+            var availability = await Notifications.GetAvailabilityAsync(ReminderFeatureKey, row.MobileNumber, row.MemberId);
+            if (!availability.Enabled || !availability.HasAnyChannel)
+            {
+                Toasts.Warning(availability.Reason ?? "کانال ارسال در دسترس نیست.");
+                return;
+            }
+
+            _sendChannelLabel = availability.EffectiveLabel;
+            _sendBaleReady = availability.BaleReady;
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بررسی کانال ارسال: {ex.Message}");
+            return;
+        }
+
         _pendingSend = row;
 
         var due = FormatJalaliDate(row.DueDate);
@@ -408,6 +429,8 @@
         var PRICE = $"{amount} ریال";
         var DATE = due;
         var messageText = $"عضومحترم {NAME}\nلطفا نسبت به پرداخت قسط خود به مبلغ {PRICE}\nدر سررسید {DATE} اقدام نمایید.\nصندوق همیاری امام علی (ع)";
+        var baleText = NotificationText.BuildLoanReminderBaleMessage(
+            row.MemberFullName, row.FatherName, amount, DATE);
 
         _sendConfirmMessage = BuildReminderSmsConfirmMarkup(
             NAME,
@@ -417,8 +440,9 @@
             due,
             amount,
             status,
-            messageText);
-
+            messageText,
+            _sendChannelLabel,
+            _sendBaleReady ? baleText : null);
         _showSendConfirm = true;
     }
 
@@ -440,146 +464,59 @@
         var row = _pendingSend;
         _pendingSend = null;
 
-        if (string.IsNullOrWhiteSpace(row.MobileNumber))
-        {
-            Toasts.Warning("شماره موبایل عضو موجود نیست.");
-            return;
-        }
-
         try
         {
             _sending = true;
             StateHasChanged();
 
-            var smsSettings = await SmsPanelRepo.GetSettingsAsync();
-            if (!smsSettings.IsEnabled)
-                throw new InvalidOperationException("پنل پیامک غیرفعال است");
-
-            var features = await SmsPanelRepo.GetFeaturesAsync();
-            var reminderFeature = features.FirstOrDefault(f => string.Equals(f.FeatureKey, ReminderFeatureKey, StringComparison.OrdinalIgnoreCase));
-            if (reminderFeature == null || !reminderFeature.IsEnabled)
-                throw new InvalidOperationException("قابلیت ارسال پیامک یادآوری قسط غیرفعال است");
-
             var dueJalali = FormatJalaliDate(row.DueDate);
             var amount = row.EmiAmount.ToString("N0");
 
-            // New template parameters
             var NAME = NormalizeNameForSms(row.MemberFullName);
             var PRICE = $"{amount} ریال";
             var DATE = dueJalali;
 
-            var templateId = ReminderTemplateId;
-
-            var paramsJson = JsonSerializer.Serialize(new
-            {
-                InstallmentId = row.InstallmentId,
-                row.LoanId,
-                row.InstallmentNo,
-                DueDate = row.DueDate.Date,
-                row.MemberId,
-                row.MemberCode,
-                row.MobileNumber,
-                row.EmiAmount,
-                row.DaysToDue,
-                row.OverdueDays,
-                NAME,
-                PRICE,
-                DATE,
-                TemplateId = templateId
-            });
-
             var messageText = $"عضومحترم {NAME}\nلطفا نسبت به پرداخت قسط خود به مبلغ {PRICE}\nدر سررسید {DATE} اقدام نمایید.\nصندوق همیاری امام علی (ع)";
 
-            var logId = await SmsLogRepo.CreateAsync(
-                featureKey: ReminderFeatureKey,
-                householdId: null,
-                headMemberId: row.MemberId,
-                memberIdsJson: null,
-                recipientMobile: row.MobileNumber,
-                templateId: templateId,
-                paramsJson: paramsJson,
-                messageText: messageText);
-
-            string? rawResponse = null;
-            long? providerMessageId = null;
-            int? apiStatus = null;
-            string? apiMessage = null;
-            try
+            var result = await Notifications.NotifyAsync(new NotificationRequest
             {
-                rawResponse = await SmsSender.SendVerifyWithParametersForFeatureAsync(
-                    ReminderFeatureKey,
-                    row.MobileNumber,
-                    templateId,
-                    new Dictionary<string, string>
-                    {
-                        ["NAME"] = NAME,
-                        ["PRICE"] = PRICE,
-                        ["DATE"] = DATE
-                    });
-
-                try
+                FeatureKey = ReminderFeatureKey,
+                MessageText = messageText,
+                BaleMessageText = NotificationText.BuildLoanReminderBaleMessage(
+                    row.MemberFullName, row.FatherName, amount, DATE),
+                MemberId = row.MemberId,
+                HeadMemberId = row.MemberId,
+                RecipientMobile = row.MobileNumber,
+                RecipientName = row.MemberFullName,
+                SmsTemplateId = ReminderTemplateId,
+                SmsParams = new Dictionary<string, string>
                 {
-                    using var doc = JsonDocument.Parse(rawResponse);
-                    if (doc.RootElement.TryGetProperty("status", out var s) && s.TryGetInt32(out var st))
-                        apiStatus = st;
-                    if (doc.RootElement.TryGetProperty("message", out var m))
-                        apiMessage = m.GetString();
-                    if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
-                    {
-                        if (data.TryGetProperty("messageId", out var mid) && mid.TryGetInt64(out var midVal))
-                            providerMessageId = midVal;
-                    }
-                }
-                catch
-                {
-                    // ignore parse errors
-                }
+                    ["NAME"] = NAME,
+                    ["PRICE"] = PRICE,
+                    ["DATE"] = DATE
+                },
+                CreatedBy = "manual-reminder"
+            });
 
-                var isSuccess = apiStatus.HasValue ? apiStatus.Value == 1 : true;
-                await SmsLogRepo.MarkResultAsync(logId, isSuccess, rawResponse, providerMessageId, apiStatus, apiMessage, errorMessage: null);
-            }
-            catch (Exception exSend)
+            if (result.Ok)
             {
-                await SmsLogRepo.MarkResultAsync(logId, isSuccess: false, rawResponse, providerMessageId, apiStatus, apiMessage, errorMessage: exSend.Message);
-                throw;
+                Toasts.Success(result.Message);
+                await ReloadHistoryAsync(row.InstallmentId);
             }
-
-            var parts = EstimateParts(messageText);
-            var creditResult = await SmsSendService.ConsumeCreditAfterSuccessfulSendAsync(parts);
-            if (creditResult.lowCredit)
-                Toasts.Warning($"هشدار: اعتبار پیامک کمتر از {creditResult.thresholdRial:N0} ریال است.");
-
-            Toasts.Success("پیامک یادآوری ارسال شد.");
-
-            await ReloadHistoryAsync(row.InstallmentId);
+            else
+            {
+                Toasts.Warning(result.Message);
+            }
         }
         catch (Exception ex)
         {
-            Toasts.Error($"خطا در ارسال پیامک یادآوری: {ex.Message}");
+            Toasts.Error($"خطا در ارسال یادآوری: {ex.Message}");
         }
         finally
         {
             _sending = false;
             StateHasChanged();
         }
-    }
-
-    private static int ParseInt(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw)) return 0;
-        var digits = new string(raw.Where(char.IsDigit).ToArray());
-        return int.TryParse(digits, out var n) ? n : 0;
-    }
-
-    private static int EstimateParts(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return 1;
-
-        // Conservative estimate for GSM-7/Unicode differences
-        var len = text.Length;
-        if (len <= 70) return 1;
-        return (int)Math.Ceiling(len / 67m);
     }
 
     private static string FormatJalaliDate(DateTime dt)
@@ -623,15 +560,35 @@
         string due,
         string amount,
         string status,
-        string messageText)
+        string messageText,
+        string channelLabel,
+        string? baleText = null)
     {
-        var safeMsg = (messageText ?? string.Empty)
-            .Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;")
-            .Replace("\r\n", "\n")
-            .Replace("\r", "\n")
-            .Replace("\n", "<br/>");
+        static string EscapeMessage(string? value)
+            => (value ?? string.Empty)
+                .Replace("&", "&amp;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;")
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .Replace("\n", "<br/>");
+
+        var safeMsg = EscapeMessage(messageText);
+
+        var baleBlock = string.IsNullOrWhiteSpace(baleText)
+            ? string.Empty
+            : $@"
+  <div style='border:1px solid #dbeafe; background:#f8fbff; border-radius:12px; padding:10px;'>
+    <div style='display:flex; gap:8px; align-items:center;'>
+      <i class='fa-solid fa-comments' style='color:#2563eb;'></i>
+      <div style='font-weight:900;'>متن ارسال در بله</div>
+    </div>
+    <div style='margin-top:8px; line-height:1.9; font-weight:800;'>{EscapeMessage(baleText)}</div>
+  </div>";
+
+        var note = channelLabel.Contains("پیامک", StringComparison.Ordinal)
+            ? "با تایید شما، پیام ارسال می‌شود و از اعتبار پنل پیامک کسر خواهد شد."
+            : "با تایید شما، پیام از طریق بله ارسال می‌شود.";
 
         return $@"
 <div style='display:grid; gap:10px; text-align:right;'>
@@ -701,13 +658,22 @@
 
   <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
     <div style='display:flex; gap:8px; align-items:center;'>
+      <i class='fa-solid fa-paper-plane' style='color:#0ea5e9;'></i>
+      <div style='font-weight:900;'>کانال ارسال</div>
+    </div>
+    <div style='margin-top:6px; font-weight:900;'>{channelLabel}</div>
+  </div>
+
+  <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
+    <div style='display:flex; gap:8px; align-items:center;'>
       <i class='fa-solid fa-message' style='color:#0f172a;'></i>
-      <div style='font-weight:900;'>متن پیامک</div>
+      <div style='font-weight:900;'>متن پیام</div>
     </div>
     <div style='margin-top:8px; line-height:1.9; font-weight:800;'>{safeMsg}</div>
   </div>
+{baleBlock}
 
-  <div style='font-size:12px; opacity:.75;'>با تایید شما، پیامک ارسال می‌شود و در تاریخچه این قسط ثبت خواهد شد.</div>
+  <div style='font-size:12px; opacity:.75;'>{note}</div>
 </div>";
     }
 }

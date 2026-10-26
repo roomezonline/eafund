@@ -2,9 +2,8 @@
 @using MiniBank.Web.Components.DesignSystem
 @using MiniBank.Web.Models
 @inject MiniBank.Web.Services.FiscalYearService FiscalYearService
-@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Services.FiscalYearContext FyContext
 @inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
-@inject IJSRuntime JS
 @inject NavigationManager Navigation
 
 <div class="fy-duo">
@@ -22,6 +21,33 @@
   <div class="duo-controls">
     <DsSearchCard @bind-Value="_keyword"
                   Placeholder="جستجو در عنوان یا کد سال..." />
+  </div>
+
+  <div class="fy-active-bar">
+    <div class="fy-active-info">
+      <i class="fa-solid fa-filter"></i>
+      <span class="lbl">سال مالیِ در حالِ نمایش:</span>
+      @if (_activeYearCode.HasValue)
+      {
+        <strong class="val">@_activeYearCode</strong>
+        <span class="tag @(_activeIsClosed ? "closed" : "open")">@(_activeIsClosed ? "بسته" : "باز")</span>
+        @if (!_activeIsCurrent)
+        {
+          <span class="warn"><i class="fa-solid fa-triangle-exclamation"></i> سالِ غیرجاری — داده‌ها فقط خواندنی نمایش داده می‌شوند</span>
+        }
+      }
+      else
+      {
+        <strong class="val">سال جاری</strong>
+      }
+    </div>
+    @if (_activeYearCode.HasValue && !_activeIsCurrent)
+    {
+      <button class="fy-current-btn" @onclick="ResetToCurrentAsync">
+        <i class="fa-solid fa-rotate-left"></i>
+        <span>بازگشت به سال جاری</span>
+      </button>
+    }
   </div>
 
   <div class="duo-filters">
@@ -62,18 +88,23 @@
       <div class="duo-list">
         @foreach (var fy in _items)
         {
-          <article class="duo-item" @onclick="@(() => ShowDetail(fy))">
+          <article class="duo-item @(_activeYearCode == fy.YearCode ? "fy-picked" : "")" @onclick="@(() => ShowDetail(fy))">
             <div class="top">
               <div class="name">@fy.Title</div>
-              <span class="fy-status @(fy.IsClosed ? "closed" : "open")">
-                @(fy.IsClosed ? "بسته شده" : "باز")
-              </span>
+              <span class="fy-status @StatusClass(fy)">@StatusText(fy)</span>
             </div>
             <div class="bottom">
               <div class="code"><span class="label">کد سال:</span> @fy.YearCode</div>
               <div class="date-range">
                 @($"{fy.StartDate:yyyy/MM/dd} - {fy.EndDate:yyyy/MM/dd}")
               </div>
+              <button class="fy-pick @(_activeYearCode == fy.YearCode ? "active" : "")"
+                      title="@(_activeYearCode == fy.YearCode ? "در حال نمایش این سال است" : "نمایش همه‌ی داده‌ها بر اساس این سال مالی")"
+                      @onclick:stopPropagation
+                      @onclick="@(() => SelectYearAsync(fy))">
+                <i class="fa-solid @(_activeYearCode == fy.YearCode ? "fa-circle-check" : "fa-check")"></i>
+                <span>@(_activeYearCode == fy.YearCode ? "در حال نمایش" : "انتخاب")</span>
+              </button>
             </div>
           </article>
         }
@@ -115,7 +146,7 @@
           </div>
           <div class="kv-row">
             <span class="kv-lbl">وضعیت</span>
-            <span class="kv-val">@(_selectedFy?.IsClosed == true ? "بسته شده" : "باز")</span>
+            <span class="kv-val">@(_selectedFy == null ? "" : StatusText(_selectedFy))</span>
           </div>
           @if (_selectedFy?.ClosedAt != null)
           {
@@ -138,6 +169,21 @@
         </div>
 
         <div class="detail-actions">
+          @if (_selectedFy != null && _activeYearCode != _selectedFy.YearCode)
+          {
+            <button class="detail-btn select-fy" @onclick="@(() => SelectYearAsync(_selectedFy!))">
+              <i class="fa-solid fa-circle-check"></i>
+              <span>انتخاب این سال و نمایش داده‌ها بر اساس آن</span>
+            </button>
+          }
+          else if (_selectedFy != null)
+          {
+            <button class="detail-btn select-fy is-active" disabled>
+              <i class="fa-solid fa-circle-check"></i>
+              <span>در حال نمایش این سال مالی</span>
+            </button>
+          }
+
           <button class="detail-btn edit-fy" @onclick="ShowEdit">
             <i class="fa-solid fa-pen"></i>
             <span>ویرایش</span>
@@ -153,17 +199,18 @@
           @if (_selectedFy?.IsClosed == true)
           {
             var nextYearCode = (_selectedFy.YearCode + 1);
-            <button class="detail-btn open-fy" @onclick="@(() => NavigateToOpening(_selectedFy.FiscalYearId, nextYearCode))">
-              <i class="fa-solid fa-unlock"></i>
-              <span>افتتاحیه سال @nextYearCode</span>
-            </button>
+            <div class="detail-btn transfer-done">
+              <i class="fa-solid fa-circle-check"></i>
+              <span>انتقال به سال @nextYearCode انجام شد — فقط با «تأیید و انتقال»</span>
+            </div>
             <button class="detail-btn revert-fy" @onclick="RevertClosing">
               <i class="fa-solid fa-rotate-left"></i>
-              <span>برگشت اختتامیه</span>
+              <span>برگشت انتقال</span>
             </button>
           }
 
-          <button class="detail-btn delete-fy" @onclick="ShowDelete">
+          <button class="detail-btn delete-fy" @onclick="ShowDelete" disabled="@(_selectedFy?.IsClosed == true)"
+                  title="@(_selectedFy?.IsClosed == true ? "سال بسته قابل حذف نیست" : "فقط سال مالی خالی قابل حذف است")">
             <i class="fa-solid fa-trash"></i>
             <span>حذف سال مالی</span>
           </button>
@@ -177,7 +224,7 @@
            Title="@_revertConfirmTitle"
            Message="@_revertConfirmMessage"
            Variant="warning"
-           ConfirmText="برگشت اختتامیه"
+           ConfirmText="برگشت انتقال"
            CancelText="انصراف"
            Loading="@_revertBusy"
            OnConfirm="ConfirmRevert"
@@ -229,7 +276,65 @@
 
   protected override async Task OnInitializedAsync()
   {
+    await RefreshActiveAsync();
     await LoadAsync();
+  }
+
+  private int? _activeYearCode;
+  private bool _activeIsClosed;
+  private bool _activeIsCurrent = true;
+
+  private async Task RefreshActiveAsync()
+  {
+    try
+    {
+      await FyContext.EnsureLoadedAsync();
+      var selected = FyContext.Selected;
+      var openToday = await FyContext.GetOpenTodayAsync();
+
+      _activeYearCode = selected?.YearCode ?? openToday?.YearCode;
+      _activeIsClosed = selected?.IsClosed ?? false;
+      _activeIsCurrent = selected == null
+                         || (openToday != null && selected.FiscalYearId == openToday.FiscalYearId);
+    }
+    catch
+    {
+      _activeYearCode = null;
+      _activeIsClosed = false;
+      _activeIsCurrent = true;
+    }
+  }
+
+  private async Task SelectYearAsync(FiscalYear fy)
+  {
+    try
+    {
+      await FyContext.SetAsync(fy.YearCode);
+      await RefreshActiveAsync();
+      _showDetail = false;
+      _selectedFy = null;
+      Toasts.Success($"سال مالی {fy.YearCode} انتخاب شد — همه‌ی داده‌ها از این پس بر اساس آن بارگذاری می‌شوند");
+      StateHasChanged();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در انتخاب سال مالی: {ex.Message}");
+    }
+  }
+
+  private async Task ResetToCurrentAsync()
+  {
+    try
+    {
+      await FyContext.ResetAsync();
+      await RefreshActiveAsync();
+      Toasts.Success("سال جاری فعال شد — همه‌ی داده‌ها بر اساس سال جاری بارگذاری می‌شوند");
+      StateHasChanged();
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بازگشت به سال جاری: {ex.Message}");
+    }
   }
 
   private async Task LoadAsync()
@@ -318,13 +423,14 @@
   private void RevertClosing()
   {
     if (_selectedFy == null) return;
-    _revertConfirmTitle = $"برگشت اختتامیه سال {_selectedFy.YearCode}";
+    var nextYearCode = _selectedFy.YearCode + 1;
+    _revertConfirmTitle = $"برگشت انتقال سال {_selectedFy.YearCode}";
     _revertConfirmMessage = $@"
-      سند اختتامیه سال مالی <b>{_selectedFy.Title}</b> حذف و سال مالی دوباره <b>باز</b> می‌شود.
+      سند افتتاحیه سال {nextYearCode} حذف و سال مالی {_selectedFy.YearCode} دوباره <b>باز</b> می‌شود.
       <br/><br/>
       <small style='color:#6b7280;'>
         <i class='fa-solid fa-triangle-exclamation'></i>
-        این عمل فقط زمانی مجاز است که سال مالی بعدی افتتاحیه نخورده باشد.
+        این عمل فقط زمانی مجاز است که سال مالی {nextYearCode} اسناد دیگری نداشته باشد.
       </small>";
     _showRevertConfirm = true;
     StateHasChanged();
@@ -336,18 +442,18 @@
     _revertBusy = true;
     try
     {
-      var journalId = await FiscalYearService.RevertClosingAsync(_selectedFy.FiscalYearId);
+      var docNum = await FiscalYearService.RevertClosingAsync(_selectedFy.FiscalYearId);
       _showRevertConfirm = false;
-      Toasts.Success(journalId > 0
-        ? $"اختتامیه سال {_selectedFy.YearCode} با موفقیت برگردانده شد (سند {journalId} حذف شد)"
-        : $"اختتامیه سال {_selectedFy.YearCode} با موفقیت برگردانده شد");
+      Toasts.Success(docNum > 0
+        ? $"انتقال سال {_selectedFy.YearCode} با موفقیت برگردانده شد (سند شماره {docNum} حذف شد)"
+        : $"انتقال سال {_selectedFy.YearCode} با موفقیت برگردانده شد");
       _showDetail = false;
       _selectedFy = null;
       await LoadAsync();
     }
     catch (Exception ex)
     {
-      Toasts.Error($"خطا در برگشت اختتامیه: {ex.Message}");
+      Toasts.Error($"خطا در برگشت انتقال: {ex.Message}");
     }
     finally
     {
@@ -375,9 +481,10 @@
     _deleteConfirmMessage = $@"
       آیا از حذف سال مالی <b>{_selectedFy.Title}</b> اطمینان دارید؟
       <br/><br/>
-      <small style='color:#991b1b;'>
-        <i class='fa-solid fa-triangle-exclamation'></i>
-        کلیه اطلاعات مرتبط با این سال مالی حذف خواهد شد.
+      <small style='color:#6b7280;'>
+        فقط «تعریف» این سال مالی حذف می‌شود؛ اسناد و مانده‌ها حذف نمی‌شوند.
+        <br/>سال مالی باید <b>خالی</b> باشد (هیچ سند و مانده‌ای نداشته باشد) و <b>بسته نشده</b> باشد،
+        در غیر این صورت حذف انجام نمی‌شود.
       </small>";
     _showDeleteConfirm = true;
     StateHasChanged();
@@ -419,8 +526,9 @@
     Navigation.NavigateTo($"/admin/fiscal-years/closing/{fiscalYearId}");
   }
 
-  private void NavigateToOpening(int sourceYearId, int targetYearCode)
-  {
-    Navigation.NavigateTo($"/admin/fiscal-years/opening/{sourceYearId}/{targetYearCode}");
-  }
+  private static string StatusText(FiscalYear fy)
+    => fy.IsClosed ? "بسته شده" : (fy.IsOpen ? "باز" : "افتتاح نشده");
+
+  private static string StatusClass(FiscalYear fy)
+    => fy.IsClosed ? "closed" : (fy.IsOpen ? "open" : "pending");
 }

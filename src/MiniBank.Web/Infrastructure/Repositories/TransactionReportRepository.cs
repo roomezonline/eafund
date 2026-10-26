@@ -2,6 +2,7 @@ using Dapper;
 using System.Data;
 using MiniBank.Web.Models.Reports;
 using MiniBank.Web.Models;
+using MiniBank.Web.Utilities;
 
 namespace MiniBank.Web.Infrastructure.Repositories
 {
@@ -14,6 +15,7 @@ namespace MiniBank.Web.Infrastructure.Repositories
         {
             public long MemberId { get; set; }
             public string MemberName { get; set; } = string.Empty;
+            public string? FatherName { get; set; }
             public string? MemberCode { get; set; }
             public string? HouseholdCode { get; set; }
             public long? HouseholdOwnerMemberId { get; set; }
@@ -68,30 +70,65 @@ subs AS (
       AND a.MemberId IS NOT NULL
       AND a.Code LIKE 'M-%'
     GROUP BY a.MemberId
+),
+agg AS (
+    SELECT
+        m.MemberId,
+        (m.FirstName + ' ' + m.LastName) AS MemberName,
+        m.FatherName,
+        m.NationalCode,
+        m.IsActive,
+        m.HouseholdCode,
+        h.OwnerMemberId AS HouseholdOwnerMemberId,
+        s.Code AS MemberCode,
+        -- Previous period (before creditsToExclusive = start of current month)
+        SUM(CASE WHEN j.JournalId IS NOT NULL AND pt.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) < @creditsTo THEN ISNULL(jl.Credit,0) ELSE 0 END) AS PrevPrincipalCredit,
+        SUM(CASE WHEN j.JournalId IS NOT NULL AND pt.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) < @creditsTo THEN ISNULL(jl.Debit,0)  ELSE 0 END) AS PrevPrincipalDebit,
+        SUM(CASE WHEN j.JournalId IS NOT NULL AND it.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) < @creditsTo THEN ISNULL(jl.Credit,0) ELSE 0 END) AS PrevInterestCredit,
+        SUM(CASE WHEN j.JournalId IS NOT NULL AND it.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) < @creditsTo THEN ISNULL(jl.Debit,0)  ELSE 0 END) AS PrevInterestDebit,
+        -- Current period (creditsToExclusive to debitsToExclusive = current month)
+        SUM(CASE WHEN j.JournalId IS NOT NULL AND pt.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) >= @creditsTo AND COALESCE(t.OccurredAt, j.OccurredAt) < @debitsTo THEN ISNULL(jl.Credit,0) ELSE 0 END) AS CurrPrincipalCredit,
+        SUM(CASE WHEN j.JournalId IS NOT NULL AND pt.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) >= @creditsTo AND COALESCE(t.OccurredAt, j.OccurredAt) < @debitsTo THEN ISNULL(jl.Debit,0)  ELSE 0 END) AS CurrPrincipalDebit,
+        SUM(CASE WHEN j.JournalId IS NOT NULL AND it.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) >= @creditsTo AND COALESCE(t.OccurredAt, j.OccurredAt) < @debitsTo THEN ISNULL(jl.Credit,0) ELSE 0 END) AS CurrInterestCredit,
+        SUM(CASE WHEN j.JournalId IS NOT NULL AND it.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) >= @creditsTo AND COALESCE(t.OccurredAt, j.OccurredAt) < @debitsTo THEN ISNULL(jl.Debit,0)  ELSE 0 END) AS CurrInterestDebit
+    FROM dbo.Members m
+    LEFT JOIN dbo.Households h ON h.HouseholdCode = m.HouseholdCode AND h.IsActive = 1
+    LEFT JOIN subs s ON s.MemberId = m.MemberId
+    LEFT JOIN dbo.JournalLines jl ON jl.AccountId = s.AccountId
+    LEFT JOIN principal_tree pt ON jl.ParentAccountId = pt.AccountId
+    LEFT JOIN interest_tree it ON jl.ParentAccountId = it.AccountId
+    LEFT JOIN dbo.vw_ApprovedJournals j ON jl.JournalId = j.JournalId
+    LEFT JOIN dbo.Transactions t ON j.TransactionId = t.TransactionId
+    WHERE (@activeOnly = 0 OR m.IsActive = 1)
+    GROUP BY m.MemberId, m.FirstName, m.LastName, m.FatherName, m.NationalCode, m.IsActive, m.HouseholdCode, h.OwnerMemberId, s.Code
 )
 SELECT
-  m.MemberId,
-  (m.FirstName + ' ' + m.LastName) AS MemberName,
-  m.NationalCode,
-  m.IsActive,
-  m.HouseholdCode,
-  h.OwnerMemberId AS HouseholdOwnerMemberId,
-  s.Code AS MemberCode,
-  SUM(CASE WHEN j.JournalId IS NOT NULL AND pt.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) < @creditsTo THEN ISNULL(jl.Credit,0) ELSE 0 END) AS PrincipalCredit,
-  SUM(CASE WHEN j.JournalId IS NOT NULL AND pt.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) < @debitsTo  THEN ISNULL(jl.Debit,0)  ELSE 0 END) AS PrincipalDebit,
-  SUM(CASE WHEN j.JournalId IS NOT NULL AND it.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) < @creditsTo THEN ISNULL(jl.Credit,0) ELSE 0 END) AS InterestCredit,
-  SUM(CASE WHEN j.JournalId IS NOT NULL AND it.AccountId IS NOT NULL AND COALESCE(t.OccurredAt, j.OccurredAt) < @debitsTo  THEN ISNULL(jl.Debit,0)  ELSE 0 END) AS InterestDebit
-FROM dbo.Members m
-LEFT JOIN dbo.Households h ON h.HouseholdCode = m.HouseholdCode AND h.IsActive = 1
-LEFT JOIN subs s ON s.MemberId = m.MemberId
-LEFT JOIN dbo.JournalLines jl ON jl.AccountId = s.AccountId
-LEFT JOIN principal_tree pt ON jl.ParentAccountId = pt.AccountId
-LEFT JOIN interest_tree it ON jl.ParentAccountId = it.AccountId
-LEFT JOIN dbo.vw_ApprovedJournals j ON jl.JournalId = j.JournalId
-LEFT JOIN dbo.Transactions t ON j.TransactionId = t.TransactionId
-WHERE (@activeOnly = 0 OR m.IsActive = 1)
-GROUP BY m.MemberId, m.FirstName, m.LastName, m.NationalCode, m.IsActive, m.HouseholdCode, h.OwnerMemberId, s.Code
-ORDER BY m.MemberId ASC;";
+    MemberId,
+    MemberName,
+    FatherName,
+    NationalCode,
+    IsActive,
+    HouseholdCode,
+    HouseholdOwnerMemberId,
+    MemberCode,
+    -- Principal: current month deposits NEVER earn interest.
+    -- Withdrawals in current month FIRST offset against current month deposits.
+    -- Remaining withdrawal (if any) reduces previous balance.
+    -- Previous net principal for interest = max(0, PrevNet - max(0, CurrDebit - CurrCredit))
+    CASE
+        WHEN CurrPrincipalDebit <= CurrPrincipalCredit THEN (PrevPrincipalCredit - PrevPrincipalDebit)  -- withdrawal fully covered by current deposits, prev untouched
+        ELSE (PrevPrincipalCredit - PrevPrincipalDebit) - (CurrPrincipalDebit - CurrPrincipalCredit)  -- excess withdrawal reduces previous balance
+    END AS PrincipalCredit,
+    -- No debit column needed for interest calc (we use net in Credit column), but keep 0 for schema compatibility
+    0 AS PrincipalDebit,
+    -- Interest: same FIFO logic
+    CASE
+        WHEN CurrInterestDebit <= CurrInterestCredit THEN (PrevInterestCredit - PrevInterestDebit)
+        ELSE (PrevInterestCredit - PrevInterestDebit) - (CurrInterestDebit - CurrInterestCredit)
+    END AS InterestCredit,
+    0 AS InterestDebit
+FROM agg
+ORDER BY MemberId ASC;";
 
             var rows = (await _connection.QueryAsync<MemberEffectiveDepositAggRow>(sql, new
             {
@@ -1067,6 +1104,7 @@ OUTER APPLY (
     LEFT JOIN dbo.Transactions t ON j.TransactionId = t.TransactionId
     WHERE sub.AccountId IS NOT NULL
       AND jl.AccountId = sub.AccountId
+      AND (j.JournalId IS NULL OR " + OpeningJournal.ExclusionSql() + @")
 ) agg
 WHERE m.IsActive = 1 AND m.HouseholdCode = @householdCode
 ORDER BY m.MemberId ASC;";
@@ -1111,7 +1149,7 @@ WHERE a.IsActive = 1 AND a.Level = 3 AND a.Code IN ('2201','2202');";
             if (principalAccountId <= 0 || interestAccountId <= 0)
                 return 0m;
 
-            const string sql = @"
+            var sql = @"
 SELECT
   SUM(CASE WHEN (a.ParentAccountId = @principalAccountId OR jl.AccountId = @principalAccountId)
            THEN ISNULL(jl.Credit,0) ELSE 0 END) AS PrincipalCredit,
@@ -1122,8 +1160,10 @@ SELECT
   SUM(CASE WHEN (a.ParentAccountId = @interestAccountId OR jl.AccountId = @interestAccountId)
            THEN ISNULL(jl.Debit,0) ELSE 0 END) AS InterestDebit
 FROM dbo.JournalLines jl
+INNER JOIN dbo.vw_ApprovedJournals j ON jl.JournalId = j.JournalId
 LEFT JOIN dbo.Accounts a ON jl.AccountId = a.AccountId
-WHERE (jl.MemberId = @memberId OR a.MemberId = @memberId);";
+WHERE (jl.MemberId = @memberId OR a.MemberId = @memberId)
+  AND " + OpeningJournal.ExclusionSql() + ";";
 
             var r = await _connection.QuerySingleOrDefaultAsync<MemberDepositAgg>(
                 sql,
@@ -1151,7 +1191,7 @@ WHERE IsActive = 1 AND Code IN ('2201','2202');";
             if (principalRootId <= 0 || interestRootId <= 0)
                 return 0m;
 
-            const string sql = @"
+            var sql = @"
 ;WITH principal_tree AS (
     SELECT AccountId FROM dbo.Accounts WHERE AccountId = @principalRootId
     UNION ALL
@@ -1184,9 +1224,11 @@ SELECT
   SUM(CASE WHEN it.AccountId IS NOT NULL
            THEN ISNULL(jl.Debit,0) ELSE 0 END) AS InterestDebit
 FROM dbo.JournalLines jl
+INNER JOIN dbo.vw_ApprovedJournals j ON jl.JournalId = j.JournalId
 LEFT JOIN principal_tree pt ON jl.ParentAccountId = pt.AccountId
 LEFT JOIN interest_tree it ON jl.ParentAccountId = it.AccountId
-WHERE jl.AccountId = (SELECT AccountId FROM sub);";
+WHERE jl.AccountId = (SELECT AccountId FROM sub)
+  AND " + OpeningJournal.ExclusionSql() + ";";
 
             var r = await _connection.QuerySingleOrDefaultAsync<MemberDepositAgg>(
                 sql,
@@ -1214,7 +1256,8 @@ WHERE IsActive = 1 AND Code IN ('2201','2202');";
             if (principalRootId <= 0 || interestRootId <= 0)
                 return new MemberDepositAggDto();
 
-            const string sql = @"
+            var notOpening = OpeningJournal.ExclusionSql();
+            var sql = $@"
 ;WITH principal_tree AS (
     SELECT AccountId FROM dbo.Accounts WHERE AccountId = @principalRootId
     UNION ALL
@@ -1238,13 +1281,14 @@ sub AS (
     ORDER BY a.AccountId DESC
 )
 SELECT
-  SUM(CASE WHEN pt.AccountId IS NOT NULL THEN ISNULL(jl.Credit,0) ELSE 0 END) AS PrincipalCredit,
-  SUM(CASE WHEN pt.AccountId IS NOT NULL THEN ISNULL(jl.Debit,0) ELSE 0 END) AS PrincipalDebit,
-  SUM(CASE WHEN it.AccountId IS NOT NULL THEN ISNULL(jl.Credit,0) ELSE 0 END) AS InterestCredit,
-  SUM(CASE WHEN it.AccountId IS NOT NULL THEN ISNULL(jl.Debit,0) ELSE 0 END) AS InterestDebit
+  SUM(CASE WHEN pt.AccountId IS NOT NULL AND j.JournalId IS NOT NULL AND {notOpening} THEN ISNULL(jl.Credit,0) ELSE 0 END) AS PrincipalCredit,
+  SUM(CASE WHEN pt.AccountId IS NOT NULL AND j.JournalId IS NOT NULL AND {notOpening} THEN ISNULL(jl.Debit,0) ELSE 0 END) AS PrincipalDebit,
+  SUM(CASE WHEN it.AccountId IS NOT NULL AND j.JournalId IS NOT NULL AND {notOpening} THEN ISNULL(jl.Credit,0) ELSE 0 END) AS InterestCredit,
+  SUM(CASE WHEN it.AccountId IS NOT NULL AND j.JournalId IS NOT NULL AND {notOpening} THEN ISNULL(jl.Debit,0) ELSE 0 END) AS InterestDebit
 FROM dbo.JournalLines jl
 LEFT JOIN principal_tree pt ON jl.ParentAccountId = pt.AccountId
 LEFT JOIN interest_tree it ON jl.ParentAccountId = it.AccountId
+LEFT JOIN dbo.vw_ApprovedJournals j ON jl.JournalId = j.JournalId
 WHERE jl.AccountId = (SELECT AccountId FROM sub);";
 
             var r = await _connection.QuerySingleOrDefaultAsync<MemberDepositAggDto>(
@@ -1281,7 +1325,8 @@ WHERE IsActive = 1 AND Code IN ('2201','2202');";
             if (principalRootId <= 0 || interestRootId <= 0)
                 return new Dictionary<string, MemberDepositAggDto>(StringComparer.OrdinalIgnoreCase);
 
-            const string sql = @"
+            var notOpening = OpeningJournal.ExclusionSql();
+            var sql = $@"
 ;WITH principal_tree AS (
     SELECT AccountId FROM dbo.Accounts WHERE AccountId = @principalRootId
     UNION ALL
@@ -1306,14 +1351,15 @@ subs AS (
 )
 SELECT
   s.Code AS MemberCode,
-  SUM(CASE WHEN pt.AccountId IS NOT NULL THEN ISNULL(jl.Credit,0) ELSE 0 END) AS PrincipalCredit,
-  SUM(CASE WHEN pt.AccountId IS NOT NULL THEN ISNULL(jl.Debit,0) ELSE 0 END) AS PrincipalDebit,
-  SUM(CASE WHEN it.AccountId IS NOT NULL THEN ISNULL(jl.Credit,0) ELSE 0 END) AS InterestCredit,
-  SUM(CASE WHEN it.AccountId IS NOT NULL THEN ISNULL(jl.Debit,0) ELSE 0 END) AS InterestDebit
+  SUM(CASE WHEN pt.AccountId IS NOT NULL AND j.JournalId IS NOT NULL AND {notOpening} THEN ISNULL(jl.Credit,0) ELSE 0 END) AS PrincipalCredit,
+  SUM(CASE WHEN pt.AccountId IS NOT NULL AND j.JournalId IS NOT NULL AND {notOpening} THEN ISNULL(jl.Debit,0) ELSE 0 END) AS PrincipalDebit,
+  SUM(CASE WHEN it.AccountId IS NOT NULL AND j.JournalId IS NOT NULL AND {notOpening} THEN ISNULL(jl.Credit,0) ELSE 0 END) AS InterestCredit,
+  SUM(CASE WHEN it.AccountId IS NOT NULL AND j.JournalId IS NOT NULL AND {notOpening} THEN ISNULL(jl.Debit,0) ELSE 0 END) AS InterestDebit
 FROM subs s
 LEFT JOIN dbo.JournalLines jl ON jl.AccountId = s.AccountId
 LEFT JOIN principal_tree pt ON jl.ParentAccountId = pt.AccountId
 LEFT JOIN interest_tree it ON jl.ParentAccountId = it.AccountId
+LEFT JOIN dbo.vw_ApprovedJournals j ON jl.JournalId = j.JournalId
 GROUP BY s.Code;";
 
             var rows = (await _connection.QueryAsync<MemberDepositAggRow>(
@@ -1631,6 +1677,136 @@ HAVING COUNT(jl.JournalLineId) > 0
 ORDER BY ABS(SUM(jl.Debit - jl.Credit)) DESC, a.Code";
 
             return await _connection.QueryAsync<TransactionImpactRow>(sql, parameters);
+        }
+
+        /// <summary>
+        /// دریافت تراکنش‌های عضو با مانده‌های در حال اجرا (سبد سپرده و وام) برای بازه تاریخی
+        /// </summary>
+        public async Task<IReadOnlyList<MemberTransactionWithBalanceRow>> GetMemberTransactionsWithRunningBalancesAsync(
+            IReadOnlyList<string> subsidiaryCodes,
+            DateTime? fromDate = null,
+            DateTime? toDate = null)
+        {
+            if (subsidiaryCodes == null || subsidiaryCodes.Count == 0) return Array.Empty<MemberTransactionWithBalanceRow>();
+            subsidiaryCodes = subsidiaryCodes.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (subsidiaryCodes.Count == 0) return Array.Empty<MemberTransactionWithBalanceRow>();
+
+            // Query with window functions to calculate running balances per account type.
+            // Running totals are computed over FULL history (no date filter) so balances
+            // are true balances; date filtering is applied afterwards on the outer query.
+            var sql = @"
+;WITH tx_base AS (
+    SELECT
+        t.TransactionId,
+        j.JournalId,
+        CASE
+            WHEN CONVERT(time(0), COALESCE(t.OccurredAt, j.OccurredAt)) = '00:00:00'
+                THEN COALESCE(t.CreatedAt, j.CreatedAt, t.OccurredAt, j.OccurredAt)
+            ELSE COALESCE(t.OccurredAt, j.OccurredAt)
+        END AS OccurredAt,
+        ISNULL(t.TypeId, 0) AS TypeId,
+        CASE ISNULL(t.TypeId,0)
+            WHEN 1 THEN N'واریز سپرده'
+            WHEN 2 THEN N'پرداخت قسط وام'
+            WHEN 3 THEN N'سود'
+            WHEN 4 THEN N'جریمه'
+            WHEN 5 THEN N'کارمزد'
+            ELSE N'سند'
+        END AS TypeName,
+        x.MemberCode AS MemberCode,
+        MAX(NULLIF(jl.Description,'')) AS Description,
+        ISNULL(NULLIF(t.Notes, ''), j.Notes) AS Notes,
+        (SUM(ISNULL(jl.Credit,0)) - SUM(ISNULL(jl.Debit,0))) AS Net,
+        MAX(CASE WHEN x.RootCode IN ('1301','1302') THEN 1 ELSE 0 END) AS IsLoan,
+        SUM(CASE WHEN x.RootCode = '1301' THEN ISNULL(jl.Debit,0) ELSE 0 END) AS LoanPrincipalDebit,
+        SUM(CASE WHEN x.RootCode IN ('1301','1302') THEN ISNULL(jl.Debit,0) ELSE 0 END) AS LoanDebit,
+        SUM(CASE WHEN x.RootCode IN ('1301','1302') THEN ISNULL(jl.Credit,0) ELSE 0 END) AS LoanCredit,
+        SUM(CASE WHEN x.RootCode = '2201' THEN ISNULL(jl.Credit,0) - ISNULL(jl.Debit,0) ELSE 0 END) AS DepositPrincipalNet,
+        SUM(CASE WHEN x.RootCode = '2202' THEN ISNULL(jl.Credit,0) - ISNULL(jl.Debit,0) ELSE 0 END) AS DepositInterestNet,
+        SUM(CASE WHEN x.RootCode = '1301' THEN ISNULL(jl.Credit,0) - ISNULL(jl.Debit,0) ELSE 0 END) AS LoanPrincipalNet,
+        SUM(CASE WHEN x.RootCode = '1302' THEN ISNULL(jl.Credit,0) - ISNULL(jl.Debit,0) ELSE 0 END) AS LoanInterestNet
+    FROM dbo.JournalLines jl
+    INNER JOIN dbo.vw_ApprovedJournals j ON j.JournalId = jl.JournalId
+    INNER JOIN dbo.Accounts a1 ON a1.AccountId = jl.AccountId
+    INNER JOIN dbo.Accounts a2 ON a2.AccountId = jl.ParentAccountId
+    CROSS APPLY (
+        SELECT
+            CASE WHEN a1.Code IN @codes THEN a1.Code ELSE a2.Code END AS MemberCode,
+            CASE WHEN a1.Code IN ('2201','2202','1301','1302') THEN a1.Code ELSE a2.Code END AS RootCode
+    ) x
+    LEFT JOIN dbo.Transactions t ON t.TransactionId = j.TransactionId
+    WHERE (
+            (a1.Code IN @codes AND a2.Code IN ('2201','2202','1301','1302'))
+         OR (a2.Code IN @codes AND a1.Code IN ('2201','2202','1301','1302'))
+          )
+    GROUP BY t.TransactionId, j.JournalId,
+        CASE
+            WHEN CONVERT(time(0), COALESCE(t.OccurredAt, j.OccurredAt)) = '00:00:00'
+                THEN COALESCE(t.CreatedAt, j.CreatedAt, t.OccurredAt, j.OccurredAt)
+            ELSE COALESCE(t.OccurredAt, j.OccurredAt)
+        END,
+        ISNULL(t.TypeId, 0), x.MemberCode,
+        ISNULL(NULLIF(t.Notes, ''), j.Notes)
+),
+tx_running AS (
+    SELECT
+        *,
+        SUM(DepositPrincipalNet) OVER (PARTITION BY MemberCode ORDER BY OccurredAt ASC, TransactionId ASC, JournalId ASC ROWS UNBOUNDED PRECEDING) AS RunningDepositPrincipal,
+        SUM(DepositInterestNet)  OVER (PARTITION BY MemberCode ORDER BY OccurredAt ASC, TransactionId ASC, JournalId ASC ROWS UNBOUNDED PRECEDING) AS RunningDepositInterest,
+        SUM(LoanPrincipalNet)    OVER (PARTITION BY MemberCode ORDER BY OccurredAt ASC, TransactionId ASC, JournalId ASC ROWS UNBOUNDED PRECEDING) AS RunningLoanPrincipal,
+        SUM(LoanInterestNet)     OVER (PARTITION BY MemberCode ORDER BY OccurredAt ASC, TransactionId ASC, JournalId ASC ROWS UNBOUNDED PRECEDING) AS RunningLoanInterest
+    FROM tx_base
+)
+SELECT
+    TransactionId,
+    JournalId,
+    OccurredAt,
+    TypeId,
+    TypeName,
+    CASE
+        WHEN IsLoan = 1 THEN
+            CASE
+                WHEN LoanDebit > 0 THEN LoanPrincipalDebit
+                ELSE LoanCredit
+            END
+        ELSE ABS(Net)
+    END AS Amount,
+    Net,
+    CASE
+        WHEN IsLoan = 1 THEN
+            CASE
+                WHEN LoanDebit > 0 THEN N'پرداخت وام'
+                ELSE N'واریز قسط وام'
+            END
+        ELSE
+            CASE
+                WHEN Net > 0 THEN N'واریز'
+                WHEN Net < 0 THEN N'برداشت'
+                ELSE N'-'
+            END
+    END AS Operation,
+    MemberCode,
+    Description,
+    Notes,
+    RunningDepositPrincipal + RunningDepositInterest AS DepositBalanceAfter,
+    -(RunningLoanPrincipal + RunningLoanInterest) AS LoanBalanceAfter,
+    RunningDepositPrincipal AS DepositPrincipalBalanceAfter,
+    RunningDepositInterest AS DepositInterestBalanceAfter,
+    -(RunningLoanPrincipal) AS LoanPrincipalBalanceAfter,
+    -(RunningLoanInterest) AS LoanInterestBalanceAfter
+FROM tx_running
+WHERE (@fromDate IS NULL OR OccurredAt >= @fromDate)
+  AND (@toDate IS NULL OR OccurredAt < DATEADD(DAY, 1, @toDate))
+ORDER BY OccurredAt DESC, TransactionId DESC, JournalId DESC;";
+
+            var rows = await _connection.QueryAsync<MemberTransactionWithBalanceRow>(sql, new
+            {
+                codes = subsidiaryCodes,
+                fromDate,
+                toDate
+            });
+
+            return rows.ToList();
         }
     }
 }

@@ -5,6 +5,7 @@
 @using MiniBank.Web.Models
 @inject LoanReportsRepository Repo
 @inject NavigationManager Nav
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 
 <PageTitle>گزارش وام‌ها</PageTitle>
 
@@ -76,7 +77,7 @@
     <div class="lr-filters">
       <div class="lr-field">
         <label>تا تاریخ (مبنای معوق)</label>
-        <input class="lr-input" value="@_asOfText" @onchange="OnAsOfChanged" data-jdp="true" data-jdp-only-date="true" placeholder="1402/12/29" />
+        <input class="lr-input" value="@_asOfText" @onchange="OnAsOfChanged" data-jdp="true" data-jdp-only-date="true" data-jdp-min-date="@_fiscalFrom" data-jdp-max-date="@_fiscalTo" placeholder="1402/12/29" />
       </div>
       <div class="lr-actions">
         <button class="lr-btn export pdf" @onclick="DownloadPdf" disabled="@(!_rows.Any())"><i class="fa-solid fa-file-pdf"></i><span>خروجی PDF</span></button>
@@ -242,6 +243,8 @@
 @code {
   private bool _loading;
   private string _asOfText = string.Empty;
+  private string? _fiscalFrom;
+  private string? _fiscalTo;
   private string _rangeTitle = string.Empty;
   private string _filterKey = "all";
 
@@ -265,7 +268,17 @@
 
   protected override async Task OnInitializedAsync()
   {
-    _asOfText = DateTime.Now.ToPersianDate();
+    try
+    {
+      var range = await FiscalRange.GetRangeAsync();
+      _fiscalFrom = range.From;
+      _fiscalTo = range.To;
+      _asOfText = await FiscalRange.ClampAsync(DateTime.Now.ToPersianDate());
+    }
+    catch
+    {
+      _asOfText = DateTime.Now.ToPersianDate();
+    }
     _rangeTitle = GetHeaderTitle();
     await Load();
   }

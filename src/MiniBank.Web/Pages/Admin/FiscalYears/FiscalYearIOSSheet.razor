@@ -112,11 +112,11 @@
             </div>
             <div class="ios-form-group">
               <div class="ios-field">
-                <button type="button" class="ios-danger-button" @onclick="HandleDelete">
+                <button type="button" class="ios-danger-button" @onclick="ShowDeleteConfirm">
                   <i class="fa-solid fa-trash"></i>
                   حذف سال مالی
                 </button>
-                <div class="field-helper">این عمل قابل بازگشت نیست</div>
+                <div class="field-helper">فقط سال مالی خالی و بسته‌نشده قابل حذف است</div>
               </div>
             </div>
           </div>
@@ -125,6 +125,15 @@
     </div>
   </div>
 }
+
+<DsConfirm Show="@_showDeleteConfirm"
+           Title="@($"حذف سال مالی {_model.YearCode}")"
+           Message="@_deleteConfirmMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           OnConfirm="ConfirmDelete"
+           OnCancel="CancelDelete" />
 
 @code {
   [Parameter] public FiscalYear Model { get; set; } = new();
@@ -260,17 +269,41 @@
 
   private void HandleOverlayClick() => _ = HandleCancel();
 
-  private async Task HandleDelete()
+  private bool _showDeleteConfirm;
+  private string _deleteConfirmMessage = string.Empty;
+
+  private void ShowDeleteConfirm()
+  {
+    if (IsNew || _model.FiscalYearId <= 0) return;
+    _deleteConfirmMessage = $@"
+      آیا از حذف سال مالی <b>{_model.Title}</b> اطمینان دارید؟
+      <br/><br/>
+      <small style='color:#6b7280;'>
+        فقط «تعریف» این سال مالی حذف می‌شود؛ اسناد و مانده‌ها حذف نمی‌شوند.
+        <br/>سال مالی باید <b>خالی</b> باشد و <b>بسته نشده</b> باشد، در غیر این صورت حذف انجام نمی‌شود.
+      </small>";
+    _showDeleteConfirm = true;
+  }
+
+  private Task CancelDelete()
+  {
+    _showDeleteConfirm = false;
+    return Task.CompletedTask;
+  }
+
+  private async Task ConfirmDelete()
   {
     if (IsNew || _model.FiscalYearId <= 0) return;
     try
     {
       await FiscalYearService.DeleteAsync(_model.FiscalYearId);
+      _showDeleteConfirm = false;
       Toast.Success("سال مالی حذف شد");
       await HandleClose(true);
     }
     catch (Exception ex)
     {
+      _showDeleteConfirm = false;
       Toast.Error($"خطا در حذف: {ex.Message}");
     }
   }

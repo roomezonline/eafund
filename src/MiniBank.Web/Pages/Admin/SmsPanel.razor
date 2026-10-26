@@ -111,21 +111,12 @@
                OnCancel="CancelDeleteTopup" />
 
     <div class="card" style="margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
-        <div style="font-weight:900; margin-bottom:10px;">قابلیت‌ها</div>
-
-        @if (_loading)
-        {
-            <div>در حال بارگذاری...</div>
-        }
-        else
-        {
-            <div style="display:grid; gap:10px;">
-                @foreach (var f in _features)
-                {
-                    <DsToggle Label="@f.Title" Description="@($"کلید: {f.FeatureKey}")" Icon="fa-solid fa-bolt" Value="f.IsEnabled" ValueChanged="(v) => OnFeatureToggleChangedAsync(f, v)" />
-                }
-            </div>
-        }
+        <div style="font-weight:900; margin-bottom:8px;">تنظیم رویدادها</div>
+        <div style="font-size:12px; opacity:.8; line-height:2;">
+            فعال یا غیرفعال کردن هر رویداد و انتخاب کانال (پیامک، بله یا هر دو) در صفحه
+            <a href="/admin/notifications" style="color:#0369a1; font-weight:900; text-decoration:none;">اطلاع‌رسانی و بله</a>
+            انجام می‌شود. اینجا فقط تنظیمات کلی پیامک، اعتبار و شناسه قالب مدیریت می‌شود؛ تنظیم تکراری برای رویدادها وجود ندارد.
+        </div>
     </div>
 </section>
 
@@ -134,7 +125,6 @@
     private bool _saving = false;
 
     private SmsSettings _settings = new SmsSettings { SettingsId = 1 };
-    private List<SmsFeature> _features = new();
     private List<SmsCreditTopup> _topups = new();
 
     private bool _showDeleteTopupConfirm;
@@ -156,7 +146,6 @@
         {
             _loading = true;
             _settings = await Repo.GetSettingsAsync();
-            _features = (await Repo.GetFeaturesAsync()).ToList();
             _topups = (await Repo.GetTopupsAsync(50)).ToList();
 
             _partCostRialText = _settings.PartCostRial.ToString("N0");
@@ -226,20 +215,6 @@
         finally
         {
             _saving = false;
-        }
-    }
-
-    private async Task OnFeatureToggleChangedAsync(SmsFeature f, bool v)
-    {
-        try
-        {
-            f.IsEnabled = v;
-            await Repo.UpdateFeatureAsync(f.FeatureKey, v);
-            Toasts.Success("تغییر قابلیت ذخیره شد.");
-        }
-        catch (Exception ex)
-        {
-            Toasts.Error($"خطا در ذخیره قابلیت: {ex.Message}");
         }
     }
 

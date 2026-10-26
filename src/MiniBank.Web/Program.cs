@@ -12,6 +12,7 @@ using MiniBank.Web.Components.DesignSystem;
 using MiniBank.Web.Core.Interfaces;
 using MiniBank.Web.Infrastructure.Repositories;
 using MiniBank.Web.Models;
+using MiniBank.Web.Models.Notifications;
 using MiniBank.Web.Services;
 using MiniBank.Web.Reports;
 using MiniBank.Web.Middleware;
@@ -29,7 +30,10 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using MiniBank.Web.Services.Auth;
+using MiniBank.Web.Services.Notifications;
+using MiniBank.Web.Models.Notifications;
 using System.IO;
+using System.Security.Cryptography;
 
 // Configure Serilog with structured logging
 Log.Logger = new LoggerConfiguration()
@@ -63,6 +67,10 @@ builder.Services.AddRazorPages(options =>
 });
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("bale", c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(20);
+});
 builder.Services.AddScoped<HttpClient>(sp =>
 {
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
@@ -151,6 +159,7 @@ builder.Services.AddScoped<IHouseholdRepository, HouseholdRepository>();
 builder.Services.AddScoped<AuditRepository>();
 builder.Services.AddScoped<MemberRepository>();
 builder.Services.AddScoped<BankAccountRepository>();
+builder.Services.AddScoped<BankCardRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<TransactionRepository>();
 builder.Services.AddScoped<DepositRatePlanRepository>();
@@ -180,6 +189,7 @@ builder.Services.AddScoped<CashFlowBudgetRepository>();
 builder.Services.AddScoped<HouseholdService>();
 builder.Services.AddScoped<MemberService>();
 builder.Services.AddScoped<BankAccountService>();
+builder.Services.AddScoped<BankCardService>();
 builder.Services.AddScoped<DepositRateService>();
 builder.Services.AddScoped<LoanRateService>();
 builder.Services.AddScoped<LoanCalculatorService>();
@@ -192,11 +202,21 @@ builder.Services.AddScoped<AccountingPostingService>();
 builder.Services.AddScoped<PostingService>();
 builder.Services.AddScoped<DepositInterestPostingService>();
 builder.Services.AddScoped<FiscalYearService>();
+builder.Services.AddScoped<FiscalYearContext>();
+builder.Services.AddScoped<FiscalYearRangeProvider>();
 builder.Services.AddScoped<ProfitLossService>();
 builder.Services.AddScoped<SmsPanelRepository>();
 builder.Services.AddScoped<SmsSendService>();
 builder.Services.AddScoped<SmsSender>();
 builder.Services.AddScoped<SmsMessageLogRepository>();
+builder.Services.AddScoped<BaleBotRepository>();
+builder.Services.AddScoped<NotificationRepository>();
+builder.Services.AddScoped<BaleApiClient>();
+builder.Services.AddScoped<BaleMemberMenuService>();
+builder.Services.AddScoped<NotificationDispatcher>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddHostedService<NotificationDispatcherHostedService>();
+builder.Services.AddHostedService<AutomaticLoanReminderHostedService>();
 builder.Services.AddScoped<LoadingService>();
 builder.Services.AddScoped<DatabaseMigrationService>();
 builder.Services.AddScoped<MiniBank.Web.Infrastructure.ConstraintFixService>();
@@ -450,17 +470,27 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseStaticFiles();
-    // Prevent caching of HTML in Production to avoid stale app shell after deploys
+    // Prevent caching of HTML in Production to avoid stale app shell after deploys.
+    // The header must be registered in OnStarting (before the response starts); setting it after
+    // next() throws "Headers are read-only, response has already started" once the body is streamed.
     app.Use(async (context, next) =>
     {
-        await next();
-        var contentType = context.Response.ContentType;
-        if (!string.IsNullOrEmpty(contentType) && contentType.Contains("text/html", StringComparison.OrdinalIgnoreCase))
+        context.Response.OnStarting(() =>
         {
-            context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-            context.Response.Headers["Pragma"] = "no-cache";
-            context.Response.Headers["Expires"] = "0";
-        }
+            try
+            {
+                var contentType = context.Response.ContentType;
+                if (!string.IsNullOrEmpty(contentType) && contentType.Contains("text/html", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+                    context.Response.Headers["Pragma"] = "no-cache";
+                    context.Response.Headers["Expires"] = "0";
+                }
+            }
+            catch { }
+            return Task.CompletedTask;
+        });
+        await next();
     });
 }
 
@@ -468,6 +498,23 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path == "/" && HttpMethods.IsGet(context.Request.Method))
+    {
+        var authenticated = context.User.Identity?.IsAuthenticated == true;
+        var role = context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        var target = !authenticated
+            ? "/login"
+            : (string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase) ? "/dashboard" : "/admin/dashboard2");
+
+        context.Response.Redirect(target);
+        return;
+    }
+
+    await next();
+});
 
 app.MapRazorPages();
 app.MapBlazorHub().AllowAnonymous();
@@ -886,6 +933,346 @@ app.MapPost("/api/auth/logout", async (HttpContext ctx) =>
 {
     await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Ok(new { ok = true });
+}).AllowAnonymous();
+
+static bool BaleSecretEquals(string? provided, string? expected)
+{
+    var a = Encoding.UTF8.GetBytes(provided ?? string.Empty);
+    var b = Encoding.UTF8.GetBytes(expected ?? string.Empty);
+    return a.Length == b.Length && CryptographicOperations.FixedTimeEquals(a, b);
+}
+
+static string NormalizePhoneDigits(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+        return string.Empty;
+
+    var sb = new StringBuilder(value.Length);
+    foreach (var ch in value)
+    {
+        if (ch >= '0' && ch <= '9')
+            sb.Append(ch);
+        else if (ch >= '\u06F0' && ch <= '\u06F9')
+            sb.Append((char)('0' + (ch - '\u06F0')));
+        else if (ch >= '\u0660' && ch <= '\u0669')
+            sb.Append((char)('0' + (ch - '\u0660')));
+    }
+
+    return sb.ToString();
+}
+
+app.MapPost("/api/bale/webhook/{secret}", async (
+    string secret,
+    HttpContext ctx,
+    BaleBotRepository baleRepo,
+    BaleApiClient bale,
+    BaleMemberMenuService baleMenu,
+    MemberRepository members,
+    ILogger<Program> logger) =>
+{
+    try
+    {
+        var expected = await baleRepo.GetWebhookSecretAsync();
+        if (string.IsNullOrWhiteSpace(expected) || !BaleSecretEquals(secret, expected))
+            return Results.NotFound();
+
+        using var doc = await JsonDocument.ParseAsync(ctx.Request.Body, cancellationToken: ctx.RequestAborted);
+        var root = doc.RootElement;
+
+        if (!root.TryGetProperty("update_id", out var updateIdEl) || !updateIdEl.TryGetInt64(out var updateId))
+            return Results.Ok(new { ok = true });
+
+        if (!(root.TryGetProperty("message", out var message) || root.TryGetProperty("edited_message", out message)))
+            return Results.Ok(new { ok = true });
+
+        if (!message.TryGetProperty("chat", out var chat) ||
+            !chat.TryGetProperty("id", out var chatIdEl) ||
+            !chatIdEl.TryGetInt64(out var chatId))
+        {
+            return Results.Ok(new { ok = true });
+        }
+
+        long? fromId = null;
+        string? username = null;
+        string? firstName = null;
+        string? lastName = null;
+
+        if (message.TryGetProperty("from", out var fromEl) && fromEl.ValueKind == JsonValueKind.Object)
+        {
+            if (fromEl.TryGetProperty("id", out var fidEl) && fidEl.TryGetInt64(out var fid))
+                fromId = fid;
+            if (fromEl.TryGetProperty("username", out var unEl))
+                username = unEl.GetString();
+            if (fromEl.TryGetProperty("first_name", out var fnEl))
+                firstName = fnEl.GetString();
+            if (fromEl.TryGetProperty("last_name", out var lnEl))
+                lastName = lnEl.GetString();
+        }
+
+        var text = message.TryGetProperty("text", out var textEl) ? (textEl.GetString() ?? string.Empty).Trim() : string.Empty;
+
+        var firstSeen = await baleRepo.TryMarkUpdateProcessedAsync(updateId, chatId, text);
+        if (!firstSeen)
+            return Results.Ok(new { ok = true });
+
+        await baleRepo.TouchSubscriberAsync(chatId);
+
+        async Task ReplyAsync(string reply)
+        {
+            try
+            {
+                await bale.SendMessageAsync(chatId, reply, ctx.RequestAborted);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to send Bale webhook reply");
+            }
+        }
+
+        static string MemberLines(IReadOnlyList<BaleSubscriber> subs)
+        {
+            if (subs.Count == 0)
+                return "• -";
+
+            return string.Join("\n", subs.Select(s =>
+            {
+                var name = string.IsNullOrWhiteSpace(s.MemberFullName) ? "بدون نام" : s.MemberFullName;
+                return $"• {name} (کد عضویت: {s.MemberId})";
+            }));
+        }
+
+        if (message.TryGetProperty("contact", out var contactEl) && contactEl.ValueKind == JsonValueKind.Object)
+        {
+            long? contactUserId = null;
+            if (contactEl.TryGetProperty("user_id", out var cuidEl) && cuidEl.TryGetInt64(out var cuid))
+                contactUserId = cuid;
+
+            if (fromId.HasValue && contactUserId.HasValue && contactUserId.Value != fromId.Value)
+            {
+                await ReplyAsync("لطفاً فقط شماره موبایل خودتان را با دکمه «ارسال شماره موبایل» ارسال کنید.");
+                return Results.Ok(new { ok = true });
+            }
+
+            var phoneRaw = contactEl.TryGetProperty("phone_number", out var phoneEl) ? phoneEl.GetString() : null;
+            var digits = NormalizePhoneDigits(phoneRaw);
+            var last10 = digits.Length > 10 ? digits[^10..] : digits;
+
+            if (last10.Length != 10)
+            {
+                await bale.SendRemoveKeyboardAsync(chatId,
+                    "شماره ارسال‌شده معتبر نیست. لطفاً دوباره دکمه «ارسال شماره موبایل» را بزنید.",
+                    ctx.RequestAborted);
+                return Results.Ok(new { ok = true });
+            }
+
+            var matches = await members.GetActiveMemberIdsByMobileLast10Async(last10);
+            if (matches.Count == 0)
+            {
+                await bale.SendRemoveKeyboardAsync(chatId,
+                    "شماره موبایل شما در سامانه صندوق یافت نشد.\n" +
+                    "اگر شماره شما تغییر کرده، با مدیر صندوق هماهنگ کنید یا از بخش «پروفایل» سایت، لینک اتصال اختصاصی را دریافت کنید.",
+                    ctx.RequestAborted);
+                return Results.Ok(new { ok = true });
+            }
+
+            var matchedIds = matches.Distinct().OrderBy(x => x).ToArray();
+
+            var existing = await baleRepo.GetActiveByChatListAsync(chatId);
+            var existingIds = existing.Select(x => x.MemberId).Distinct().OrderBy(x => x).ToArray();
+
+            if (existingIds.SequenceEqual(matchedIds))
+            {
+                var already = matchedIds.Length == 1
+                    ? $"عضو: {existing.FirstOrDefault()?.MemberFullName ?? "-"}"
+                    : $"این شماره برای {matchedIds.Length} عضو صندوق ثبت شده است و اطلاع‌رسانی همهٔ آن‌ها به همین گفتگو ارسال می‌شود.";
+
+                await baleMenu.SendMenuAsync(chatId,
+                    $"اتصال شما از قبل فعال است.\n{already}",
+                    ctx.RequestAborted);
+                return Results.Ok(new { ok = true });
+            }
+
+            string? singleName = null;
+            if (matchedIds.Length == 1)
+            {
+                var member = await members.GetByIdAsync(matchedIds[0]);
+                if (member == null || !member.IsActive)
+                {
+                    await ReplyAsync("حساب عضویت شما فعال نیست. برای پیگیری با صندوق تماس بگیرید.");
+                    return Results.Ok(new { ok = true });
+                }
+
+                singleName = member.FullName;
+            }
+
+            await baleRepo.UpsertPhoneSubscribersAsync(matchedIds, chatId, fromId, username, firstName, lastName);
+
+            var linked = await baleRepo.GetActiveByChatListAsync(chatId);
+            var linkedLines = MemberLines(linked);
+
+            var success = matchedIds.Length == 1
+                ? $"عضو محترم {singleName}\n" +
+                  "اتصال شما به سامانه اطلاع‌رسانی صندوق با موفقیت انجام شد.\n" +
+                  "از این پس اطلاع‌رسانی‌های صندوق را در بله دریافت می‌کنید.\n" +
+                  $"این شماره موبایل برای عضو زیر فعال شده است:\n{linkedLines}"
+                : "اتصال شما به سامانه اطلاع‌رسانی صندوق با موفقیت انجام شد.\n" +
+                  $"این شماره موبایل برای {linked.Count} عضو صندوق فعال شده است:\n{linkedLines}\n" +
+                  "از این پس اطلاع‌رسانی هر یک از این اعضا به همین گفتگو ارسال می‌شود.";
+
+            success += "\n\nاز منوی پایین می‌توانید اعضای خانوار، موجودی و وضعیت وام را ببینید.";
+
+            await baleMenu.SendMenuAsync(chatId, success, ctx.RequestAborted);
+
+            return Results.Ok(new { ok = true });
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+            return Results.Ok(new { ok = true });
+
+        if (await baleMenu.TryHandleAsync(chatId, text, ctx.RequestAborted))
+            return Results.Ok(new { ok = true });
+
+        if (!text.StartsWith('/'))
+        {
+            var linkedForHint = await baleRepo.GetActiveByChatListAsync(chatId);
+            if (linkedForHint.Count > 0)
+            {
+                await baleMenu.SendMenuAsync(chatId,
+                    "برای دریافت اطلاعات، یکی از گزینه‌های منوی پایین را انتخاب کنید.",
+                    ctx.RequestAborted);
+            }
+
+            return Results.Ok(new { ok = true });
+        }
+
+        var spaceIndex = text.IndexOf(' ');
+        var command = (spaceIndex >= 0 ? text[..spaceIndex] : text).Trim();
+        var argument = spaceIndex >= 0 ? text[(spaceIndex + 1)..].Trim() : string.Empty;
+
+        var atIndex = command.IndexOf('@');
+        if (atIndex > 0)
+            command = command[..atIndex];
+
+        command = command.ToLowerInvariant();
+
+        if (command == "/start")
+        {
+            if (!string.IsNullOrWhiteSpace(argument))
+            {
+                var memberId = await baleRepo.ConsumeLinkTokenAsync(argument, chatId);
+                if (!memberId.HasValue)
+                {
+                    var prompt = await bale.SendContactRequestAsync(chatId,
+                        "لینک اتصال معتبر نیست یا منقضی شده است.\n" +
+                        "می‌توانید شماره موبایل ثبت‌شده در صندوق را با دکمه زیر ارسال کنید تا حساب شما متصل شود.",
+                        ctx.RequestAborted);
+
+                    if (!prompt.Ok)
+                        await ReplyAsync("لینک اتصال معتبر نیست یا منقضی شده است. لطفاً از بخش پروفایل سایت، لینک جدید دریافت کنید.");
+
+                    return Results.Ok(new { ok = true });
+                }
+
+                var member = await members.GetByIdAsync(memberId.Value);
+                if (member == null || !member.IsActive)
+                {
+                    await ReplyAsync("حساب عضویت شما فعال نیست. برای پیگیری با صندوق تماس بگیرید.");
+                    return Results.Ok(new { ok = true });
+                }
+
+                await baleRepo.UpsertSubscriberAsync(member.MemberId, chatId, fromId, username, firstName, lastName);
+
+                var linked = await baleRepo.GetActiveByChatListAsync(chatId);
+
+                await baleMenu.SendMenuAsync(chatId,
+                    $"عضو محترم {member.FullName}\n" +
+                    "اتصال شما به سامانه اطلاع‌رسانی صندوق با موفقیت انجام شد.\n" +
+                    "از این پس اطلاع‌رسانی‌های صندوق را در بله دریافت می‌کنید.\n" +
+                    $"این شماره موبایل برای اعضای زیر فعال شده است:\n{MemberLines(linked)}\n\n" +
+                    "از منوی پایین می‌توانید اعضای خانوار، موجودی و وضعیت وام را ببینید.",
+                    ctx.RequestAborted);
+
+                return Results.Ok(new { ok = true });
+            }
+
+            var activeLinks = await baleRepo.GetActiveByChatListAsync(chatId);
+            if (activeLinks.Count > 0)
+            {
+                var already = activeLinks.Count == 1
+                    ? "اتصال شما از قبل فعال است."
+                    : $"اتصال شما از قبل فعال است ({activeLinks.Count} عضو).";
+
+                await baleMenu.SendMenuAsync(chatId,
+                    already + "\nاز منوی پایین می‌توانید اعضای خانوار، موجودی و وضعیت وام را ببینید.",
+                    ctx.RequestAborted);
+            }
+            else
+            {
+                var prompt = await bale.SendContactRequestAsync(chatId,
+                    "برای اتصال حساب، شماره موبایل ثبت‌شده در صندوق را با دکمه «ارسال شماره موبایل» بفرستید.\n" +
+                    "یا از بخش «پروفایل» در سایت صندوق، لینک اتصال مخصوص خود را باز کنید.",
+                    ctx.RequestAborted);
+
+                if (!prompt.Ok)
+                    await ReplyAsync("برای اتصال، از بخش «پروفایل» در سایت صندوق، لینک اتصال مخصوص خود را دریافت کرده و روی آن بزنید.");
+            }
+
+            return Results.Ok(new { ok = true });
+        }
+
+        if (command == "/stop")
+        {
+            await bale.SendRemoveKeyboardAsync(chatId,
+                "اتصال به بله در این سامانه اجباری است و از طریق ربات قابل قطع نیست.\n" +
+                "در صورت نیاز به تغییر یا قطع اتصال، با مدیر صندوق تماس بگیرید.",
+                ctx.RequestAborted);
+            return Results.Ok(new { ok = true });
+        }
+
+        if (command == "/status")
+        {
+            var subscribers = await baleRepo.GetActiveByChatListAsync(chatId);
+            if (subscribers.Count == 0)
+            {
+                var prompt = await bale.SendContactRequestAsync(chatId,
+                    "وضعیت: متصل نیستید.\n" +
+                    "برای اتصال، شماره موبایل ثبت‌شده در صندوق را با دکمه زیر ارسال کنید یا از بخش پروفایل سایت لینک بگیرید.",
+                    ctx.RequestAborted);
+
+                if (!prompt.Ok)
+                    await ReplyAsync("وضعیت: متصل نیستید.\nبرای اتصال از بخش پروفایل سایت لینک دریافت کنید.");
+
+                return Results.Ok(new { ok = true });
+            }
+
+            var lines = new List<string>
+            {
+                "وضعیت: متصل",
+                $"تعداد اعضای متصل به این گفتگو: {subscribers.Count}"
+            };
+
+            foreach (var s in subscribers.Take(10))
+            {
+                var name = string.IsNullOrWhiteSpace(s.MemberFullName) ? "-" : s.MemberFullName;
+                lines.Add($"• {name} (کد عضویت: {s.MemberId})");
+            }
+
+            if (subscribers.Count > 10)
+                lines.Add("...");
+
+            lines.Add("اتصال بله اجباری است و از طریق ربات قطع نمی‌شود.");
+            lines.Add("از منوی پایین می‌توانید اعضای خانوار، موجودی و وضعیت وام را ببینید.");
+            await baleMenu.SendMenuAsync(chatId, string.Join("\n", lines), ctx.RequestAborted);
+            return Results.Ok(new { ok = true });
+        }
+
+        return Results.Ok(new { ok = true });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Bale webhook processing failed");
+        return Results.Ok(new { ok = true });
+    }
 }).AllowAnonymous();
 
 app.MapPost("/api/auth/change-password", async (

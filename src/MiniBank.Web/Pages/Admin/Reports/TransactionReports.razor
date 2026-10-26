@@ -7,6 +7,7 @@
 @inject TransactionReportRepository ReportRepo
 @inject IJSRuntime JSRuntime
 @inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 
 <PageTitle>گزارش‌های تراکنش‌ها</PageTitle>
 
@@ -577,12 +578,9 @@
     {
         try
         {
-            var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
-            if (fy != null)
-            {
-                fromDateString = fy.StartDate.ToPersianDate();
-                toDateString = fy.EndDate.ToPersianDate();
-            }
+            var range = await FiscalRange.GetRangeAsync();
+            fromDateString = range.From;
+            toDateString = range.To;
         }
         catch { }
         if (string.IsNullOrWhiteSpace(fromDateString) || string.IsNullOrWhiteSpace(toDateString))

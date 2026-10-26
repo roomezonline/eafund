@@ -2,6 +2,7 @@ using Dapper;
 using System.Data;
 using System.Data.Common;
 using MiniBank.Web.Models;
+using MiniBank.Web.Utilities;
 using Microsoft.Data.SqlClient;
 
 namespace MiniBank.Web.Infrastructure.Repositories
@@ -873,6 +874,7 @@ namespace MiniBank.Web.Infrastructure.Repositories
                 LEFT JOIN dbo.JournalLines jl ON (jl.AccountId = a.AccountId OR jl.ParentAccountId = a.AccountId)
                 LEFT JOIN dbo.vw_ApprovedJournals j ON jl.JournalId = j.JournalId
                 WHERE a.Code = @accountCode AND a.IsActive = 1
+                AND (j.JournalId IS NULL OR " + OpeningJournal.ExclusionSql() + @")
                 GROUP BY a.AccountId, a.AccountType";
 
             return await connection.QuerySingleOrDefaultAsync<AccountBalanceItem?>(sql, new { accountCode, from, to });

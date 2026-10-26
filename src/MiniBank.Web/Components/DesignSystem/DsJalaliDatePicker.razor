@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using MiniBank.Web.Components.Extensions
 @inject IJSRuntime JS
+@inject FiscalYearRangeProvider RangeProvider
 
 <div class="ds-jalali-datepicker">
   @if (!string.IsNullOrWhiteSpace(Label))
@@ -17,6 +18,8 @@
          style="text-align: center;"
          data-jdp
          data-jdp-only-date="true"
+         data-jdp-min-date="@_minDate"
+         data-jdp-max-date="@_maxDate"
          placeholder="@Placeholder"
          disabled="@Disabled" />
   @if (!string.IsNullOrWhiteSpace(HelperText) || HasError)
@@ -43,8 +46,42 @@
   [Parameter] public string? ErrorMessage { get; set; }
   [Parameter] public string? HelperText { get; set; }
 
+  /// <summary>حداقل تاریخ (شمسی yyyy/MM/dd). اگر مقدار ندهد از سال مالی بازِ جاری پر می‌شود.</summary>
+  [Parameter] public string? MinDate { get; set; }
+
+  /// <summary>حداکثر تاریخ (شمسی yyyy/MM/dd). اگر مقدار ندهد از سال مالی بازِ جاری پر می‌شود.</summary>
+  [Parameter] public string? MaxDate { get; set; }
+
+  /// <summary>در صورت false هیچ محدودیتی اعمال نمی‌شود (برای فرم‌های ثبتی).</summary>
+  [Parameter] public bool ConstrainToFiscalYear { get; set; } = true;
+
   private ElementReference _dateInput;
   private bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+  private string? _minDate;
+  private string? _maxDate;
+  private (string From, string To)? _fiscalRange;
+
+  protected override async Task OnInitializedAsync()
+  {
+    if (ConstrainToFiscalYear && (MinDate is null || MaxDate is null))
+    {
+      try
+      {
+        _fiscalRange = await RangeProvider.GetRangeAsync();
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error loading fiscal year range: {ex.Message}");
+      }
+    }
+  }
+
+  protected override void OnParametersSet()
+  {
+    _minDate = MinDate ?? _fiscalRange?.From;
+    _maxDate = MaxDate ?? _fiscalRange?.To;
+  }
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {

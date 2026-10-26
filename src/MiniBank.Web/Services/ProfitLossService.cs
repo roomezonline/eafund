@@ -178,24 +178,25 @@ namespace MiniBank.Web.Services
                 }
             }
 
-            if (level3Ids.Count > 0)
+if (level3Ids.Count > 0)
             {
                 using var db = await _connFactory.CreateConnectionAsync();
                 var tafsiliRows = await db.QueryAsync<TafsiliChild>(
-                    @"SELECT jl.ParentAccountId AS MoeenId,
-                             a.AccountId, a.Code, a.Name,
-                             ISNULL(SUM(jl.Debit), 0) AS Debit,
-                             ISNULL(SUM(jl.Credit), 0) AS Credit
-                      FROM dbo.JournalLines jl
-                      INNER JOIN dbo.vw_ApprovedJournals j ON jl.JournalId = j.JournalId
-                      INNER JOIN dbo.Accounts a ON jl.AccountId = a.AccountId
-                      WHERE jl.ParentAccountId IN @ids
-                          AND a.Level = 4
-                          AND a.IsActive = 1
-                          AND j.OccurredAt >= @from
-                          AND j.OccurredAt < DATEADD(DAY, 1, @to)
-                      GROUP BY jl.ParentAccountId, a.AccountId, a.Code, a.Name
-                      ORDER BY a.Code",
+                    @"SELECT 
+                          COALESCE(jl.ParentAccountId, a.ParentAccountId) AS MoeenId,
+                          a.AccountId, a.Code, a.Name,
+                          ISNULL(SUM(jl.Debit), 0) AS Debit,
+                          ISNULL(SUM(jl.Credit), 0) AS Credit
+                       FROM dbo.JournalLines jl
+                       INNER JOIN dbo.vw_ApprovedJournals j ON jl.JournalId = j.JournalId
+                       INNER JOIN dbo.Accounts a ON jl.AccountId = a.AccountId
+                       WHERE a.Level = 4
+                           AND a.IsActive = 1
+                           AND (jl.ParentAccountId IN @ids OR a.ParentAccountId IN @ids)
+                           AND j.OccurredAt >= @from
+                           AND j.OccurredAt < DATEADD(DAY, 1, @to)
+                       GROUP BY COALESCE(jl.ParentAccountId, a.ParentAccountId), a.AccountId, a.Code, a.Name
+                       ORDER BY a.Code",
                     new { ids = level3Ids.ToList(), from, to });
 
                 var level4ByParent = tafsiliRows

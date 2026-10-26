@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using MiniBank.Web.Components.DesignSystem
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Authorization
@@ -158,7 +159,7 @@
         inset:0;
         border-radius: 0;
         background:
-          url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='%230ea5e9'/><stop offset='1' stop-color='%237c3aed'/></linearGradient><mask id='m'><rect x='0' y='0' width='400' height='80' fill='white'/><circle cx='200' cy='16' r='40' fill='black'/></mask></defs><path mask='url(%23m)' fill='url(%23g)' d='M0,18 C55,18 70,2 110,2 C150,2 158,18 200,18 C242,18 250,2 290,2 C330,2 345,18 400,18 L400,80 L0,80 Z'/></svg>") center/100% 100% no-repeat;
+          url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%230ea5e9'/%3E%3Cstop offset='1' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3Cmask id='m'%3E%3Crect x='0' y='0' width='400' height='80' fill='white'/%3E%3Ccircle cx='200' cy='16' r='40' fill='black'/%3E%3C/mask%3E%3C/defs%3E%3Cpath mask='url(%23m)' fill='url(%23g)' d='M0,18 C55,18 70,2 110,2 C150,2 158,18 200,18 C242,18 250,2 290,2 C330,2 345,18 400,18 L400,80 L0,80 Z'/%3E%3C/svg%3E") center/100% 100% no-repeat;
         z-index: 0;
     }
     .member-footer-nav .nav-list::after,
@@ -719,6 +720,8 @@
                 </details>
 
                 <!-- User profile dropdown -->
+                @if (!_isMemberDashboard)
+                {
                 <details class="header-menu">
                     <summary class="user-trigger">
                         <span class="user-avatar">@_userInitials</span>
@@ -774,6 +777,7 @@
                         </button>
                     </div>
                 </details>
+                }
                 @if (!_isMemberArea)
                 {
                     <details class="header-menu header-more" style="position:relative;">
@@ -816,6 +820,22 @@
         </div>
         <FiscalYearBadge />
     </header>
+
+    @if (_fyBannerVisible)
+    {
+        <div class="fy-banner" role="status">
+            <span class="fy-banner-msg">
+                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                در حال مشاهده‌ی سال مالی <b>@_fyBannerYear</b>
+                @(_fyBannerClosed ? "(بسته)" : "(باز)") — غیر از سال جاری.
+                همه‌ی گزارش‌ها، تاریخ‌ها و داده‌ها بر اساس این سال نمایش داده می‌شوند.
+            </span>
+            <button type="button" class="fy-banner-reset" @onclick="ResetFiscalYearAsync">
+                <i class="fa-solid fa-rotate-left"></i>
+                بازگشت به سال جاری
+            </button>
+        </div>
+    }
 
     @* --- Drawer overlay --- *@
     <div class="drawer-overlay @(_drawerOpen ? "open" : "")" @onclick="CloseDrawer"></div>
@@ -893,12 +913,13 @@
             </div>
             </PermittedAnyContent>
 
-            <PermittedAnyContent Paths="@(new[]{"/admin/deposit-interest-calc","/admin/receipts/household-wizard-v2","/admin/bank-accounts"})">
+            <PermittedAnyContent Paths="@(new[]{"/admin/deposit-interest-calc","/admin/receipts/household-wizard-v2","/admin/bank-accounts","/admin/bank-cards"})">
             <div class="drawer-category">
                 <div class="drawer-cat-title"><i class="fa-solid fa-calculator"></i> خدمات</div>
                 <PermittedContent Path="/admin/deposit-interest-calc"><a href="/admin/deposit-interest-calc" class="drawer-item"><i class="fa-solid fa-calculator"></i> محاسبه سود سپرده</a></PermittedContent>
                 <PermittedContent Path="/admin/receipts/household-wizard-v2"><a href="/admin/receipts/household-wizard-v2" class="drawer-item"><i class="fa-solid fa-receipt"></i> دریافت خانوار</a></PermittedContent>
                 <PermittedContent Path="/admin/bank-accounts"><a href="/admin/bank-accounts" class="drawer-item"><i class="fa-solid fa-building-columns"></i> حساب‌های بانکی</a></PermittedContent>
+                <PermittedContent Path="/admin/bank-cards"><a href="/admin/bank-cards" class="drawer-item"><i class="fa-solid fa-credit-card"></i> کارت‌های بانکی</a></PermittedContent>
             </div>
             </PermittedAnyContent>
 
@@ -910,13 +931,15 @@
             </div>
             </PermittedAnyContent>
 
-            <PermittedAnyContent Paths="@(new[]{"/admin/fiscal-years","/admin/settings","/admin/db-backups","/admin/sms-panel","/admin/online-users","/admin/my-profile"})">
+            <PermittedAnyContent Paths="@(new[]{"/admin/fiscal-years","/admin/settings","/admin/db-backups","/admin/sms-panel","/admin/notifications","/admin/bale-reports","/admin/online-users","/admin/my-profile"})">
             <div class="drawer-category">
                 <div class="drawer-cat-title"><i class="fa-solid fa-gears"></i> مدیریت سیستم</div>
                 <PermittedContent Path="/admin/fiscal-years"><a href="/admin/fiscal-years" class="drawer-item"><i class="fa-solid fa-calendar"></i> سال‌های مالی</a></PermittedContent>
                 <PermittedContent Path="/admin/settings"><a href="/admin/settings" class="drawer-item"><i class="fa-solid fa-sliders"></i> تنظیمات</a></PermittedContent>
                 <PermittedContent Path="/admin/db-backups"><a href="/admin/db-backups" class="drawer-item"><i class="fa-solid fa-database"></i> پشتیبان‌گیری</a></PermittedContent>
                 <PermittedContent Path="/admin/sms-panel"><a href="/admin/sms-panel" class="drawer-item"><i class="fa-solid fa-comment-sms"></i> پنل پیامک</a></PermittedContent>
+                <PermittedContent Path="/admin/notifications"><a href="/admin/notifications" class="drawer-item"><i class="fa-solid fa-bell"></i> اطلاع‌رسانی و بله</a></PermittedContent>
+                <PermittedContent Path="/admin/bale-reports"><a href="/admin/bale-reports" class="drawer-item"><i class="fa-solid fa-chart-column"></i> گزارش پیام‌های بله</a></PermittedContent>
                 <PermittedContent Path="/admin/online-users"><a href="/admin/online-users" class="drawer-item"><i class="fa-solid fa-wifi"></i> کاربران آنلاین</a></PermittedContent>
                 <PermittedContent Path="/admin/my-profile"><a href="/admin/my-profile" class="drawer-item"><i class="fa-solid fa-id-card"></i> پروفایل من</a></PermittedContent>
             </div>
@@ -1056,6 +1079,12 @@
     [Inject] IJSRuntime JS { get; set; } = default!;
     [Inject] MiniBank.Web.Services.Auth.AuthActivityService Activity { get; set; } = default!;
     [Inject] MemberRepository MemberRepo { get; set; } = default!;
+    [Inject] MiniBank.Web.Services.FiscalYearContext FyContext { get; set; } = default!;
+
+    private bool _fyBannerVisible;
+    private string _fyBannerYear = "";
+    private bool _fyBannerClosed;
+    private bool _fyDisposed;
 
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
     private bool _showLoading;
@@ -1066,6 +1095,7 @@
     private int _unreadCount = 3; // test data for unread notifications
 
     private bool _isMemberArea;
+    private bool _isMemberDashboard;
     private bool _isAdminArea;
     private bool _drawerOpen;
 
@@ -1078,7 +1108,6 @@
 
     protected override void OnInitialized()
     {
-        Console.WriteLine("MainLayout: OnInitialized called");
         UpdateMemberAreaFlag(Nav.Uri);
         _locationChangedHandler = (_, args) =>
         {
@@ -1095,6 +1124,75 @@
             try { JS.InvokeVoidAsync("appNav.onNavigated", args.Location); } catch {}
         };
         Nav.LocationChanged += _locationChangedHandler;
+
+        FyContext.OnChange += OnFiscalYearChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadFiscalYearBannerAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"MainLayout.OnInitializedAsync failed: {ex}");
+        }
+    }
+
+    private void OnFiscalYearChanged()
+    {
+        _ = InvokeAsync(RefreshFiscalYearBannerAsync);
+    }
+
+    private async Task RefreshFiscalYearBannerAsync()
+    {
+        await LoadFiscalYearBannerAsync();
+
+        if (_fyDisposed)
+            return;
+
+        try
+        {
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"MainLayout banner StateHasChanged failed: {ex}");
+        }
+    }
+
+    private async Task LoadFiscalYearBannerAsync()
+    {
+        try
+        {
+            await FyContext.EnsureLoadedAsync();
+            var selected = FyContext.Selected;
+            var openToday = await FyContext.GetOpenTodayAsync();
+
+            _fyBannerVisible = selected != null
+                && (openToday == null || selected.FiscalYearId != openToday.FiscalYearId);
+            _fyBannerYear = selected?.YearCode.ToString() ?? "";
+            _fyBannerClosed = selected?.IsClosed ?? false;
+        }
+        catch (Exception ex)
+        {
+            _fyBannerVisible = false;
+            Console.WriteLine($"MainLayout banner load failed: {ex}");
+        }
+    }
+
+    private async Task ResetFiscalYearAsync()
+    {
+        try
+        {
+            await FyContext.ResetAsync();
+            Nav.NavigateTo(Nav.Uri, forceLoad: true);
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     private void UpdateMemberAreaFlag(string location)
@@ -1107,11 +1205,14 @@
                 || rel.StartsWith("/me/", StringComparison.OrdinalIgnoreCase)
                 || rel.Equals("/me", StringComparison.OrdinalIgnoreCase);
 
+            _isMemberDashboard = rel.Equals("/dashboard", StringComparison.OrdinalIgnoreCase);
+
             _isAdminArea = rel.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase);
         }
         catch
         {
             _isMemberArea = false;
+            _isMemberDashboard = false;
             _isAdminArea = false;
         }
     }
@@ -1265,11 +1366,15 @@
 
     public void Dispose()
     {
+        _fyDisposed = true;
+
         if (_locationChangedHandler is not null)
         {
             Nav.LocationChanged -= _locationChangedHandler;
             _locationChangedHandler = null;
         }
+
+        FyContext.OnChange -= OnFiscalYearChanged;
     }
 
     private Task Back()

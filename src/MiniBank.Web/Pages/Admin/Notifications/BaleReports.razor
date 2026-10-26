@@ -1,0 +1,504 @@
+@page "/admin/bale-reports"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Models.Notifications
+@using MiniBank.Web.Services
+@using System.Globalization
+@inject DsToastService Toasts
+@inject BaleBotRepository Repo
+@inject FiscalYearRangeProvider FiscalRange
+
+<PageTitle>گزارش پیام‌های بله</PageTitle>
+
+<DsPageHeader Title="گزارش پیام‌های بله"
+             Icon="fa-brands fa-telegram"
+             Subtitle="پیگیری ارسال اطلاع‌رسانی‌ها از طریق ربات بله"
+             ShowBackButton="true"
+             ShowRefreshButton="true"
+             OnRefreshClick="LoadAsync" />
+
+<section class="br-page" dir="rtl">
+    <div class="br-hero">
+        <div class="br-hero-text">
+            <div class="br-hero-title">وضعیت ارسال پیام‌های بله</div>
+            <div class="br-hero-sub">هر پیام پس از ثبت در صف اطلاع‌رسانی، از طریق ربات بله ارسال می‌شود و نتیجهٔ پاسخ سرور بله در همین صفحه ثبت می‌گردد.</div>
+        </div>
+        <div class="br-hero-icon">
+            <i class="fa-brands fa-telegram"></i>
+        </div>
+    </div>
+
+    <div class="br-note">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+            <b>راهنمای وضعیت‌ها:</b>
+            «تحویل به بله» یعنی سرور بله پیام را پذیرفته است. رابط برنامه‌نویسی بله گزارش «خوانده شد» یا تحویل نهایی به گوشی را در اختیار ربات قرار نمی‌دهد؛ بنابراین «آخرین فعالیت» عضو در ربات (مثلاً ارسال دستور یا پیام) به‌عنوان نشانهٔ نزدیک به مشاهده نمایش داده می‌شود.
+        </div>
+    </div>
+
+    <div class="br-stats">
+        <div class="br-stat total">
+            <div class="br-stat-icon"><i class="fa-solid fa-paper-plane"></i></div>
+            <div>
+                <div class="br-stat-value">@_stats.Total</div>
+                <div class="br-stat-label">کل ارسال‌ها</div>
+            </div>
+        </div>
+        <div class="br-stat ok">
+            <div class="br-stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div>
+                <div class="br-stat-value">@_stats.Success</div>
+                <div class="br-stat-label">تحویل به بله</div>
+            </div>
+        </div>
+        <div class="br-stat fail">
+            <div class="br-stat-icon"><i class="fa-solid fa-circle-xmark"></i></div>
+            <div>
+                <div class="br-stat-value">@_stats.Failed</div>
+                <div class="br-stat-label">ناموفق</div>
+            </div>
+        </div>
+        <div class="br-stat pending">
+            <div class="br-stat-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+            <div>
+                <div class="br-stat-value">@_stats.Pending</div>
+                <div class="br-stat-label">در انتظار نتیجه</div>
+            </div>
+        </div>
+        <div class="br-stat members">
+            <div class="br-stat-icon"><i class="fa-solid fa-users"></i></div>
+            <div>
+                <div class="br-stat-value">@_stats.UniqueMembers</div>
+                <div class="br-stat-label">اعضای یکتا</div>
+            </div>
+        </div>
+        <div class="br-stat activity">
+            <div class="br-stat-icon"><i class="fa-solid fa-eye"></i></div>
+            <div>
+                <div class="br-stat-value">@_stats.ActivityAfterSend</div>
+                <div class="br-stat-label">فعالیت بعد از ارسال</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="br-card">
+        <div class="br-card-title"><i class="fa-solid fa-filter"></i> فیلترها</div>
+
+        <div class="br-filters">
+            <div class="br-field">
+                <label>از تاریخ</label>
+                <DsJalaliDatePicker Value="@_fromJalali" ValueChanged="async (v) => { _fromJalali = v ?? string.Empty; await ScheduleFilterLoadAsync(0); }" Placeholder="مثال: 1404/06/01" />
+            </div>
+            <div class="br-field">
+                <label>تا تاریخ</label>
+                <DsJalaliDatePicker Value="@_toJalali" ValueChanged="async (v) => { _toJalali = v ?? string.Empty; await ScheduleFilterLoadAsync(0); }" Placeholder="مثال: 1404/06/30" />
+            </div>
+            <div class="br-field wide">
+                <label>جستجو (نام / موبایل / کد عضویت / ChatId / متن پیام)</label>
+                <input class="br-input" value="@_query" @oninput="OnQueryInput" placeholder="مثلاً 0912... یا 11008 یا نام عضو" />
+            </div>
+            <div class="br-field">
+                <label>وضعیت ارسال</label>
+                <select class="br-input" value="@_statusFilter" @onchange="OnStatusChanged">
+                    <option value="">همه</option>
+                    <option value="1">تحویل به بله</option>
+                    <option value="0">ناموفق</option>
+                    <option value="null">در انتظار نتیجه</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="br-actions">
+            <button class="br-btn ghost" @onclick="ClearFilters" disabled="@_loading">پاک کردن فیلترها</button>
+            <span class="br-hint">حداکثر ۳۰۰ مورد آخر نمایش داده می‌شود.</span>
+        </div>
+    </div>
+
+    <div class="br-card">
+        <div class="br-card-head">
+            <div class="br-card-title"><i class="fa-solid fa-list-ul"></i> نتایج</div>
+            <div class="br-count">@_items.Count مورد</div>
+        </div>
+
+        @if (_loading)
+        {
+            <div class="br-empty">در حال بارگذاری...</div>
+        }
+        else if (_items.Count == 0)
+        {
+            <div class="br-empty">
+                <i class="fa-regular fa-face-smile"></i>
+                <div>در بازهٔ انتخابی پیامی یافت نشد.</div>
+            </div>
+        }
+        else
+        {
+            <div class="br-list">
+                @foreach (var x in _items)
+                {
+                    var isOpen = IsDetailsOpen(x.LogId);
+                    var (statusText, statusClass, statusIcon) = GetStatus(x.IsSuccess);
+
+                    <div class="br-row @statusClass">
+                        <div class="br-row-summary" @onclick="(() => ToggleDetails(x.LogId))">
+                            <div class="br-row-main">
+                                <div class="br-row-top">
+                                    <span class="br-chip @statusClass"><i class="fa-solid @statusIcon"></i> @statusText</span>
+                                    @if (x.ActivityAfterSend)
+                                    {
+                                        <span class="br-chip activity"><i class="fa-solid fa-eye"></i> فعالیت بعد از ارسال</span>
+                                    }
+                                    <span class="br-feature">@FeatureLabel(x.FeatureKey)</span>
+                                </div>
+
+                                <div class="br-row-name">
+                                    @(string.IsNullOrWhiteSpace(x.MemberFullName) ? "-" : x.MemberFullName)
+                                    <span class="br-muted">#@(x.MemberId?.ToString() ?? "-")</span>
+                                </div>
+
+                                <div class="br-row-meta">
+                                    <span class="br-mobile" dir="ltr">@(string.IsNullOrWhiteSpace(x.MemberMobileNumber) ? "-" : x.MemberMobileNumber)</span>
+                                    <span class="br-sep">|</span>
+                                    <span dir="ltr">ChatId: @(x.ChatId?.ToString() ?? "-")</span>
+                                    @if (!string.IsNullOrWhiteSpace(x.BaleUsername))
+                                    {
+                                        <span class="br-sep">|</span>
+                                        <span dir="ltr">@@@x.BaleUsername</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="br-row-side">
+                                <div class="br-time">@FormatJalaliDateTime(x.SentAt ?? x.CreatedAt)</div>
+                                <i class="fa-solid @(isOpen ? "fa-chevron-up" : "fa-chevron-down") br-chevron"></i>
+                            </div>
+                        </div>
+
+                        @if (isOpen)
+                        {
+                            <div class="br-row-details">
+                                <div class="br-detail-grid">
+                                    <div class="br-detail">
+                                        <span class="br-detail-label">زمان ثبت</span>
+                                        <span>@FormatJalaliDateTime(x.CreatedAt)</span>
+                                    </div>
+                                    <div class="br-detail">
+                                        <span class="br-detail-label">زمان پاسخ بله</span>
+                                        <span>@(x.SentAt.HasValue ? FormatJalaliDateTime(x.SentAt.Value) : "-")</span>
+                                    </div>
+                                    <div class="br-detail">
+                                        <span class="br-detail-label">شناسه پیام بله</span>
+                                        <span dir="ltr">@(x.ProviderMessageId?.ToString() ?? "-")</span>
+                                    </div>
+                                    <div class="br-detail">
+                                        <span class="br-detail-label">کد اطلاع‌رسانی</span>
+                                        <span dir="ltr">@(x.NotificationId?.ToString() ?? "-")</span>
+                                    </div>
+                                    <div class="br-detail">
+                                        <span class="br-detail-label">وضعیت HTTP</span>
+                                        <span dir="ltr">@(x.ApiStatus?.ToString() ?? "-")</span>
+                                    </div>
+                                    <div class="br-detail">
+                                        <span class="br-detail-label">آخرین فعالیت عضو در ربات</span>
+                                        <span>@(x.SubscriberLastSeenAt.HasValue ? FormatJalaliDateTime(x.SubscriberLastSeenAt.Value) : "-")</span>
+                                    </div>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(x.ApiMessage))
+                                {
+                                    <div class="br-detail-line">
+                                        <span class="br-detail-label">پیام سرور بله</span>
+                                        <div class="br-detail-value">@x.ApiMessage</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(x.ErrorMessage))
+                                {
+                                    <div class="br-detail-line error">
+                                        <span class="br-detail-label">خطا</span>
+                                        <div class="br-detail-value">@x.ErrorMessage</div>
+                                    </div>
+                                }
+
+                                <div class="br-detail-line">
+                                    <span class="br-detail-label">متن پیام ارسال‌شده</span>
+                                    <pre class="br-message">@x.MessageText</pre>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+<style>
+    .br-page{direction:rtl;padding:16px 14px 80px;max-width:1100px;margin:0 auto;display:grid;gap:12px}
+    .br-hero{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ecfdf5,#f0fdf4 55%,#ffffff);border:1px solid #bbf7d0;box-shadow:0 10px 26px rgba(22,163,74,.08)}
+    .br-hero-title{font-weight:950;font-size:16px;color:#065f46}
+    .br-hero-sub{margin-top:6px;font-size:12px;line-height:1.9;color:#166534;font-weight:700;max-width:760px}
+    .br-hero-icon{flex:0 0 auto;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;color:#fff;font-size:24px;background:linear-gradient(135deg,#16a34a,#22c55e);box-shadow:0 12px 24px rgba(22,163,74,.32)}
+    .br-note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:12px;line-height:1.9;font-weight:700}
+    .br-note i{margin-top:3px;color:#d97706}
+    .br-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+    @@media (max-width: 980px){.br-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @@media (max-width: 560px){.br-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .br-stat{display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 6px 18px rgba(15,23,42,.04)}
+    .br-stat-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:15px;background:#f1f5f9;color:#475569;flex:0 0 auto}
+    .br-stat-value{font-weight:950;font-size:18px;color:#0f172a;line-height:1.1}
+    .br-stat-label{font-size:11px;font-weight:800;color:#64748b;margin-top:2px}
+    .br-stat.ok .br-stat-icon{background:#dcfce7;color:#15803d}
+    .br-stat.fail .br-stat-icon{background:#fee2e2;color:#b91c1c}
+    .br-stat.pending .br-stat-icon{background:#fef3c7;color:#b45309}
+    .br-stat.members .br-stat-icon{background:#e0f2fe;color:#0369a1}
+    .br-stat.activity .br-stat-icon{background:#ecfdf5;color:#047857}
+    .br-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px;box-shadow:0 8px 22px rgba(15,23,42,.05)}
+    .br-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .br-card-title{display:flex;align-items:center;gap:8px;font-weight:950;color:#0f172a}
+    .br-card-title i{color:#16a34a}
+    .br-count{font-size:12px;font-weight:800;color:#64748b}
+    .br-filters{display:grid;grid-template-columns:1fr 1fr 1.6fr 1fr;gap:10px;align-items:end;margin-top:12px}
+    @@media (max-width: 900px){.br-filters{grid-template-columns:1fr 1fr}}
+    @@media (max-width: 560px){.br-filters{grid-template-columns:1fr}}
+    .br-field{display:grid;gap:6px}
+    .br-field label{font-weight:900;font-size:12px;color:#0f172a}
+    .br-input{width:100%;height:40px;border-radius:12px;border:1px solid #cbd5e1;padding:0 10px;font-weight:800;background:#fff;outline:none}
+    .br-input:focus{border-color:#86efac;box-shadow:0 0 0 4px rgba(34,197,94,.12)}
+    .br-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .br-btn{height:38px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;color:#0f172a;font-weight:950;padding:0 14px;cursor:pointer}
+    .br-btn.ghost{border-color:#d1fae5;background:#f0fdf4;color:#15803d}
+    .br-btn:disabled{opacity:.6;cursor:not-allowed}
+    .br-hint{font-size:11px;font-weight:800;color:#64748b}
+    .br-empty{display:grid;place-items:center;gap:8px;padding:26px 10px;color:#64748b;font-weight:800;font-size:13px}
+    .br-empty i{font-size:26px;color:#86efac}
+    .br-list{display:grid;gap:10px;margin-top:12px}
+    .br-row{border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff;border-inline-start:4px solid #cbd5e1}
+    .br-row.ok{border-inline-start-color:#16a34a}
+    .br-row.fail{border-inline-start-color:#dc2626}
+    .br-row.pending{border-inline-start-color:#f59e0b}
+    .br-row-summary{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px;background:#f8fafc;cursor:pointer}
+    .br-row-main{min-width:0;display:grid;gap:5px}
+    .br-row-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .br-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:950;white-space:nowrap}
+    .br-chip.ok{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+    .br-chip.fail{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca}
+    .br-chip.pending{background:#fef3c7;color:#b45309;border:1px solid #fde68a}
+    .br-chip.activity{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+    .br-feature{font-size:11px;font-weight:900;color:#475569;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:3px 10px;white-space:nowrap}
+    .br-row-name{font-weight:950;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .br-muted{font-size:11px;color:#64748b;font-weight:800;margin-inline-start:6px}
+    .br-row-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:#64748b;font-weight:800}
+    .br-mobile{color:#dc2626;font-weight:950}
+    .br-sep{opacity:.45}
+    .br-row-side{display:grid;gap:6px;justify-items:end;flex:0 0 auto}
+    .br-time{font-size:12px;font-weight:900;color:#0f172a;white-space:nowrap}
+    .br-chevron{color:#94a3b8;font-size:11px}
+    .br-row-details{padding:12px;border-top:1px solid #e5e7eb;display:grid;gap:10px}
+    .br-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    @@media (max-width: 700px){.br-detail-grid{grid-template-columns:1fr 1fr}}
+    .br-detail{display:grid;gap:3px;padding:8px 10px;border-radius:10px;background:#f8fafc;font-size:12px;font-weight:800;color:#0f172a}
+    .br-detail-label{font-size:10px;font-weight:900;color:#64748b}
+    .br-detail-line{display:grid;gap:4px}
+    .br-detail-line.error .br-detail-value{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+    .br-detail-value{font-size:12px;font-weight:800;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;line-height:1.8}
+    .br-message{white-space:pre-wrap;margin:0;font-family:inherit;font-weight:800;line-height:1.9;font-size:12px;color:#0f172a;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px}
+</style>
+
+@code {
+    private bool _loading;
+    private List<BaleMessageLogReportRow> _items = new();
+    private BaleMessageLogReportStats _stats = new();
+
+    private string _fromJalali = string.Empty;
+    private string _toJalali = string.Empty;
+    private string _query = string.Empty;
+    private string _statusFilter = string.Empty;
+
+    private CancellationTokenSource? _filterCts;
+    private readonly HashSet<long> _openDetails = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetDefaultJalaliYearRangeIfEmptyAsync();
+        await LoadAsync();
+    }
+
+    private async Task SetDefaultJalaliYearRangeIfEmptyAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(_fromJalali) || !string.IsNullOrWhiteSpace(_toJalali))
+            return;
+
+        try
+        {
+            var range = await FiscalRange.GetRangeAsync();
+            _fromJalali = range.From;
+            _toJalali = range.To;
+            return;
+        }
+        catch { }
+
+        var today = DateTime.Today;
+        var pc = new PersianCalendar();
+        var y = pc.GetYear(today);
+        var lastDay = pc.GetDaysInMonth(y, 12);
+        _fromJalali = $"{y:0000}/01/01";
+        _toJalali = $"{y:0000}/12/{lastDay:00}";
+    }
+
+    private async Task OnQueryInput(ChangeEventArgs e)
+    {
+        _query = e?.Value?.ToString() ?? string.Empty;
+        await ScheduleFilterLoadAsync(350);
+    }
+
+    private async Task OnStatusChanged(ChangeEventArgs e)
+    {
+        _statusFilter = e?.Value?.ToString() ?? string.Empty;
+        await ScheduleFilterLoadAsync(0);
+    }
+
+    private async Task ScheduleFilterLoadAsync(int delayMs)
+    {
+        _filterCts?.Cancel();
+        _filterCts = new CancellationTokenSource();
+        var ct = _filterCts.Token;
+
+        try
+        {
+            if (delayMs > 0)
+                await Task.Delay(delayMs, ct);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        if (ct.IsCancellationRequested)
+            return;
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            StateHasChanged();
+
+            var (fromUtc, toUtc) = ParseJalaliRangeUtc(_fromJalali, _toJalali);
+            var (isSuccess, successIsNull) = ParseStatusFilter(_statusFilter);
+
+            _items = (await Repo.SearchMessageLogsAsync(
+                fromUtc: fromUtc,
+                toUtc: toUtc,
+                query: _query,
+                isSuccess: isSuccess,
+                successIsNull: successIsNull,
+                take: 300)).ToList();
+
+            _stats = await Repo.GetMessageLogReportStatsAsync(
+                fromUtc: fromUtc,
+                toUtc: toUtc,
+                query: _query,
+                isSuccess: isSuccess,
+                successIsNull: successIsNull);
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری گزارش بله: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearFilters()
+    {
+        _fromJalali = string.Empty;
+        _toJalali = string.Empty;
+        _query = string.Empty;
+        _statusFilter = string.Empty;
+        _openDetails.Clear();
+        await SetDefaultJalaliYearRangeIfEmptyAsync();
+        await ScheduleFilterLoadAsync(0);
+    }
+
+    private void ToggleDetails(long logId)
+    {
+        if (_openDetails.Contains(logId))
+        {
+            _openDetails.Clear();
+            return;
+        }
+
+        _openDetails.Clear();
+        _openDetails.Add(logId);
+    }
+
+    private bool IsDetailsOpen(long logId) => _openDetails.Contains(logId);
+
+    private static string FeatureLabel(string? key) => key switch
+    {
+        "deposit_credit" => "واریز به حساب",
+        "deposit_interest_run" => "واریز سود سپرده",
+        "loan_payment" => "پرداخت تسهیلات",
+        "loan_installment_reminder" => "یادآوری قسط",
+        "member_updated" => "به‌روزرسانی اطلاعات عضو",
+        null or "" => "اطلاع‌رسانی عمومی",
+        _ => key
+    };
+
+    private static (string Text, string Class, string Icon) GetStatus(bool? isSuccess) => isSuccess switch
+    {
+        true => ("تحویل به بله", "ok", "fa-circle-check"),
+        false => ("ناموفق", "fail", "fa-circle-xmark"),
+        _ => ("در انتظار نتیجه", "pending", "fa-hourglass-half")
+    };
+
+    private static (DateTime? fromUtc, DateTime? toUtc) ParseJalaliRangeUtc(string from, string to)
+    {
+        DateTime? fromUtc = null;
+        DateTime? toUtc = null;
+
+        if (TryParseJalali(from, out var f))
+            fromUtc = f.ToUniversalTime();
+
+        if (TryParseJalali(to, out var t))
+            toUtc = t.Date.ToUniversalTime();
+
+        return (fromUtc, toUtc);
+    }
+
+    private static bool TryParseJalali(string raw, out DateTime dt)
+    {
+        var ok = MiniBank.Web.Components.Extensions.DateTimeExtensions.TryParseJalaliDate(raw, out dt);
+        if (ok) dt = DateTime.SpecifyKind(dt, DateTimeKind.Local);
+        return ok;
+    }
+
+    private static string FormatJalaliDateTime(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var pc = new PersianCalendar();
+        var y = pc.GetYear(local);
+        var m = pc.GetMonth(local);
+        var d = pc.GetDayOfMonth(local);
+        return $"{y:0000}/{m:00}/{d:00} {local:HH:mm}";
+    }
+
+    private static (bool? isSuccess, bool? successIsNull) ParseStatusFilter(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return (null, null);
+        if (string.Equals(raw, "null", StringComparison.OrdinalIgnoreCase)) return (null, true);
+        return raw switch
+        {
+            "1" => (true, null),
+            "0" => (false, null),
+            _ => (null, null)
+        };
+    }
+}

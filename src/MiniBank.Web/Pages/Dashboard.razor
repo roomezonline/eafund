@@ -4,12 +4,16 @@
 @using System.Security.Claims
 @using MiniBank.Web.Models
 @using MiniBank.Web.Models.Reports
+@using MiniBank.Web.Models.Notifications
 @using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Components.Extensions
 
 @inject AuthenticationStateProvider AuthStateProvider
 @inject MiniBank.Web.Services.MemberService MemberService
+@inject MiniBank.Web.Services.BankCardService BankCardService
 @inject MiniBank.Web.Infrastructure.Repositories.TransactionReportRepository TxReports
 @inject MiniBank.Web.Infrastructure.Repositories.AuthRepository AuthRepo
+@inject MiniBank.Web.Infrastructure.Repositories.BaleBotRepository BaleRepo
 @inject MiniBank.Web.Services.MemberFinancialSnapshotService Snapshots
 @inject DsToastService Toasts
 @inject NavigationManager Nav
@@ -62,11 +66,51 @@
   .hero-btn:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(15,23,42,.12);background:#fff}
   .hero-btn.danger{border-color: rgba(239,68,68,.20); background: rgba(254,242,242,.92); color:#b91c1c}
 
+  .hero-btn.bell{position:relative}
+  .hero-btn.bell.has-unread{background:linear-gradient(135deg,#ecfdf5,#dcfce7);border-color:#86efac;color:#15803d}
+  .bell-badge{position:absolute;top:-5px;left:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;
+    background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:10px;font-weight:950;
+    display:grid;place-items:center;border:2px solid #fff;box-shadow:0 4px 10px rgba(22,163,74,.35);
+    font-variant-numeric:tabular-nums;line-height:1}
+
+  .inbox-banner{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:12px 14px;border-radius:18px;
+    border:1px solid #86efac;background:linear-gradient(135deg,rgba(22,163,74,.14),rgba(255,255,255,.96));
+    box-shadow:0 10px 26px rgba(22,163,74,.10);text-decoration:none;transition:transform .14s ease, box-shadow .14s ease}
+  .inbox-banner:hover{transform:translateY(-1px);box-shadow:0 14px 32px rgba(22,163,74,.16)}
+  .inbox-banner-icon{position:relative;width:42px;height:42px;border-radius:14px;display:grid;place-items:center;flex:none;
+    background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:17px;box-shadow:0 8px 18px rgba(22,163,74,.28)}
+  .inbox-banner-dot{position:absolute;top:-3px;left:-3px;width:13px;height:13px;border-radius:50%;
+    background:#f59e0b;border:2px solid #fff}
+  .inbox-banner-body{flex:1;min-width:0;display:grid;gap:3px}
+  .inbox-banner-title{font-weight:950;font-size:13px;color:#065f46}
+  .inbox-banner-desc{font-weight:800;font-size:11px;color:#166534;line-height:1.8}
+  .inbox-banner-cta{display:inline-flex;align-items:center;gap:6px;flex:none;height:36px;padding:0 14px;border-radius:12px;
+    background:#16a34a;border:1px solid #16a34a;color:#fff;font-weight:950;font-size:12px;
+    box-shadow:0 8px 18px rgba(22,163,74,.24)}
+
   .dash-card{background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(248,250,252,.92));border:1px solid rgba(226,232,240,.92);border-radius:18px;padding:14px;box-shadow:0 14px 34px rgba(15,23,42,.10);backdrop-filter:blur(8px);transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease}
   .dash-card:hover{transform:translateY(-1px);box-shadow:0 18px 44px rgba(15,23,42,.14);border-color:rgba(148,163,184,.7)}
   .dash-card.accent{border-color:rgba(56,189,248,.55);background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(240,249,255,.92))}
 
   .section-title{font-weight:950;color:#0f172a;margin-bottom:10px}
+
+  .bale-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding:12px 14px;border-radius:18px;
+    border:1px solid;box-shadow:0 10px 26px rgba(15,23,42,.08)}
+  .bale-status.ok{background:linear-gradient(135deg,rgba(22,163,74,.12),rgba(255,255,255,.96));border-color:#86efac}
+  .bale-status.warn{background:linear-gradient(135deg,rgba(245,158,11,.16),rgba(255,255,255,.96));border-color:#fcd34d}
+  .bale-status-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;color:#fff;font-size:17px;flex:none}
+  .bale-status.ok .bale-status-icon{background:linear-gradient(135deg,#16a34a,#22c55e);box-shadow:0 8px 18px rgba(22,163,74,.28)}
+  .bale-status.warn .bale-status-icon{background:linear-gradient(135deg,#f59e0b,#fbbf24);box-shadow:0 8px 18px rgba(245,158,11,.28)}
+  .bale-status-body{flex:1;min-width:190px}
+  .bale-status-title{font-weight:950;font-size:13px;color:#0f172a;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .bale-status-desc{font-weight:800;font-size:11px;color:#64748b;line-height:1.8;margin-top:3px}
+  .bale-status-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 9px;font-size:10px;font-weight:950;border:1px solid}
+  .bale-status.ok .bale-status-badge{background:#dcfce7;border-color:#86efac;color:#166534}
+  .bale-status.warn .bale-status-badge{background:#ffedd5;border-color:#fdba74;color:#9a3412}
+  .bale-status-cta{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:12px;flex:none;
+    background:#16a34a;border:1px solid #16a34a;color:#fff;font-weight:950;font-size:12px;text-decoration:none;
+    box-shadow:0 8px 18px rgba(22,163,74,.24);transition:transform .14s ease, box-shadow .14s ease, background .14s ease}
+  .bale-status-cta:hover{background:#15803d;border-color:#15803d;transform:translateY(-1px);box-shadow:0 12px 24px rgba(22,163,74,.3)}
 
   .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;font-weight:950;font-size:11px;border:1px solid transparent;white-space:nowrap}
   .b-brand{background:#e0f2fe;border-color:#bae6fd;color:#0369a1}
@@ -128,6 +172,51 @@
   .service-title{font-weight:950;color:#0f172a;font-size:13px}
   .service-desc{font-weight:800;color:#64748b;font-size:11px;line-height:1.3}
 
+  .pay-section{border-color:rgba(14,165,233,.42);background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(240,249,255,.92))}
+  .pay-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .pay-head-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;flex:none;
+    background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;font-size:15px;
+    box-shadow:0 8px 18px rgba(14,165,233,.25)}
+  .pay-head-text{min-width:0}
+  .pay-grid{display:grid;grid-template-columns:1fr;gap:10px}
+  .pay-card{position:relative;overflow:hidden;border-radius:18px;padding:14px;color:#fff;
+    background:linear-gradient(135deg,#0b1220 0%,#16306b 52%,#0e7490 100%);
+    box-shadow:0 14px 30px rgba(15,23,42,.18);display:flex;flex-direction:column;gap:10px}
+  .pay-card::before{content:"";position:absolute;width:190px;height:190px;border-radius:50%;top:-100px;left:-60px;
+    background:radial-gradient(circle,rgba(56,189,248,.42),transparent 65%);pointer-events:none}
+  .pay-card::after{content:"";position:absolute;width:170px;height:170px;border-radius:50%;bottom:-100px;right:-50px;
+    background:radial-gradient(circle,rgba(45,212,191,.34),transparent 65%);pointer-events:none}
+  .pay-card > *{position:relative;z-index:1}
+  .pay-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .pay-bank{font-size:13px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pay-chip{width:30px;height:22px;border-radius:5px;flex:none;background:linear-gradient(135deg,#fde68a,#f59e0b);
+    box-shadow:inset 0 0 0 1px rgba(120,53,15,.25)}
+  .pay-number{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+    border:1px dashed rgba(255,255,255,.28);background:rgba(255,255,255,.08);border-radius:12px;
+    padding:9px 10px;color:#fff;cursor:pointer;transition:background .14s ease,border-color .14s ease}
+  .pay-number:hover{background:rgba(255,255,255,.14)}
+  .pay-number.copied{border-color:rgba(74,222,128,.65);background:rgba(34,197,94,.18)}
+  .pay-number-value{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:clamp(13px,3.9vw,16px);font-weight:800;letter-spacing:1.2px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .pay-number-copy{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 9px;border-radius:9px;
+    background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);font-size:10.5px;
+    font-weight:900;flex:none;white-space:nowrap}
+  .pay-rows{display:grid;gap:6px}
+  .pay-row{display:flex;align-items:center;gap:8px;width:100%;border:1px solid rgba(255,255,255,.16);
+    background:rgba(255,255,255,.07);border-radius:11px;padding:8px 10px;color:#fff;cursor:pointer;
+    transition:background .14s ease,border-color .14s ease}
+  .pay-row:hover{background:rgba(255,255,255,.13)}
+  .pay-row.copied{border-color:rgba(74,222,128,.65);background:rgba(34,197,94,.18)}
+  .pay-row-label{font-size:10.5px;font-weight:800;color:rgba(255,255,255,.72);flex:none}
+  .pay-row-value{flex:1;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11.5px;font-weight:800;letter-spacing:.6px;white-space:normal;overflow-wrap:anywhere;
+    line-height:1.6;text-align:left}
+  .pay-row-copy{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;
+    background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);font-size:11px}
+
+  @@media (min-width: 720px){.pay-grid{grid-template-columns:1fr 1fr}}
+
   .muted{color:#64748b;font-weight:800;font-size:12px}
   .skeleton{height:14px;border-radius:10px;background:linear-gradient(90deg,#f1f5f9,#e2e8f0,#f1f5f9);background-size:200% 100%;animation:sk 1.2s ease-in-out infinite}
   @@keyframes sk{0%{background-position:0% 0}100%{background-position:200% 0}}
@@ -147,6 +236,8 @@
     .dash-hero{padding:10px 10px;border-radius:16px;transform:none}
     .dash-title{font-size:16px}
     .hero-btn{width:36px;height:36px;border-radius:12px}
+    .inbox-banner{align-items:flex-start;flex-wrap:wrap;padding:12px}
+    .inbox-banner-cta{width:100%;justify-content:center}
     .sum-viewport{padding-inline:10px}
     .sum-card{min-width:100%}
   }
@@ -164,6 +255,13 @@
         </div>
       </div>
       <div class="hero-actions">
+        <button class="hero-btn bell @(_unreadMessages > 0 ? "has-unread" : null)" title="پیام‌های من" aria-label="پیام‌های من" @onclick="OpenInbox">
+          <i class="fa-regular fa-bell"></i>
+          @if (_unreadMessages > 0)
+          {
+            <span class="bell-badge">@UnreadBadgeText</span>
+          }
+        </button>
         <button class="hero-btn" title="پروفایل" @onclick='() => Nav.NavigateTo(HrefFor("/me/profile"))'>
           <i class="fa-solid fa-user"></i>
         </button>
@@ -201,6 +299,62 @@
   }
   else
   {
+    var baleConnected = _baleSubscriber != null;
+
+    if (_unreadMessages > 0)
+    {
+      <a class="inbox-banner" href="@InboxHref">
+        <span class="inbox-banner-icon">
+          <i class="fa-regular fa-bell"></i>
+          <span class="inbox-banner-dot"></span>
+        </span>
+        <span class="inbox-banner-body">
+          <span class="inbox-banner-title">@_unreadMessages پیام خوانده‌نشده دارید</span>
+          <span class="inbox-banner-desc">پیام‌های ارسال‌شده در بله را می‌توانید همین‌جا در سایت بخوانید.</span>
+        </span>
+        <span class="inbox-banner-cta">
+          مشاهده پیام‌ها
+          <i class="fa-solid fa-chevron-left" style="font-size:10px"></i>
+        </span>
+      </a>
+    }
+
+    if (_baleSettings?.IsEnabled == true && _baleBannerMemberId > 0)
+    {
+      <div class="bale-status @(baleConnected ? "ok" : "warn")">
+        <div class="bale-status-icon">
+          <i class="fa-solid @(baleConnected ? "fa-circle-check" : "fa-triangle-exclamation")"></i>
+        </div>
+        <div class="bale-status-body">
+          <div class="bale-status-title">
+            @(baleConnected ? "اتصال بله فعال است" : "حساب شما به بله متصل نیست")
+            <span class="bale-status-badge">@(baleConnected ? "متصل" : "متصل نشده")</span>
+          </div>
+          <div class="bale-status-desc">
+            @if (baleConnected)
+            {
+              <span>اطلاع‌رسانی‌های صندوق از طریق پیام‌رسان بله برای شما ارسال می‌شود.</span>
+            }
+            else if (_baleSettings!.RequireBaleConnectionForMembers)
+            {
+              <span>اتصال به بله الزامی است. برای ادامه، از پروفایل خود به ربات بله متصل شوید.</span>
+            }
+            else
+            {
+              <span>برای دریافت اطلاع‌رسانی‌های صندوق، حساب خود را به ربات بله متصل کنید.</span>
+            }
+          </div>
+        </div>
+        @if (!baleConnected)
+        {
+          <a class="bale-status-cta" href="/me/profile">
+            <i class="fa-solid fa-paper-plane"></i>
+            اتصال به بله
+          </a>
+        }
+      </div>
+    }
+
     <div class="dash-card accent" style="margin-bottom:12px">
       <div class="section-title">خلاصه موجودی سپرده خانوار</div>
       <div class="muted" style="margin-bottom:10px">برای دیدن گزارش هر عضو روی کارت همان عضو بزنید.</div>
@@ -253,6 +407,74 @@
         </div>
       }
     </div>
+
+    @if (_payCards.Count > 0)
+    {
+      <div class="dash-card pay-section" style="margin-bottom:12px">
+        <div class="pay-head">
+          <span class="pay-head-icon"><i class="fa-solid fa-credit-card"></i></span>
+          <div class="pay-head-text">
+            <div class="section-title" style="margin-bottom:2px">کارت‌های بانکی صندوق</div>
+            <div class="muted">برای واریز وجه، شماره کارت یا حساب را کپی کنید.</div>
+          </div>
+        </div>
+
+        <div class="pay-grid">
+          @foreach (var card in _payCards)
+          {
+            var cardKey = $"card-{card.CardId}";
+            var accountKey = $"account-{card.CardId}";
+            var shabaKey = $"shaba-{card.CardId}";
+            <div class="pay-card">
+              <div class="pay-card-top">
+                <span class="pay-bank">@card.BankName</span>
+                <span class="pay-chip"></span>
+              </div>
+
+              <button type="button" class="pay-number @(_copiedKey == cardKey ? "copied" : null)"
+                      title="کپی شماره کارت"
+                      @onclick='() => CopyValueAsync(BankCardFormat.CardDigits(card.CardNumber), "شماره کارت", cardKey)'>
+                <span class="pay-number-value" dir="ltr">@BankCardFormat.FormatCard(card.CardNumber)</span>
+                <span class="pay-number-copy">
+                  <i class="fa-solid @(_copiedKey == cardKey ? "fa-check" : "fa-copy")"></i>
+                  @(_copiedKey == cardKey ? "کپی شد" : "کپی")
+                </span>
+              </button>
+
+              @if (!string.IsNullOrWhiteSpace(card.AccountNumber) || !string.IsNullOrWhiteSpace(card.Shaba))
+              {
+                <div class="pay-rows">
+                  @if (!string.IsNullOrWhiteSpace(card.AccountNumber))
+                  {
+                    <button type="button" class="pay-row @(_copiedKey == accountKey ? "copied" : null)"
+                            title="کپی شماره حساب"
+                            @onclick='() => CopyValueAsync(card.AccountNumber, "شماره حساب", accountKey)'>
+                      <span class="pay-row-label">شماره حساب</span>
+                      <span class="pay-row-value" dir="ltr">@card.AccountNumber</span>
+                      <span class="pay-row-copy">
+                        <i class="fa-solid @(_copiedKey == accountKey ? "fa-check" : "fa-copy")"></i>
+                      </span>
+                    </button>
+                  }
+                  @if (!string.IsNullOrWhiteSpace(card.Shaba))
+                  {
+                    <button type="button" class="pay-row @(_copiedKey == shabaKey ? "copied" : null)"
+                            title="کپی شماره شبا"
+                            @onclick='() => CopyValueAsync(BankCardFormat.NormalizeShaba(card.Shaba), "شماره شبا", shabaKey)'>
+                      <span class="pay-row-label">شبا</span>
+                      <span class="pay-row-value" dir="ltr">@BankCardFormat.FormatShaba(card.Shaba)</span>
+                      <span class="pay-row-copy">
+                        <i class="fa-solid @(_copiedKey == shabaKey ? "fa-check" : "fa-copy")"></i>
+                      </span>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
 
     <div class="dash-card" style="margin-bottom:12px">
       <div class="section-title">خدمات</div>
@@ -366,6 +588,19 @@
   private decimal _summaryNetClaimDebt;
   private MemberFinancialSnapshot.ActiveLoanSnapshot? _activeLoan;
 
+  private BaleBotSettings? _baleSettings;
+  private BaleSubscriber? _baleSubscriber;
+  private long _baleBannerMemberId;
+
+  private int _unreadMessages;
+  private long _inboxMemberId;
+
+  private List<BankCard> _payCards = new();
+  private string? _copiedKey;
+
+  private string UnreadBadgeText => _unreadMessages > 99 ? "99+" : _unreadMessages.ToString();
+  private string InboxHref => _inboxMemberId > 0 ? $"/me/messages?memberId={_inboxMemberId}" : "/me/messages";
+
   protected override async Task OnInitializedAsync()
   {
     try
@@ -373,6 +608,8 @@
       _loading = true;
       _fatalError = null;
       _adminNeedsMemberSelection = false;
+
+      await LoadPayCardsAsync();
 
       // Use variables defined at top of OnInitializedAsync
       var state = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -421,6 +658,11 @@
         _fatalError = "عضو یافت نشد.";
         return;
       }
+
+      if (isMemberRole)
+        await LoadBaleStatusAsync(memberId);
+
+      await LoadInboxAsync(_me.MemberId);
 
       _householdOwnerMemberId = _me.Household?.OwnerMemberId;
 
@@ -588,6 +830,89 @@
     Nav.NavigateTo("/logout", forceLoad: true);
   }
 
+  private void OpenInbox()
+  {
+    Nav.NavigateTo(InboxHref);
+  }
+
+  private async Task LoadInboxAsync(long memberId)
+  {
+    try
+    {
+      _inboxMemberId = memberId;
+      _unreadMessages = await BaleRepo.GetUnreadMessageCountAsync(memberId);
+    }
+    catch
+    {
+      _unreadMessages = 0;
+    }
+  }
+
+  private async Task LoadPayCardsAsync()
+  {
+    try
+    {
+      var items = await BankCardService.GetAsync(isActive: true, top: 20);
+      _payCards = items.Where(x => !string.IsNullOrWhiteSpace(x.CardNumber)).ToList();
+    }
+    catch
+    {
+      _payCards = new();
+    }
+  }
+
+  private async Task CopyValueAsync(string? value, string label, string key)
+  {
+    var text = (value ?? string.Empty).Trim();
+    if (text.Length == 0)
+      return;
+
+    try
+    {
+      var copied = await JS.InvokeAsync<bool>("txShare.copyText", text);
+      if (!copied)
+        throw new InvalidOperationException("copy failed");
+
+      _copiedKey = key;
+      Toasts.Success($"{label} کپی شد");
+      StateHasChanged();
+      _ = ClearCopiedAsync(key);
+    }
+    catch
+    {
+      Toasts.Error("کپی انجام نشد؛ لطفاً عدد را دستی انتخاب کنید.");
+    }
+  }
+
+  private async Task ClearCopiedAsync(string key)
+  {
+    await Task.Delay(1600);
+    if (_copiedKey == key)
+    {
+      _copiedKey = null;
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private async Task LoadBaleStatusAsync(long memberId)
+  {
+    try
+    {
+      _baleSettings = await BaleRepo.GetSettingsAsync();
+      if (_baleSettings?.IsEnabled != true)
+        return;
+
+      _baleBannerMemberId = memberId;
+      _baleSubscriber = await BaleRepo.GetActiveByMemberAsync(memberId);
+    }
+    catch
+    {
+      _baleSettings = null;
+      _baleSubscriber = null;
+      _baleBannerMemberId = 0;
+    }
+  }
+
   private async Task<string?> ResolveMemberCodeAsync(long memberId)
   {
     // We derive member subsidiary code (M-xxxx) by using household banking rows when available.
@@ -651,6 +976,8 @@
       // Set current context member so all downstream blocks (including household report section)
       // behave like member login but for the selected household.
       _me = selectedMember;
+
+      await LoadInboxAsync(selectedMember.MemberId);
 
       // Load selected member's household data
       if (!string.IsNullOrWhiteSpace(selectedMember.HouseholdCode))

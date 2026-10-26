@@ -8,6 +8,7 @@
 @inject DsToastService Toasts
 @inject SmsMessageLogRepository Repo
 @inject SmsSender SmsSender
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 
 <PageTitle>گزارش پیامک‌ها</PageTitle>
 
@@ -160,14 +161,23 @@
 
     protected override async Task OnInitializedAsync()
     {
-        SetDefaultJalaliYearRangeIfEmpty();
+        await SetDefaultJalaliYearRangeIfEmptyAsync();
         await LoadAsync();
     }
 
-    private void SetDefaultJalaliYearRangeIfEmpty()
+    private async Task SetDefaultJalaliYearRangeIfEmptyAsync()
     {
         if (!string.IsNullOrWhiteSpace(_fromJalali) || !string.IsNullOrWhiteSpace(_toJalali))
             return;
+
+        try
+        {
+            var range = await FiscalRange.GetRangeAsync();
+            _fromJalali = range.From;
+            _toJalali = range.To;
+            return;
+        }
+        catch { }
 
         var today = DateTime.Today;
         var pc = new System.Globalization.PersianCalendar();
@@ -282,13 +292,13 @@
         }
     }
 
-    private void ClearFilters()
+    private async Task ClearFilters()
     {
         _fromJalali = string.Empty;
         _toJalali = string.Empty;
         _query = string.Empty;
         _deliveryFilter = string.Empty;
-        SetDefaultJalaliYearRangeIfEmpty();
+        await SetDefaultJalaliYearRangeIfEmptyAsync();
         _openDetails.Clear();
         _ = ScheduleFilterLoadAsync(0);
     }

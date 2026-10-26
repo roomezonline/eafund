@@ -135,24 +135,5 @@ VALUES (@amountRial, @notes);
             const string sql = @"DELETE FROM dbo.SmsCreditTopups WHERE TopupId = @topupId";
             await _db.ExecuteAsync(sql, new { topupId });
         }
-
-        public async Task<IReadOnlyList<SmsFeature>> GetFeaturesAsync()
-        {
-            await EnsureOpenAsync();
-            const string sql = @"SELECT FeatureKey, Title, IsEnabled, CreatedAt, UpdatedAt FROM dbo.SmsFeatures ORDER BY Title";
-            var rows = await _db.QueryAsync<SmsFeature>(sql);
-            return rows.ToList();
-        }
-
-        public async Task UpdateFeatureAsync(string featureKey, bool isEnabled)
-        {
-            await EnsureOpenAsync();
-            const string sql = @"
-UPDATE dbo.SmsFeatures
-SET IsEnabled = @isEnabled,
-    UpdatedAt = GETUTCDATE()
-WHERE FeatureKey = @featureKey";
-            await _db.ExecuteAsync(sql, new { featureKey, isEnabled });
-        }
     }
 }

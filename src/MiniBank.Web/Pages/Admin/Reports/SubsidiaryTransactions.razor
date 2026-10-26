@@ -8,6 +8,7 @@
 @inject DsToastService Toast
 @inject NavigationManager Nav
 @inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 @inject IJSRuntime JS
 
 <PageTitle>ریز تراکنش‌های @LevelLabel</PageTitle>
@@ -784,12 +785,9 @@
         {
             try
             {
-                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
-                if (fy != null)
-                {
-                    if (string.IsNullOrWhiteSpace(FromDate)) FromDate = fy.StartDate.ToPersianDate();
-                    if (string.IsNullOrWhiteSpace(ToDate)) ToDate = fy.EndDate.ToPersianDate();
-                }
+                var range = await FiscalRange.GetRangeAsync();
+                if (string.IsNullOrWhiteSpace(FromDate)) FromDate = range.From;
+                if (string.IsNullOrWhiteSpace(ToDate)) ToDate = range.To;
             }
             catch { }
             if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))

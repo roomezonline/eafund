@@ -7,6 +7,7 @@
 @inject HttpClient Http
 @inject IWebHostEnvironment Env
 @inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Services.FiscalYearContext FyContext
 @using MiniBank.Web.Models
 @using System.Text.Json
 
@@ -279,11 +280,21 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // فقط برچسب/نمایش: سالِ انتخاب‌شده توسط کاربر، وگرنه سالِ بازِ امروز.
         try
         {
-            _currentFy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.UtcNow);
+            _currentFy = await FyContext.GetActiveAsync();
         }
         catch { }
+
+        if (_currentFy == null)
+        {
+            try
+            {
+                _currentFy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
+            }
+            catch { }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

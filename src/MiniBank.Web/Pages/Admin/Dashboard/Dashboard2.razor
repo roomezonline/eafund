@@ -9,6 +9,7 @@
 @inject MiniBank.Web.Infrastructure.Repositories.TrialBalanceRepository TrialBalanceRepo
 @inject MiniBank.Web.Infrastructure.Repositories.LoanInstallmentReminderRepository LoanReminderRepo
 @inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Services.FiscalYearContext FyContext
 @inject MiniBank.Web.Infrastructure.Repositories.CashFlowBudgetRepository BudgetRepo
 @using MiniBank.Web.Models
 @using System.Text.Json
@@ -554,7 +555,7 @@
 
     <!-- Facilities Services -->
     <div class="baam-services-section">
-        <PermittedAnyContent Paths="@(new[] { "/admin/settings", "/admin/sms-panel", "/admin/sms-reports", "/admin/db-backups" })">
+        <PermittedAnyContent Paths="@(new[] { "/admin/settings", "/admin/sms-panel", "/admin/sms-reports", "/admin/bale-reports", "/admin/db-backups", "/admin/notifications", "/admin/bank-cards" })">
             <div class="section-title">تنظیمات سامانه</div>
             <div class="services-grid">
                 <PermittedContent Path="/admin/settings">
@@ -581,6 +582,14 @@
                         <span>پنل پیامک</span>
                     </a>
                 </PermittedContent>
+                <PermittedContent Path="/admin/notifications">
+                    <a href="/admin/notifications" class="service-item green">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </div>
+                        <span>اطلاع‌رسانی و بله</span>
+                    </a>
+                </PermittedContent>
                 <PermittedContent Path="/admin/sms-reports">
                     <a href="/admin/sms-reports" class="service-item light-blue">
                         <div class="service-icon">
@@ -589,8 +598,24 @@
                         <span>گزارش پیامک‌ها</span>
                     </a>
                 </PermittedContent>
+                <PermittedContent Path="/admin/bale-reports">
+                    <a href="/admin/bale-reports" class="service-item green">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-chart-column"></i>
+                        </div>
+                        <span>گزارش پیام‌های بله</span>
+                    </a>
+                </PermittedContent>
+                <PermittedContent Path="/admin/bank-cards">
+                    <a href="/admin/bank-cards" class="service-item red">
+                        <div class="service-icon">
+                            <i class="fa-solid fa-credit-card"></i>
+                        </div>
+                        <span>کارت‌های بانکی</span>
+                    </a>
+                </PermittedContent>
                 <PermittedContent Path="/dashboard">
-                    <a href="/dashboard" class="service-item green">
+                    <a href="/dashboard" class="service-item light-blue">
                         <div class="service-icon">
                             <i class="fa-solid fa-users"></i>
                         </div>
@@ -785,7 +810,12 @@
 
     private async Task LoadFyStatusAsync()
     {
-        try { _fyStatus = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.UtcNow); } catch { }
+        // فقط برچسب/نمایش: سالِ انتخاب‌شده توسط کاربر، وگرنه سالِ بازِ امروز.
+        try { _fyStatus = await FyContext.GetActiveAsync(); } catch { }
+        if (_fyStatus == null)
+        {
+            try { _fyStatus = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today); } catch { }
+        }
     }
 
     private int _overdueBorrowersCount;

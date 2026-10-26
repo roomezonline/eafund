@@ -81,26 +81,95 @@
   .v{font-weight:950;color:#0f172a;font-size:12px;white-space:nowrap}
   .note{margin-top:10px;font-weight:800;color:#334155;font-size:12px;white-space:pre-wrap}
 
+  /* ===== Desktop Table ===== */
+  .tx-desktop{border:1px solid #e2e8f0;border-radius:18px;background:#fff;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.04),0 8px 24px rgba(15,23,42,.04)}
+  .tx-scroll{overflow:auto}
   .tx-table{width:100%;border-collapse:separate;border-spacing:0}
-  .tx-table th,.tx-table td{padding:10px 12px;border-bottom:1px solid #eef2f7;font-weight:800;font-size:12px;vertical-align:middle}
-  .tx-table th{background:#f8fafc;color:#475569;text-align:right;position:sticky;top:0;z-index:1}
-  .tx-table tr:last-child td{border-bottom:none}
-  .tx-table td:last-child{font-weight:800;color:#334155;line-height:1.9;min-width:420px}
-  .tx-table tbody tr{cursor:pointer}
-  .tx-table tbody tr:hover{background:#f8fafc}
+  .tx-table th{
+    background:linear-gradient(180deg,#f8fafc,#f1f5f9);
+    color:#475569;font-weight:900;font-size:11.5px;letter-spacing:.2px;
+    text-align:right;padding:12px 14px;
+    border-bottom:2px solid #e2e8f0;
+    position:sticky;top:0;z-index:2;white-space:nowrap
+  }
+  .tx-table td{padding:11px 14px;border-bottom:1px solid #f1f5f9;font-weight:800;font-size:12.5px;vertical-align:middle;color:#0f172a}
+  .tx-table tbody tr{cursor:pointer;transition:background .15s}
+  .tx-table tbody tr:hover{background:#f0f7ff}
+  .tx-table tbody tr:nth-child(even){background:#fafcff}
+  .tx-table tbody tr:last-child td{border-bottom:none}
+  .tx-table td.tx-desc{font-weight:700;color:#64748b;line-height:1.7;min-width:260px;font-size:12px}
+  .tx-idx{color:#94a3b8;font-weight:900;font-size:11px;background:#f1f5f9;border-radius:8px;padding:3px 9px;display:inline-block;min-width:30px;text-align:center}
+  .tx-member{display:flex;align-items:center;gap:8px;font-weight:900;color:#1e293b;white-space:nowrap}
+  .tx-member i{color:#0ea5e9;font-size:12px;width:16px;text-align:center}
+  .op-badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;font-weight:900;font-size:11px;border:1px solid transparent;white-space:nowrap}
+  .op-badge i{font-size:10px}
+  .op-in{background:#dcfce7;border-color:#bbf7d0;color:#166534}
+  .op-out{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+  .op-inst{background:#dbeafe;border-color:#bfdbfe;color:#1e40af}
+  .op-loan{background:#ede9fe;border-color:#ddd6fe;color:#5b21b6}
+  .op-neutral{background:#f1f5f9;border-color:#e2e8f0;color:#475569}
+  .amt-cell{font-weight:950;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}
+  .bal-cell{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:900;font-size:12.5px}
+  .bal-cell.dep{color:#047857}
+  .bal-cell.dep.neg{color:#dc2626}
+  .bal-cell.ln{color:#b91c1c}
+  .bal-cell.zero{color:#94a3b8}
+  .tx-table td.tx-date{white-space:nowrap;color:#334155;font-weight:800;font-size:12px}
 
+  /* ===== Mobile Cards ===== */
   .tx-mobile{display:none}
-  .txm-card{border:1px solid #e5e7eb;border-radius:18px;background:linear-gradient(180deg,#ffffff,#f8fafc);padding:12px}
-  .txm-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-  .txm-amt{font-weight:950;font-size:18px;white-space:nowrap}
-  .txm-op{font-weight:950;font-size:12px;border-radius:999px;padding:6px 10px;border:1px solid #e5e7eb;background:#fff}
-  .txm-op.pos{border-color:#86efac;background:#dcfce7;color:#166534}
-  .txm-op.neg{border-color:#fecaca;background:#fee2e2;color:#991b1b}
-  .txm-meta{margin-top:10px;display:grid;grid-template-columns:1fr;gap:8px}
-  .txm-row{display:flex;justify-content:space-between;gap:10px}
-  .txm-k{color:#64748b;font-weight:900;font-size:12px;white-space:nowrap}
-  .txm-v{color:#0f172a;font-weight:950;font-size:12px;text-align:left}
-  .txm-desc{margin-top:10px;border-top:1px dashed #e2e8f0;padding-top:10px;color:#334155;line-height:1.9;font-weight:800;font-size:12px;white-space:normal}
+  .txm-card{
+    background:#fff;border:1px solid #e2e8f0;border-radius:20px;
+    padding:0;overflow:hidden;
+    box-shadow:0 1px 3px rgba(15,23,42,.05),0 6px 18px rgba(15,23,42,.04);
+    cursor:pointer;transition:transform .12s,box-shadow .12s
+  }
+  .txm-card:active{transform:scale(.985)}
+  .txm-head{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:10px 14px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);
+    border-bottom:1px solid #e2e8f0
+  }
+  .txm-date{color:#64748b;font-weight:800;font-size:11px;white-space:nowrap}
+  .txm-hero{padding:14px 14px 10px;text-align:center}
+  .txm-hero-label{color:#94a3b8;font-weight:800;font-size:11px;margin-bottom:4px}
+  .txm-hero-amt{font-weight:950;font-size:21px;font-variant-numeric:tabular-nums;line-height:1.3}
+  .txm-hero-amt.pos{color:#16a34a}
+  .txm-hero-amt.neg{color:#dc2626}
+  .txm-hero-amt.zero{color:#0f172a}
+  .txm-member{
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    padding:0 14px 12px;color:#334155;font-weight:900;font-size:12.5px
+  }
+  .txm-member i{color:#0ea5e9;font-size:12px}
+  .txm-balances{
+    display:grid;grid-template-columns:1fr 1fr;gap:8px;
+    padding:0 12px 12px
+  }
+  .txm-bal-chip{
+    border-radius:14px;padding:10px 8px;text-align:center;
+    border:1px solid transparent;min-width:0
+  }
+  .txm-bal-chip .txm-bal-k{font-weight:900;font-size:10.5px;margin-bottom:4px;opacity:.9;white-space:nowrap}
+  .txm-bal-chip .txm-bal-v{font-weight:950;font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .txm-bal-chip.dep{background:linear-gradient(180deg,#f0fdf4,#ecfdf5);border-color:#bbf7d0}
+  .txm-bal-chip.dep .txm-bal-k{color:#166534}
+  .txm-bal-chip.dep .txm-bal-v{color:#15803d}
+  .txm-bal-chip.dep.neg .txm-bal-v{color:#dc2626}
+  .txm-bal-chip.dep.zero .txm-bal-v{color:#64748b}
+  .txm-bal-chip.ln{background:linear-gradient(180deg,#fef2f2,#fff1f2);border-color:#fecaca}
+  .txm-bal-chip.ln .txm-bal-k{color:#991b1b}
+  .txm-bal-chip.ln .txm-bal-v{color:#b91c1c}
+  .txm-bal-chip.ln.zero .txm-bal-v{color:#64748b}
+  .txm-desc{
+    margin:0;padding:10px 14px;border-top:1px dashed #e2e8f0;
+    color:#64748b;font-weight:700;font-size:11.5px;line-height:1.8;
+    background:#fafcff
+  }
+  @@media (max-width: 380px){
+    .txm-bal-chip .txm-bal-v{font-size:10.5px}
+    .txm-hero-amt{font-size:19px}
+  }
 
   .load-more-wrap{display:flex;justify-content:center;margin-top:12px}
   .load-more{border:1px solid #e5e7eb;background:#fff;color:#0f172a;border-radius:14px;padding:10px 14px;font-weight:950;font-size:12px;cursor:pointer;min-width:220px}
@@ -127,6 +196,7 @@
   .txd-r-body{padding:16px 24px 24px}
   .txd-row{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #f1f5f9}
   .txd-row:last-child{border-bottom:none}
+  .txd-row.txd-balance-row .txd-v{font-size:16px}
   .txd-k{color:#94a3b8;font-weight:800;font-size:13px;white-space:nowrap}
   .txd-v{color:#0f172a;font-weight:950;font-size:14px;text-align:left;font-family:Vazir, Tahoma, sans-serif}
   .txd-footer{padding:12px;text-align:center;background:#f8fafc;border-top:1px solid #f1f5f9;color:#94a3b8;font-weight:850;font-size:12px}
@@ -135,7 +205,15 @@
 
   @@media (max-width: 700px){
     .tx-desktop{display:none}
-    .tx-mobile{display:flex;flex-direction:column;gap:10px}
+    .tx-mobile{display:flex;flex-direction:column;gap:12px}
+  }
+
+  /* Ensure table doesn't break on mobile */
+  @@media (max-width: 1024px){
+    .tx-table th:nth-child(6), .tx-table td:nth-child(6),
+    .tx-table th:nth-child(7), .tx-table td:nth-child(7){
+      min-width:200px
+    }
   }
 </style>
 
@@ -182,9 +260,9 @@
     }
   </div>
 
-  @if (_loading)
+  @if (_loading || _loadingBalances)
   {
-    <div class="card"><div class="muted">در حال بارگذاری...</div></div>
+    <div class="card"><div class="muted">@(_loadingBalances && !_loading ? "در حال محاسبه مانده‌ها..." : "در حال بارگذاری...")</div></div>
   }
   else if (_rows.Count == 0)
   {
@@ -192,16 +270,18 @@
   }
   else
   {
-    <div class="tx-desktop card" style="padding:0; overflow:hidden">
-      <div style="overflow:auto">
+    <div class="tx-desktop">
+      <div class="tx-scroll">
         <table class="tx-table">
           <thead>
             <tr>
-              <th style="width:70px">ردیف</th>
-              <th style="width:240px">عضو</th>
-              <th style="width:180px">مبلغ</th>
-              <th style="width:120px">عملیات</th>
-              <th style="width:190px">تاریخ/ساعت</th>
+              <th style="width:60px">#</th>
+              <th style="width:210px">عضو</th>
+              <th style="width:170px">مبلغ</th>
+              <th style="width:140px">عملیات</th>
+              <th style="width:170px">تاریخ/ساعت</th>
+              <th style="width:200px; min-width:200px">مانده سپرده</th>
+              <th style="width:200px; min-width:200px">مانده وام</th>
               <th>توضیحات</th>
             </tr>
           </thead>
@@ -212,13 +292,16 @@
             @foreach (var r in _rows)
             {
               idx++;
+              var opText = !string.IsNullOrWhiteSpace(r.Operation) ? r.Operation : OpLabel(r.Net);
               <tr @onclick="(()=>OpenTx(r))">
-                <td>@idx</td>
-                <td>@MemberNameByCode(r.MemberCode)</td>
-                <td class="amt @AmtClass(r.Net)">@FmtMoney(r.Amount)</td>
-                <td>@(!string.IsNullOrWhiteSpace(r.Operation) ? r.Operation : OpLabel(r.Net))</td>
-                <td style="white-space:nowrap">@FmtDateTime(r.OccurredAt)</td>
-                <td style="white-space:normal">@(!string.IsNullOrWhiteSpace(r.Description) ? r.Description : r.Notes)</td>
+                <td><span class="tx-idx">@idx</span></td>
+                <td><div class="tx-member"><i class="fa-solid fa-user"></i>@MemberNameByCode(r.MemberCode)</div></td>
+                <td class="amt-cell amt @AmtClass(r.Net)">@FmtMoney(r.Amount)</td>
+                <td><span class="op-badge @OpCls(r.Operation, r.Net)"><i class="@OpIcon(r.Operation, r.Net)"></i>@opText</span></td>
+                <td class="tx-date">@FmtDateTime(r.OccurredAt)</td>
+                <td class="bal-cell dep @BalanceClass(r.DepositBalanceAfter)">@FmtMoney(r.DepositBalanceAfter)</td>
+                <td class="bal-cell ln @BalanceClass(r.LoanBalanceAfter)">@FmtMoney(r.LoanBalanceAfter)</td>
+                <td class="tx-desc">@(!string.IsNullOrWhiteSpace(r.Description) ? r.Description : r.Notes)</td>
               </tr>
             }
           </tbody>
@@ -233,21 +316,39 @@
       @foreach (var r in _rows)
       {
         idxMobile++;
-        var txText = TxText(r, idxMobile);
         var cls = AmtClass(r.Net);
-        <div class="txm-card" @onclick="(()=>OpenTx(r))" style="cursor:pointer">
-          <div class="txm-top">
-            <div class="txm-amt amt @cls">@FmtMoney(r.Amount)</div>
-            <div class="txm-op @cls">@(!string.IsNullOrWhiteSpace(r.Operation) ? r.Operation : OpLabel(r.Net))</div>
+        var opText = !string.IsNullOrWhiteSpace(r.Operation) ? r.Operation : OpLabel(r.Net);
+        <div class="txm-card" @onclick="(()=>OpenTx(r))">
+          <div class="txm-head">
+            <span class="op-badge @OpCls(r.Operation, r.Net)"><i class="@OpIcon(r.Operation, r.Net)"></i>@opText</span>
+            <span class="txm-date"><i class="fa-regular fa-clock" style="margin-left:4px"></i>@FmtDateTime(r.OccurredAt)</span>
           </div>
 
-          <div class="txm-meta">
-            <div class="txm-row"><div class="txm-k">ردیف</div><div class="txm-v">@idxMobile</div></div>
-            <div class="txm-row"><div class="txm-k">عضو</div><div class="txm-v">@MemberNameByCode(r.MemberCode)</div></div>
-            <div class="txm-row"><div class="txm-k">تاریخ/ساعت</div><div class="txm-v">@FmtDateTime(r.OccurredAt)</div></div>
+          <div class="txm-hero">
+            <div class="txm-hero-label">مبلغ تراکنش</div>
+            <div class="txm-hero-amt @cls">@FmtMoney(r.Amount)</div>
           </div>
 
-          <div class="txm-desc">@(!string.IsNullOrWhiteSpace(r.Description) ? r.Description : r.Notes)</div>
+          <div class="txm-member">
+            <i class="fa-solid fa-user"></i>
+            @MemberNameByCode(r.MemberCode)
+          </div>
+
+          <div class="txm-balances">
+            <div class="txm-bal-chip dep @BalanceClass(r.DepositBalanceAfter)">
+              <div class="txm-bal-k"><i class="fa-solid fa-piggy-bank" style="margin-left:4px"></i>مانده سپرده</div>
+              <div class="txm-bal-v">@FmtMoney(r.DepositBalanceAfter)</div>
+            </div>
+            <div class="txm-bal-chip ln @BalanceClass(r.LoanBalanceAfter)">
+              <div class="txm-bal-k"><i class="fa-solid fa-hand-holding-dollar" style="margin-left:4px"></i>مانده وام</div>
+              <div class="txm-bal-v">@FmtMoney(r.LoanBalanceAfter)</div>
+            </div>
+          </div>
+
+          @if (!string.IsNullOrWhiteSpace(r.Description) || !string.IsNullOrWhiteSpace(r.Notes))
+          {
+            <div class="txm-desc"><i class="fa-regular fa-comment-dots" style="margin-left:4px;color:#94a3b8"></i>@(!string.IsNullOrWhiteSpace(r.Description) ? r.Description : r.Notes)</div>
+          }
         </div>
       }
     </div>
@@ -303,6 +404,14 @@
             <div class="txd-row"><div class="txd-k">عضو</div><div class="txd-v">@MemberNameByCode(_selectedTx.MemberCode)</div></div>
             @if (_selectedTx.TransactionId.HasValue) { <div class="txd-row"><div class="txd-k">شناسه تراکنش</div><div class="txd-v">@_selectedTx.TransactionId</div></div> }
             @if (_selectedTx.JournalId.HasValue) { <div class="txd-row"><div class="txd-k">شناسه سند</div><div class="txd-v">@_selectedTx.JournalId</div></div> }
+            <div class="txd-row txd-balance-row">
+              <div class="txd-k">مانده سپرده</div>
+              <div class="txd-v amt @BalanceClass(_selectedTx.DepositBalanceAfter)">@FmtMoney(_selectedTx.DepositBalanceAfter)</div>
+            </div>
+            <div class="txd-row txd-balance-row">
+              <div class="txd-k">مانده وام</div>
+              <div class="txd-v amt @BalanceClass(_selectedTx.LoanBalanceAfter)">@FmtMoney(_selectedTx.LoanBalanceAfter)</div>
+            </div>
             <div class="txd-row"><div class="txd-k">توضیحات</div><div class="txd-v" style="max-width:240px; line-height:1.6">@(!string.IsNullOrWhiteSpace(_selectedTx.Description) ? _selectedTx.Description : _selectedTx.Notes)</div></div>
           </div>
           <div class="txd-footer">سامانه مالی امام علی (ع)</div>
@@ -321,11 +430,12 @@
 @code {
   private bool _loading;
   private bool _loadingMore;
+  private bool _loadingBalances;
   private string? _error;
   private string? _fromJ;
   private string? _toJ;
   private int _pageSize = 60;
-  private List<MemberSimpleTransactionRow> _rows = new();
+  private List<MemberTransactionWithBalanceRow> _rows = new();
   private long? _targetMemberId;
   private long? _targetHouseholdId;
   private List<MemberBankingBalanceRow> _members = new();
@@ -341,7 +451,7 @@
   private bool _hasMore;
 
   private bool _showTxDialog;
-  private MemberSimpleTransactionRow? _selectedTx;
+  private MemberTransactionWithBalanceRow? _selectedTx;
 
   protected override async Task OnInitializedAsync()
   {
@@ -459,7 +569,7 @@
       }
 
       _currentCodes = codes;
-      await LoadMoreInternalAsync(fromDate, toDate);
+      await LoadBalancesAsync(fromDate, toDate);
     }
     catch (Exception ex)
     {
@@ -491,6 +601,40 @@
     }
   }
 
+  private async Task LoadBalancesAsync(DateTime? fromDate, DateTime? toDate)
+  {
+    if (_currentCodes.Count == 0)
+    {
+      _rows = new();
+      _hasMore = false;
+      return;
+    }
+
+    _loadingBalances = true;
+    try
+    {
+      var balanceRows = await TxReports.GetMemberTransactionsWithRunningBalancesAsync(_currentCodes, fromDate, toDate);
+      _rows = balanceRows.ToList();
+      _hasMore = false;
+      _cursorOccurredAt = null;
+      _cursorTransactionId = null;
+      _cursorJournalId = null;
+    }
+    catch
+    {
+      // Fallback to paginated simple transactions (without balances) if balance query fails
+      _rows = new();
+      _cursorOccurredAt = null;
+      _cursorTransactionId = null;
+      _cursorJournalId = null;
+      await LoadMoreInternalAsync(fromDate, toDate);
+    }
+    finally
+    {
+      _loadingBalances = false;
+    }
+  }
+
   private async Task LoadMoreInternalAsync(DateTime? fromDate, DateTime? toDate)
   {
     if (_currentCodes.Count == 0)
@@ -511,7 +655,29 @@
 
     if (page.Count > 0)
     {
-      _rows.AddRange(page);
+      // Convert to new model with zero balances (will be updated by LoadBalancesAsync)
+      var converted = page.Select(p => new MemberTransactionWithBalanceRow
+      {
+        TransactionId = p.TransactionId,
+        JournalId = p.JournalId,
+        OccurredAt = p.OccurredAt,
+        TypeId = p.TypeId,
+        TypeName = p.TypeName,
+        Amount = p.Amount,
+        Net = p.Net,
+        Operation = p.Operation,
+        MemberCode = p.MemberCode,
+        Description = p.Description,
+        Notes = p.Notes,
+        DepositBalanceAfter = 0,
+        LoanBalanceAfter = 0,
+        DepositPrincipalBalanceAfter = 0,
+        DepositInterestBalanceAfter = 0,
+        LoanPrincipalBalanceAfter = 0,
+        LoanInterestBalanceAfter = 0
+      }).ToList();
+      
+      _rows.AddRange(converted);
       var last = page[^1];
       _cursorOccurredAt = last.OccurredAt;
       _cursorTransactionId = last.TransactionId;
@@ -521,7 +687,7 @@
     _hasMore = page.Count >= _pageSize;
   }
 
-  private void OpenTx(MemberSimpleTransactionRow tx)
+  private void OpenTx(MemberTransactionWithBalanceRow tx)
   {
     _selectedTx = tx;
     _showTxDialog = true;
@@ -533,7 +699,7 @@
     _selectedTx = null;
   }
 
-  private string TxText(MemberSimpleTransactionRow r, int index)
+  private string TxText(MemberTransactionWithBalanceRow r, int index)
   {
     var op = !string.IsNullOrWhiteSpace(r.Operation) ? r.Operation : OpLabel(r.Net);
     var desc = !string.IsNullOrWhiteSpace(r.Description) ? r.Description : r.Notes;
@@ -546,6 +712,8 @@
            $"نوع عملیات: {op}\n" +
            $"عضو: {MemberNameByCode(r.MemberCode)}\n" +
            $"تاریخ/ساعت: {FmtDateTime(r.OccurredAt)}\n" +
+           $"مانده سپرده: {FmtMoney(r.DepositBalanceAfter)}\n" +
+           $"مانده وام: {FmtMoney(r.LoanBalanceAfter)}\n" +
            $"شناسه تراکنش: {txId}\n" +
            $"شناسه سند: {jId}\n" +
            $"توضیحات: {desc}";
@@ -704,4 +872,31 @@
 
   private static string FmtDate(DateTime dt)
     => dt.ToShamsiDateString();
+
+  private static string BalanceClass(decimal v)
+  {
+    if (v > 0) return "pos";
+    if (v < 0) return "neg";
+    return "zero";
+  }
+
+  private static string OpCls(string? operation, decimal net)
+  {
+    var op = string.IsNullOrWhiteSpace(operation) ? OpLabel(net) : operation!;
+    if (op.Contains("قسط")) return "op-inst";
+    if (op.Contains("پرداخت")) return "op-loan";
+    if (op.Contains("واریز")) return "op-in";
+    if (op.Contains("برداشت")) return "op-out";
+    return "op-neutral";
+  }
+
+  private static string OpIcon(string? operation, decimal net)
+  {
+    var op = string.IsNullOrWhiteSpace(operation) ? OpLabel(net) : operation!;
+    if (op.Contains("قسط")) return "fa-solid fa-rotate";
+    if (op.Contains("پرداخت")) return "fa-solid fa-hand-holding-dollar";
+    if (op.Contains("واریز")) return "fa-solid fa-arrow-down";
+    if (op.Contains("برداشت")) return "fa-solid fa-arrow-up";
+    return "fa-solid fa-minus";
+  }
 }

@@ -1,10 +1,15 @@
 @page "/admin/deposit-interest-calc"
 @using MiniBank.Web.Components.Extensions
 @using MiniBank.Web.Models
+@using MiniBank.Web.Models.Notifications
+@using MiniBank.Web.Services.Notifications
 @using System.Globalization
 @inject MiniBank.Web.Infrastructure.Repositories.TransactionReportRepository TxReports
+@inject MiniBank.Web.Infrastructure.Repositories.NotificationRepository NotificationRepo
 @inject MiniBank.Web.Services.DepositRateService DepositRateService
 @inject MiniBank.Web.Services.DepositInterestPostingService DepositInterestPostingService
+@inject MiniBank.Web.Services.Notifications.NotificationService Notifications
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
 @inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
 @using MiniBank.Web.Components.DesignSystem
 
@@ -53,12 +58,67 @@
         </div>
         <div class="dic-actions">
           <button type="button" class="dic-btn dic-btn-finalize" disabled="@(_loading || _postingBusy || _selectedCount == 0)" @onclick="RequestPostFinal">
-            @(_postingBusy ? "در حال ثبت..." : "ثبت نهایی")
+            @(_liveSending ? "در حال ارسال بله..." : (_postingBusy ? "در حال ثبت..." : "ثبت نهایی"))
           </button>
         </div>
       </div>
     </div>
   </div>
+
+  @if (_showSendProgress)
+  {
+    <div class="dic-progress-card @(_liveSending ? "is-live" : "is-done")">
+      <div class="dic-progress-head">
+        <div class="dic-progress-title">
+          <i class="fa-solid @(_liveSending ? "fa-paper-plane" : (_liveFailed > 0 || _liveNoChannel > 0 ? "fa-circle-exclamation" : "fa-circle-check"))"></i>
+          @(_liveSending
+            ? (_liveApprovalMode ? "در حال ثبت اطلاع‌رسانی‌ها در صف تایید" : "در حال ارسال اطلاع‌رسانی بله")
+            : "پردازش اطلاع‌رسانی بله پایان یافت")
+        </div>
+        <div class="dic-progress-count">
+          <span>@_liveProcessed از @_liveTotal</span>
+          <span class="dic-progress-percent">@LivePercent%</span>
+        </div>
+      </div>
+
+      <div class="dic-progress-bar" role="progressbar" aria-valuenow="@LivePercent" aria-valuemin="0" aria-valuemax="100">
+        <div class="dic-progress-fill" style="width:@(LivePercent)%"></div>
+      </div>
+
+      <div class="dic-notify-chips" style="margin-top:10px;">
+        <span class="dic-notify-chip sent">ارسال‌شده: @_liveSent</span>
+        @if (_liveApprovalMode)
+        {
+          <span class="dic-notify-chip pending">در انتظار تایید: @_livePendingApproval</span>
+        }
+        @if (_liveQueued > 0)
+        {
+          <span class="dic-notify-chip queued">در صف پس‌زمینه: @_liveQueued</span>
+        }
+        <span class="dic-notify-chip skipped">بدون اتصال بله: @_liveNoChannel</span>
+        <span class="dic-notify-chip failed">ناموفق: @_liveFailed</span>
+      </div>
+
+      <div class="dic-progress-foot">
+        @if (_liveSending)
+        {
+          <span>در حال پردازش پیام‌ها؛ لطفاً این صفحه را نبندید.</span>
+        }
+        else
+        {
+          if (_liveApprovalMode)
+          {
+            <span>ثبت در صف تایید انجام شد (@_liveProcessed از @_liveTotal). برای ارسال، از پنل وضعیت همین ثبت تایید کنید.</span>
+          }
+          else
+          {
+            <span>ارسال پایان یافت: @_liveSent موفق، @_liveNoChannel بدون اتصال، @_liveFailed ناموفق.</span>
+          }
+          <button type="button" class="dic-btn dic-btn-mini" @onclick="CloseSendProgress">بستن</button>
+        }
+      </div>
+    </div>
+  }
 
   <div class="dic-table-wrap">
     @if (_loading)
@@ -168,33 +228,54 @@
       }
       else
       {
-        <div class="dic-table-scroll">
-          <table class="dic-table dic-table-history">
-            <thead>
-              <tr>
-                <th>ماه</th>
-                <th>تاریخ ثبت</th>
-                <th>نرخ</th>
-                <th>جمع سود</th>
-                <th>عملیات</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach (var r in _historyRuns)
-              {
-                <tr class="@(_selectedRunId == r.RunId ? "row-active" : "")" @onclick="() => ToggleRunDetailsAsync(r.RunId)">
-                  <td class="cell-center">@ToPersianMonthTitle(r.PeriodStartDate)</td>
-                  <td class="cell-center">@r.PostingOccurredAt.ToPersianDate()</td>
-                  <td class="cell-center">@(r.AnnualRatePercent.ToString("0.##", CultureInfo.InvariantCulture) + "%")</td>
-                  <td class="amount-td td-profit">@ToMoney(r.SumProfit)</td>
-                  <td class="cell-center dic-history-actions">
-                    <button type="button" class="dic-btn dic-btn-mini dic-btn-danger" disabled="@_historyLoading" @onclick="() => RequestDeleteRun(r)" @onclick:stopPropagation="true">حذف</button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+        @foreach (var yearGroup in GetGroupedHistoryByYear())
+        {
+          var year = yearGroup.Key;
+          var isExpanded = _expandedYears.Contains(year);
+          var yearRuns = yearGroup.OrderByDescending(r => r.PeriodStartDate).ToList();
+          var yearTotalProfit = yearRuns.Sum(r => r.SumProfit);
+          var yearCount = yearRuns.Count;
+
+          <div class="dic-year-group">
+            <div class="dic-year-header" @onclick="() => ToggleYearExpanded(year)">
+              <i class="fas @(isExpanded ? "fa-chevron-down" : "fa-chevron-right") dic-year-toggle-icon"></i>
+              <span class="dic-year-title">@year</span>
+              <span class="dic-year-count">(@yearCount ماه)</span>
+              <span class="dic-year-total">جمع سود: @ToMoney(yearTotalProfit)</span>
+            </div>
+
+            @if (isExpanded)
+            {
+              <div class="dic-table-scroll dic-year-content">
+                <table class="dic-table dic-table-history">
+                  <thead>
+                    <tr>
+                      <th>ماه</th>
+                      <th>تاریخ ثبت</th>
+                      <th>نرخ</th>
+                      <th>جمع سود</th>
+                      <th>عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach (var r in yearRuns)
+                    {
+                      <tr class="@(_selectedRunId == r.RunId ? "row-active" : "")" @onclick="() => ToggleRunDetailsAsync(r.RunId)">
+                        <td class="cell-center">@ToPersianMonthTitle(r.PeriodStartDate)</td>
+                        <td class="cell-center">@r.PostingOccurredAt.ToPersianDate()</td>
+                        <td class="cell-center">@(r.AnnualRatePercent.ToString("0.##", CultureInfo.InvariantCulture) + "%")</td>
+                        <td class="amount-td td-profit">@ToMoney(r.SumProfit)</td>
+                        <td class="cell-center dic-history-actions">
+                          <button type="button" class="dic-btn dic-btn-mini dic-btn-danger" disabled="@_historyLoading" @onclick="() => RequestDeleteRun(r)" @onclick:stopPropagation="true">حذف</button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        }
       }
 
       @if (_selectedRunId.HasValue)
@@ -241,6 +322,85 @@
               </table>
             </div>
           }
+
+          <div class="dic-notify-panel">
+            <div class="dic-notify-head">
+              <div class="dic-filter-title" style="margin-bottom:0;">
+                <i class="fa-solid fa-comments" style="color:#2563eb;"></i>
+                وضعیت اطلاع‌رسانی بله این ثبت
+              </div>
+              <div class="dic-history-actions">
+                <button type="button" class="dic-btn dic-btn-mini" disabled="@_runNotifyBusy" @onclick="RefreshRunNotifyStatusAsync">بررسی مجدد</button>
+                <button type="button" class="dic-btn dic-btn-mini" disabled="@(_runNotifyBusy || (_runNotifyStatus?.PendingApproval ?? 0) == 0)" @onclick="ApproveRunNotificationsAsync">
+                  تایید همه در انتظار@((_runNotifyStatus?.PendingApproval ?? 0) > 0 ? $" ({_runNotifyStatus!.PendingApproval})" : "")
+                </button>
+                <button type="button" class="dic-btn dic-btn-mini" disabled="@(_runNotifyBusy || ((_runNotifyStatus?.Failed ?? 0) + (_runNotifyStatus?.Skipped ?? 0)) == 0)" @onclick="RetryRunNotificationsAsync">
+                  تلاش مجدد ناموفق‌ها
+                </button>
+              </div>
+            </div>
+
+            @if (_runNotifyStatus == null)
+            {
+              <div class="dic-loading" style="margin-top:10px;">در حال بارگذاری وضعیت اطلاع‌رسانی...</div>
+            }
+            else
+            {
+              var eligible = _runItems.Count(x => Math.Round(x.MonthProfit, 0, MidpointRounding.AwayFromZero) > 0m);
+              var missing = Math.Max(0, eligible - _runNotifyStatus.Total);
+
+              <div class="dic-notify-chips">
+                <span class="dic-notify-chip total">اعضای واجد شرایط: @eligible</span>
+                <span class="dic-notify-chip total">ثبت‌شده در صف: @_runNotifyStatus.Total</span>
+                <span class="dic-notify-chip pending">در انتظار تایید: @_runNotifyStatus.PendingApproval</span>
+                <span class="dic-notify-chip queued">در صف: @_runNotifyStatus.Queued</span>
+                <span class="dic-notify-chip sending">در حال ارسال: @_runNotifyStatus.Sending</span>
+                <span class="dic-notify-chip sent">ارسال‌شده: @_runNotifyStatus.Sent</span>
+                <span class="dic-notify-chip sent">تحویل به بله: @_runNotifyStatus.BaleSent</span>
+                <span class="dic-notify-chip failed">ناموفق: @_runNotifyStatus.Failed</span>
+                <span class="dic-notify-chip skipped">ارسال‌نشده: @_runNotifyStatus.Skipped</span>
+                @if (_runNotifyStatus.Cancelled > 0)
+                {
+                  <span class="dic-notify-chip skipped">لغو‌شده: @_runNotifyStatus.Cancelled</span>
+                }
+              </div>
+
+              <div class="dic-notify-note">
+                «ارسال‌شده» یعنی سرور بله پیام را پذیرفته است. اگر موارد «در انتظار تایید» وجود دارد، با دکمه بالا تایید کنید؛
+                ارسال توسط سرویس پس‌زمینه و به‌ترتیب انجام می‌شود. جزئیات هر پیام در
+                <a href="/admin/bale-reports">گزارش پیام‌های بله</a> قابل مشاهده است.
+              </div>
+
+              @if (eligible > 0 && _runNotifyStatus.Total == 0)
+              {
+                <div class="dic-notify-warning">
+                  برای این ثبت هیچ اطلاع‌رسانی در صف ثبت نشده است؛ یا مربوط به قبل از فعال‌سازی این قابلیت است
+                  یا اعضای واجد شرایط به پیام‌رسان بله متصل نبوده‌اند.
+                  <a href="/admin/notifications/subscribers">مدیریت اعضای متصل</a>
+                </div>
+              }
+              else if (missing > 0)
+              {
+                <div class="dic-notify-warning">
+                  @missing عضو واجد شرایط در صف ثبت نشده است؛ معمولاً به دلیل عدم اتصال عضو به پیام‌رسان بله.
+                  <a href="/admin/notifications/subscribers">مدیریت اعضای متصل</a>
+                </div>
+              }
+
+              @if (_notifySummaryRunId == _selectedRunId && _notifySummary is { NoChannel: > 0 })
+              {
+                <div class="dic-notify-warning">
+                  @_notifySummary.NoChannel عضو به پیام‌رسان بله متصل نیست و اعلانی دریافت نکرد.
+                  <a href="/admin/notifications/subscribers">مدیریت اعضای متصل</a>
+                </div>
+              }
+
+              @if (!string.IsNullOrWhiteSpace(_runNotifyError))
+              {
+                <div class="dic-notify-error">خطا در دریافت وضعیت: @_runNotifyError</div>
+              }
+            }
+          </div>
         </div>
       }
     </div>
@@ -260,7 +420,7 @@
              Title="تأیید ثبت نهایی سود"
              Message="@_postConfirmMessage"
              Variant="warning"
-             ConfirmText="ثبت کن"
+             ConfirmText="@_postConfirmText"
              CancelText="انصراف"
              Loading="@_postingBusy"
              OnConfirm="ConfirmPostFinal"
@@ -302,10 +462,20 @@
   private bool _historyLoading;
   private readonly List<DepositInterestRun> _historyRuns = new();
 
+  private readonly HashSet<int> _expandedYears = new();
+
   private long? _selectedRunId;
   private DateTime _selectedRunPeriodStart;
   private bool _runItemsLoading;
   private readonly List<DepositInterestRunItem> _runItems = new();
+
+  private NotificationRunStatusSummary? _runNotifyStatus;
+  private bool _runNotifyBusy;
+  private string? _runNotifyError;
+  private InterestNotifySummary? _notifySummary;
+  private long? _notifySummaryRunId;
+
+  private sealed record InterestNotifySummary(int Sent, int Queued, int PendingApproval, int NoChannel, int Failed);
 
   private bool _showDeleteConfirm;
   private bool _deleteBusy;
@@ -314,11 +484,28 @@
 
   private bool _showPostConfirm;
   private string _postConfirmMessage = string.Empty;
+  private string _postConfirmText = "ثبت کن";
+  private bool _postNotifyEnabled = true;
+  private bool _postRequiresApproval;
+
+  private bool _showSendProgress;
+  private bool _liveSending;
+  private bool _liveApprovalMode;
+  private int _liveTotal;
+  private int _liveProcessed;
+  private int _liveSent;
+  private int _liveQueued;
+  private int _livePendingApproval;
+  private int _liveNoChannel;
+  private int _liveFailed;
+
+  private int LivePercent => _liveTotal <= 0 ? 0 : (int)Math.Round(_liveProcessed * 100m / _liveTotal, MidpointRounding.AwayFromZero);
 
   private sealed class RowVm
   {
     public long MemberId { get; set; }
     public string MemberName { get; set; } = string.Empty;
+    public string? FatherName { get; set; }
     public string? MemberCode { get; set; }
 
     public decimal NetPrincipal { get; set; }
@@ -432,6 +619,8 @@
       _selectedRunId = runId;
       _runItemsLoading = true;
       _runItems.Clear();
+      _runNotifyStatus = null;
+      _runNotifyError = null;
       await InvokeAsync(StateHasChanged);
 
       var run = _historyRuns.FirstOrDefault(x => x.RunId == runId);
@@ -439,6 +628,7 @@
 
       var items = await DepositInterestPostingService.GetItemsAsync(runId);
       _runItems.AddRange(items);
+      await LoadRunNotifyStatusAsync(runId);
     }
     catch (Exception ex)
     {
@@ -457,6 +647,8 @@
     {
       _selectedRunId = null;
       _runItems.Clear();
+      _runNotifyStatus = null;
+      _runNotifyError = null;
       await InvokeAsync(StateHasChanged);
       return;
     }
@@ -464,8 +656,40 @@
     await LoadRunDetailsAsync(runId);
   }
 
-  private Task RequestPostFinal()
+  private Task ToggleYearExpanded(int year)
   {
+    if (_expandedYears.Contains(year))
+      _expandedYears.Remove(year);
+    else
+      _expandedYears.Add(year);
+
+    return InvokeAsync(StateHasChanged);
+  }
+
+  private IReadOnlyList<IGrouping<int, DepositInterestRun>> GetGroupedHistoryByYear()
+  {
+    return _historyRuns
+        .GroupBy(r => new PersianCalendar().GetYear(r.PeriodStartDate))
+        .OrderByDescending(g => g.Key)
+        .ToList();
+  }
+
+  private async Task RequestPostFinal()
+  {
+    try
+    {
+      var feature = await NotificationRepo.GetFeatureAsync("deposit_interest_run");
+      _postNotifyEnabled = feature is { IsEnabled: true };
+      _postRequiresApproval = _postNotifyEnabled && feature!.ApprovalMode == 1;
+    }
+    catch
+    {
+      _postNotifyEnabled = true;
+      _postRequiresApproval = false;
+    }
+
+    _postConfirmText = _postNotifyEnabled && !_postRequiresApproval ? "ثبت و ارسال بله" : "ثبت کن";
+
     var startOfMonth = GetPersianMonthStart(_targetDate);
     var totalMembers = _allRows.Count;
     var activeCount = _allRows.Count(x => x.IsActiveForCalc);
@@ -478,6 +702,12 @@
 
     var totalNetNotAllocated = _allRows.Where(x => x.IsActiveForCalc && !x.IsSelected).Sum(x => x.TotalNet);
     var totalProfitNotAllocated = _allRows.Where(x => x.IsActiveForCalc && !x.IsSelected).Sum(x => x.MonthProfit);
+
+    var notifyNote = !_postNotifyEnabled
+      ? "اطلاع‌رسانی بله برای واریز سود در تنظیمات غیرفعال است؛ با ثبت نهایی فقط اسناد سود صادر می‌شود."
+      : _postRequiresApproval
+        ? "برای اعضای انتخاب‌شده‌ای که به پیام‌رسان بله متصل هستند یک اطلاع‌رسانی در صف قرار می‌گیرد و تا <strong>تایید مدیر</strong> ارسال نمی‌شود. پس از ثبت، وضعیت ارسال همان ثبت در پایین همین صفحه نمایش داده می‌شود."
+        : "برای اعضای انتخاب‌شده‌ای که به پیام‌رسان بله متصل هستند، بلافاصله پس از تایید، پیام‌ها <strong>به‌صورت زنده و تک‌به‌تک</strong> ارسال می‌شوند و پیشرفت تا پایان نمایش داده می‌شود. اعضای بدون اتصال بله پیامی دریافت نمی‌کنند.";
 
     _postConfirmMessage = $@"<div style='line-height:1.9'>
   <div style='margin-bottom:8px'>آیا از <strong>ثبت نهایی</strong> سود سپرده مطمئن هستید؟</div>
@@ -507,12 +737,15 @@
         <div style='display:flex; justify-content:space-between; gap:10px'><span>عدم سود </span><span style='direction:ltr; font-variant-numeric:tabular-nums; font-weight:900; color:#dc2626'>{ToMoney(totalProfitNotAllocated)} </span></div>
       </div>
     </div>
+
+    <div style='margin-top:10px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:10px 12px; color:#92400e; line-height:1.9;'>
+      {notifyNote}
+    </div>
   </div>
 </div>";
 
     _showPostConfirm = true;
-    StateHasChanged();
-    return Task.CompletedTask;
+    await InvokeAsync(StateHasChanged);
   }
 
   private Task CancelPostFinal()
@@ -573,10 +806,44 @@
         Notes: notes,
         CreatedBy: "admin");
 
-      await DepositInterestPostingService.PostAsync(req);
-      Toasts.Success("ثبت نهایی سود با موفقیت انجام شد");
+      var runId = await DepositInterestPostingService.PostAsync(req);
+
+      var summary = new InterestNotifySummary(0, 0, 0, 0, 0);
+      if (_postNotifyEnabled)
+      {
+        try
+        {
+          summary = await NotifyInterestPostedAsync(runId, items, startOfMonth, _postingDate, _postRequiresApproval);
+        }
+        catch (Exception ex)
+        {
+          Toasts.Warning($"سود ثبت شد اما اطلاع‌رسانی بله انجام نشد: {ex.Message}");
+        }
+      }
+
+      _notifySummary = summary;
+      _notifySummaryRunId = runId;
+
+      if (!_postNotifyEnabled)
+        Toasts.Warning("اطلاع‌رسانی بله برای واریز سود در تنظیمات غیرفعال است؛ فقط اسناد سود ثبت شد.");
+      else if (summary.PendingApproval > 0)
+        Toasts.Success($"ثبت نهایی سود انجام شد؛ {summary.PendingApproval} اطلاع‌رسانی بله در انتظار تایید مدیر است.");
+      else if (summary.Sent > 0)
+        Toasts.Success($"ثبت نهایی سود انجام شد؛ {summary.Sent} اطلاع‌رسانی بله ارسال شد.");
+      else if (summary.Queued > 0)
+        Toasts.Success($"ثبت نهایی سود انجام شد؛ {summary.Queued} اطلاع‌رسانی بله در صف ارسال قرار گرفت.");
+      else
+        Toasts.Success("ثبت نهایی سود با موفقیت انجام شد");
+
+      if (summary.NoChannel > 0)
+        Toasts.Warning($"{summary.NoChannel} عضو به پیام‌رسان بله متصل نیست و اعلانی دریافت نکرد.");
+
+      if (summary.Failed > 0)
+        Toasts.Warning($"{summary.Failed} اطلاع‌رسانی ثبت نشد؛ وضعیت را در پنل اطلاع‌رسانی بررسی کنید.");
 
       await LoadHistoryAsync();
+      _expandedYears.Add(new PersianCalendar().GetYear(startOfMonth));
+      await LoadRunDetailsAsync(runId);
     }
     catch (Exception ex)
     {
@@ -697,6 +964,7 @@
         {
           MemberId = r.MemberId,
           MemberName = r.MemberName,
+          FatherName = r.FatherName,
           MemberCode = r.MemberCode,
           NetPrincipal = netP,
           NetInterest = netI,
@@ -873,6 +1141,299 @@
       _ => m.ToString(CultureInfo.InvariantCulture)
     };
     return $"{name} {y}";
+  }
+
+  private async Task<InterestNotifySummary> NotifyInterestPostedAsync(
+    long runId,
+    IReadOnlyList<DepositInterestRunItem> items,
+    DateTime periodStart,
+    DateTime postingDate,
+    bool approvalRequired)
+  {
+    var rowsById = _allRows
+      .Where(x => x.IsSelected)
+      .GroupBy(x => x.MemberId)
+      .ToDictionary(g => g.Key, g => g.First());
+
+    var monthTitle = ToPersianInterestMonthTitle(periodStart);
+    var date = ToPersianDigits(postingDate.ToPersianDate());
+    var dispatchNow = !approvalRequired;
+
+    var sent = 0;
+    var queued = 0;
+    var pending = 0;
+    var noChannel = 0;
+    var failed = 0;
+
+    _showSendProgress = true;
+    _liveSending = true;
+    _liveApprovalMode = approvalRequired;
+    _liveTotal = items.Count(x => Math.Round(x.MonthProfit, 0, MidpointRounding.AwayFromZero) > 0m);
+    _liveProcessed = 0;
+    _liveSent = 0;
+    _liveQueued = 0;
+    _livePendingApproval = 0;
+    _liveNoChannel = 0;
+    _liveFailed = 0;
+    await SafeRefreshAsync();
+
+    try
+    {
+      foreach (var item in items)
+      {
+        var amount = Math.Round(item.MonthProfit, 0, MidpointRounding.AwayFromZero);
+        if (amount <= 0m)
+          continue;
+
+        var owner = rowsById.TryGetValue(item.MemberId, out var row)
+          ? BuildStatementOwnerName(row.MemberName, row.FatherName)
+          : BuildStatementOwnerName(item.MemberName, null);
+
+        var total = Math.Round(item.TotalNet, 0, MidpointRounding.AwayFromZero) + amount;
+        var text = BuildInterestBaleText(
+          owner,
+          amount.ToString("N0", CultureInfo.InvariantCulture),
+          total.ToString("N0", CultureInfo.InvariantCulture),
+          monthTitle,
+          date);
+
+        try
+        {
+          var result = await Notifications.NotifyAsync(new NotificationRequest
+          {
+            FeatureKey = "deposit_interest_run",
+            MessageText = text,
+            BaleMessageText = text,
+            MemberId = item.MemberId,
+            HeadMemberId = item.MemberId,
+            RecipientName = owner,
+            EventKey = $"deposit_interest:{runId}:{item.MemberId}",
+            CreatedBy = "deposit-interest",
+            DispatchNow = dispatchNow
+          });
+
+          if (!result.Ok)
+          {
+            if (result.Status == NotificationStatuses.Skipped)
+            {
+              noChannel++;
+              _liveNoChannel++;
+            }
+            else if (result.Status == NotificationStatuses.PendingApproval)
+            {
+              pending++;
+              _livePendingApproval++;
+            }
+            else if (result.Status == NotificationStatuses.Queued)
+            {
+              queued++;
+              _liveQueued++;
+            }
+            else
+            {
+              failed++;
+              _liveFailed++;
+            }
+          }
+          else if (result.NotificationId.HasValue)
+          {
+            if (result.PendingApproval)
+            {
+              pending++;
+              _livePendingApproval++;
+            }
+            else if (result.SmsSent || result.BaleSent)
+            {
+              sent++;
+              _liveSent++;
+            }
+            else
+            {
+              queued++;
+              _liveQueued++;
+            }
+          }
+          else
+          {
+            // همین اعلان قبلاً برای این ثبت ایجاد شده است.
+            queued++;
+            _liveQueued++;
+          }
+        }
+        catch
+        {
+          // یک خطای ارسال نباید ثبت سود و بقیه اطلاع‌رسانی‌ها را متوقف کند.
+          failed++;
+          _liveFailed++;
+        }
+
+        _liveProcessed++;
+        await SafeRefreshAsync();
+      }
+    }
+    finally
+    {
+      _liveSending = false;
+      await SafeRefreshAsync();
+    }
+
+    return new InterestNotifySummary(sent, queued, pending, noChannel, failed);
+  }
+
+  private async Task SafeRefreshAsync()
+  {
+    try
+    {
+      await InvokeAsync(StateHasChanged);
+    }
+    catch
+    {
+      // قطع شدن اتصال کاربر نباید ادامه ارسال پیام‌ها را متوقف کند.
+    }
+  }
+
+  private void CloseSendProgress()
+  {
+    _showSendProgress = false;
+    StateHasChanged();
+  }
+
+  private static string RunEventKeyPrefix(long runId) => $"deposit_interest:{runId}:";
+
+  private async Task LoadRunNotifyStatusAsync(long runId)
+  {
+    try
+    {
+      _runNotifyStatus = await NotificationRepo.GetRunStatusAsync("deposit_interest_run", RunEventKeyPrefix(runId));
+      _runNotifyError = null;
+    }
+    catch (Exception ex)
+    {
+      _runNotifyError = ex.Message;
+    }
+
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task RefreshRunNotifyStatusAsync()
+  {
+    if (!_selectedRunId.HasValue || _runNotifyBusy)
+      return;
+
+    _runNotifyBusy = true;
+    await InvokeAsync(StateHasChanged);
+
+    try
+    {
+      await LoadRunNotifyStatusAsync(_selectedRunId.Value);
+    }
+    finally
+    {
+      _runNotifyBusy = false;
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private async Task ApproveRunNotificationsAsync()
+  {
+    if (!_selectedRunId.HasValue || _runNotifyBusy)
+      return;
+
+    _runNotifyBusy = true;
+    await InvokeAsync(StateHasChanged);
+
+    try
+    {
+      var user = await CurrentUserAsync();
+      var approved = await NotificationRepo.ApprovePendingByEventKeyPrefixAsync(RunEventKeyPrefix(_selectedRunId.Value), user);
+
+      Toasts.Success(approved > 0
+        ? $"{approved} اطلاع‌رسانی تایید شد و در صف ارسال پس‌زمینه قرار گرفت."
+        : "موردی در انتظار تایید نبود.");
+
+      await LoadRunNotifyStatusAsync(_selectedRunId.Value);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در تایید اطلاع‌رسانی‌ها: {ex.Message}");
+    }
+    finally
+    {
+      _runNotifyBusy = false;
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private async Task RetryRunNotificationsAsync()
+  {
+    if (!_selectedRunId.HasValue || _runNotifyBusy)
+      return;
+
+    _runNotifyBusy = true;
+    await InvokeAsync(StateHasChanged);
+
+    try
+    {
+      var retried = await NotificationRepo.RetryByEventKeyPrefixAsync(RunEventKeyPrefix(_selectedRunId.Value));
+
+      Toasts.Success(retried > 0
+        ? $"{retried} اطلاع‌رسانی برای تلاش مجدد در صف قرار گرفت."
+        : "مورد ناموفقی برای تلاش مجدد وجود ندارد.");
+
+      await LoadRunNotifyStatusAsync(_selectedRunId.Value);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در تلاش مجدد: {ex.Message}");
+    }
+    finally
+    {
+      _runNotifyBusy = false;
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private async Task<string?> CurrentUserAsync()
+  {
+    var state = await AuthStateProvider.GetAuthenticationStateAsync();
+    return state.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+           ?? state.User.Identity?.Name
+           ?? "admin";
+  }
+
+  private static string BuildInterestBaleText(string owner, string amount, string total, string monthTitle, string postingDate)
+  {
+    return "عضو محترم صندوق امام علی(ع)\n" +
+           "با سلام\n" +
+           $"به اطلاع می‌رساند که مبلغ {amount} ریال بابت سود سپرده {monthTitle} متعلق به {owner} در تاریخ {postingDate} ثبت سامانه گردید.\n" +
+           $"مانده کل سپرده شما تاکنون: {total} ریال می باشد.\n\n" +
+           "صندوق امام علی (ع)";
+  }
+
+  private static string BuildStatementOwnerName(string? memberName, string? fatherName)
+  {
+    var owner = (memberName ?? string.Empty).Trim();
+    if (owner.Length == 0)
+      owner = "عضو";
+
+    if (!string.IsNullOrWhiteSpace(fatherName) && !owner.Contains('☆'))
+      owner = $"{owner}☆{fatherName.Trim()}";
+
+    return owner;
+  }
+
+  private static string ToPersianInterestMonthTitle(DateTime anyDateInMonth)
+  {
+    var title = ToPersianMonthTitle(anyDateInMonth);
+    var parts = title.Split(' ', 2);
+    return parts.Length == 2 ? $"{parts[0]}ماه {ToPersianDigits(parts[1])}" : title;
+  }
+
+  private static string ToPersianDigits(string value)
+  {
+    return value
+      .Replace('0', '۰').Replace('1', '۱').Replace('2', '۲').Replace('3', '۳').Replace('4', '۴')
+      .Replace('5', '۵').Replace('6', '۶').Replace('7', '۷').Replace('8', '۸').Replace('9', '۹');
   }
 
   private static string StatusClass(RowVm r)

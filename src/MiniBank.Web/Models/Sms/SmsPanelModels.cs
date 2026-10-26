@@ -13,15 +13,6 @@ namespace MiniBank.Web.Models.Sms
         public DateTime UpdatedAt { get; set; }
     }
 
-    public class SmsFeature
-    {
-        public string FeatureKey { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public bool IsEnabled { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
-    }
-
     public class SmsCreditTopup
     {
         public long TopupId { get; set; }

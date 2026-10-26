@@ -1,0 +1,350 @@
+@inject MiniBank.Web.Infrastructure.Repositories.BaleBotRepository BaleRepo
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+<div class="bale-gate" dir="rtl" role="dialog" aria-modal="true" aria-labelledby="bale-gate-title">
+    <div class="bale-gate-card">
+        <div class="bale-gate-head">
+            <div class="bale-gate-icon"><i class="fa-solid fa-paper-plane"></i></div>
+            <div class="bale-gate-heading">
+                <div class="bale-gate-title" id="bale-gate-title">اتصال به بله الزامی است</div>
+                <div class="bale-gate-text">برای ورود به داشبورد، حساب خود را به ربات بله متصل کنید. پس از اتصال این پنجره خودکار بسته می‌شود.</div>
+            </div>
+        </div>
+
+        @if (_loadingLink)
+        {
+            <div class="bale-gate-loading">
+                <span class="bale-gate-spinner"></span>
+                در حال ساخت لینک اتصال...
+            </div>
+        }
+        else if (_error != null)
+        {
+            <div class="bale-gate-error">
+                <i class="fa-solid fa-circle-xmark"></i>
+                <span>@_error</span>
+            </div>
+            <button type="button" class="bale-gate-btn primary" @onclick="LoadLinkAsync" disabled="@_busy">
+                <i class="fa-solid fa-rotate-right"></i>
+                تلاش مجدد
+            </button>
+        }
+        else
+        {
+            <a class="bale-gate-btn primary" href="@_link" target="_blank" rel="noopener">
+                <i class="fa-solid fa-paper-plane"></i>
+                باز کردن بله و اتصال
+            </a>
+
+            <div class="bale-gate-status @StatusClass" role="status">
+                <i class="fa-solid @StatusIcon"></i>
+                <span>@_status</span>
+            </div>
+
+            <div class="bale-gate-actions">
+                <button type="button" class="bale-gate-btn check" @onclick="CheckNowAsync" disabled="@_busy">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    @(_busy ? "در حال بررسی..." : "بررسی اتصال")
+                </button>
+                <button type="button" class="bale-gate-btn ghost" @onclick="CopyLinkAsync" disabled="@_busy">
+                    <i class="fa-regular fa-copy"></i>
+                    کپی لینک
+                </button>
+                <button type="button" class="bale-gate-btn ghost" @onclick="RefreshLinkAsync" disabled="@_busy">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    لینک جدید
+                </button>
+            </div>
+
+            <details class="bale-gate-more">
+                <summary>
+                    <span>راهنمای اتصال و لینک دستی</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </summary>
+                <div class="bale-gate-more-body">
+                    <div class="bale-gate-link" dir="ltr">@_link</div>
+                    <div class="bale-gate-alt">
+                        اگر لینک را باز نکردید،
+                        <a href="@_botUrl" target="_blank" rel="noopener">ربات را در بله باز کنید</a>
+                        و دکمه «ارسال شماره موبایل» را بزنید.
+                    </div>
+                    <div class="bale-gate-help">
+                        در بله دکمه «شروع» را بزنید. وضعیت اتصال هر چند ثانیه به‌صورت خودکار بررسی می‌شود.
+                    </div>
+                </div>
+            </details>
+        }
+
+        <button type="button" class="bale-gate-logout" @onclick="Logout">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            خروج از حساب و بازگشت به صفحه ورود
+        </button>
+    </div>
+</div>
+
+<style>
+    .bale-gate{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px;
+        overflow:auto;background:rgba(15,23,42,.62);backdrop-filter:blur(8px);direction:rtl;box-sizing:border-box}
+    .bale-gate *{box-sizing:border-box}
+    .bale-gate-card{width:100%;max-width:430px;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;
+        -webkit-overflow-scrolling:touch;background:linear-gradient(180deg,#ffffff,#f0fdf4);
+        border:1px solid #bbf7d0;border-radius:22px;padding:20px;
+        box-shadow:0 30px 80px rgba(15,23,42,.35)}
+    .bale-gate-head{display:flex;align-items:center;gap:12px;text-align:right;margin-bottom:16px}
+    .bale-gate-icon{flex:0 0 auto;width:48px;height:48px;border-radius:15px;display:grid;place-items:center;
+        background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:20px;
+        box-shadow:0 10px 22px rgba(22,163,74,.32)}
+    .bale-gate-heading{min-width:0}
+    .bale-gate-title{font-weight:950;font-size:15px;line-height:1.6;color:#0f172a}
+    .bale-gate-text{font-size:12px;line-height:1.9;color:#475569;font-weight:700;margin-top:3px}
+    .bale-gate-loading{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;font-weight:800;
+        color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px}
+    .bale-gate-spinner{width:15px;height:15px;border-radius:50%;border:2px solid #cbd5e1;border-top-color:#16a34a;
+        animation:bale-gate-spin .8s linear infinite;flex:0 0 auto}
+    @@keyframes bale-gate-spin{to{transform:rotate(360deg)}}
+    .bale-gate-error{display:flex;align-items:flex-start;gap:8px;font-size:12px;font-weight:800;color:#b91c1c;
+        background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 12px;margin-bottom:10px;line-height:1.8}
+    .bale-gate-error i{margin-top:3px;flex:0 0 auto}
+    .bale-gate-btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border-radius:12px;
+        border:1px solid #e2e8f0;background:#fff;color:#0f172a;font-family:inherit;font-weight:900;font-size:13px;
+        padding:0 12px;cursor:pointer;text-decoration:none;width:100%;-webkit-tap-highlight-color:transparent}
+    .bale-gate-btn.primary{border-color:#16a34a;background:#16a34a;color:#fff;margin-bottom:10px;
+        box-shadow:0 8px 20px rgba(22,163,74,.25)}
+    .bale-gate-btn.primary:hover{background:#15803d;border-color:#15803d}
+    .bale-gate-btn.ghost{background:#fff;border-color:#d1fae5;color:#166534}
+    .bale-gate-btn.ghost:hover{background:#f0fdf4}
+    .bale-gate-btn.check{background:#ecfdf5;border-color:#86efac;color:#15803d}
+    .bale-gate-btn.check:hover{background:#dcfce7}
+    .bale-gate-btn:disabled{opacity:.6;cursor:not-allowed}
+    .bale-gate-status{display:flex;align-items:center;gap:8px;border-radius:12px;padding:10px 12px;font-size:12px;
+        font-weight:900;line-height:1.8;margin-bottom:10px;text-align:right}
+    .bale-gate-status i{flex:0 0 auto;font-size:13px}
+    .bale-gate-status.waiting{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+    .bale-gate-status.info{background:#f1f5f9;border:1px solid #e2e8f0;color:#334155}
+    .bale-gate-status.success{background:#dcfce7;border:1px solid #86efac;color:#166534}
+    .bale-gate-status.warning{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412}
+    .bale-gate-status.error{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c}
+    .bale-gate-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .bale-gate-actions .check{grid-column:1 / -1}
+    .bale-gate-more{margin-top:10px;border:1px solid #d1fae5;border-radius:12px;background:#f8fffa;overflow:hidden}
+    .bale-gate-more summary{display:flex;align-items:center;justify-content:space-between;gap:8px;
+        padding:10px 12px;font-size:11px;font-weight:900;color:#166534;cursor:pointer;list-style:none;
+        -webkit-tap-highlight-color:transparent}
+    .bale-gate-more summary::-webkit-details-marker{display:none}
+    .bale-gate-more summary i{transition:transform .18s ease;font-size:10px;color:#16a34a}
+    .bale-gate-more[open] summary i{transform:rotate(180deg)}
+    .bale-gate-more-body{padding:0 10px 10px;display:grid;gap:8px}
+    .bale-gate-link{padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #bbf7d0;
+        font-size:11px;color:#334155;word-break:break-all;text-align:left;direction:ltr}
+    .bale-gate-alt{font-size:11px;line-height:1.9;color:#475569;font-weight:700;text-align:right}
+    .bale-gate-alt a{color:#15803d;font-weight:950;text-decoration:none}
+    .bale-gate-alt a:hover{text-decoration:underline}
+    .bale-gate-help{font-size:10.5px;line-height:1.9;color:#64748b;font-weight:700}
+    .bale-gate-logout{margin-top:12px;width:100%;min-height:42px;border:0;background:transparent;color:#b91c1c;
+        font-family:inherit;font-weight:900;font-size:12px;padding:10px;border-radius:12px;cursor:pointer;
+        display:flex;align-items:center;justify-content:center;gap:6px;-webkit-tap-highlight-color:transparent}
+    .bale-gate-logout:hover{background:#fef2f2}
+    @@media (max-width: 430px){
+        .bale-gate{padding:10px;align-items:flex-start}
+        .bale-gate-card{max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);border-radius:18px;
+            padding:16px 14px calc(12px + env(safe-area-inset-bottom))}
+        .bale-gate-head{gap:10px;margin-bottom:12px}
+        .bale-gate-icon{width:42px;height:42px;border-radius:13px;font-size:18px}
+        .bale-gate-title{font-size:14px}
+        .bale-gate-text{font-size:11.5px;line-height:1.8}
+        .bale-gate-btn{min-height:46px}
+    }
+</style>
+
+@code {
+    [Parameter] public long MemberId { get; set; }
+    [Parameter] public EventCallback OnConnected { get; set; }
+
+    private string _link = string.Empty;
+    private string _botUrl = "https://ble.ir";
+    private string? _error;
+    private string _status = "در انتظار اتصال...";
+    private string _statusKind = "waiting";
+    private bool _loadingLink = true;
+    private bool _busy;
+    private long _loadedMemberId;
+    private CancellationTokenSource? _pollCts;
+    private bool _disposed;
+
+    private string StatusClass => $"bale-gate-status {_statusKind}";
+    private string StatusIcon => _statusKind switch
+    {
+        "success" => "fa-circle-check",
+        "warning" => "fa-triangle-exclamation",
+        "error" => "fa-circle-xmark",
+        "info" => "fa-circle-info",
+        _ => "fa-hourglass-half"
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (MemberId <= 0 || _loadedMemberId == MemberId)
+            return;
+
+        _loadedMemberId = MemberId;
+        await LoadLinkAsync();
+        StartPolling();
+    }
+
+    private void SetStatus(string text, string kind)
+    {
+        _status = text;
+        _statusKind = kind;
+    }
+
+    private async Task LoadLinkAsync()
+    {
+        _loadingLink = true;
+        _error = null;
+
+        try
+        {
+            var settings = await BaleRepo.GetSettingsAsync();
+            var username = (settings.BotUsername ?? string.Empty).Trim().TrimStart('@');
+            if (!settings.IsEnabled || string.IsNullOrWhiteSpace(username))
+            {
+                _error = "اطلاع‌رسانی بله توسط مدیر فعال یا تنظیم نشده است. لطفاً با مدیر صندوق تماس بگیرید.";
+                return;
+            }
+
+            var token = await BaleRepo.CreateLinkTokenAsync(MemberId, TimeSpan.FromMinutes(15));
+            _botUrl = $"https://ble.ir/{username}";
+            _link = $"https://ble.ir/{username}?start={token}";
+            SetStatus("در انتظار اتصال...", "waiting");
+        }
+        catch (Exception ex)
+        {
+            _error = $"خطا در ساخت لینک اتصال: {ex.Message}";
+        }
+        finally
+        {
+            _loadingLink = false;
+        }
+    }
+
+    private async Task RefreshLinkAsync()
+    {
+        _busy = true;
+        try
+        {
+            await LoadLinkAsync();
+            SetStatus("لینک جدید ساخته شد. آن را در بله باز کنید.", "info");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CopyLinkAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_link))
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", _link);
+            SetStatus("لینک کپی شد.", "success");
+        }
+        catch
+        {
+            SetStatus("کپی خودکار ممکن نشد؛ لینک را از بخش راهنما دستی انتخاب کنید.", "warning");
+        }
+    }
+
+    private async Task CheckNowAsync()
+    {
+        _busy = true;
+        SetStatus("در حال بررسی اتصال...", "info");
+
+        try
+        {
+            if (await IsConnectedAsync())
+            {
+                await NotifyConnectedAsync();
+                return;
+            }
+
+            SetStatus("هنوز اتصال برقرار نشده است. در بله دکمه «شروع» را بزنید و چند لحظه صبر کنید.", "warning");
+        }
+        finally
+        {
+            if (!_disposed)
+                _busy = false;
+        }
+    }
+
+    private void StartPolling()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = new CancellationTokenSource();
+        _ = PollLoopAsync(_pollCts.Token);
+    }
+
+    private async Task PollLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5), ct);
+                if (await IsConnectedAsync())
+                {
+                    await NotifyConnectedAsync();
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            // Polling failures are non-fatal; the manual check button remains available.
+        }
+    }
+
+    private async Task<bool> IsConnectedAsync()
+    {
+        try
+        {
+            return await BaleRepo.GetActiveByMemberAsync(MemberId) != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task NotifyConnectedAsync()
+    {
+        _pollCts?.Cancel();
+        if (_disposed || !OnConnected.HasDelegate)
+            return;
+
+        await InvokeAsync(() => OnConnected.InvokeAsync());
+    }
+
+    private void Logout()
+    {
+        _pollCts?.Cancel();
+        Nav.NavigateTo("/logout", forceLoad: true);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = null;
+        return ValueTask.CompletedTask;
+    }
+}

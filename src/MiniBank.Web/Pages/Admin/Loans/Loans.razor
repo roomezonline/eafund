@@ -10,6 +10,7 @@
 @inject MiniBank.Web.Infrastructure.Repositories.MemberRepository MemberRepo
 @inject MiniBank.Web.Infrastructure.Repositories.CreditHoldRepository CreditHoldRepo
 @inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 @using MiniBank.Web.Components.DesignSystem
 
 <style>
@@ -219,8 +220,8 @@
         <div class="filter-group filter-group-date">
           <label>بازه تاریخ</label>
           <div style="display:flex; gap:8px; align-items:center">
-            <input class="search-input" style="width:120px" value="@_fromDateText" @onchange="OnFromDateChanged" data-jdp="true" data-jdp-only-date="true" placeholder="از" />
-            <input class="search-input" style="width:120px" value="@_toDateText" @onchange="OnToDateChanged" data-jdp="true" data-jdp-only-date="true" placeholder="تا" />
+            <input class="search-input" style="width:120px" value="@_fromDateText" @onchange="OnFromDateChanged" data-jdp="true" data-jdp-only-date="true" data-jdp-min-date="@_fiscalFrom" data-jdp-max-date="@_fiscalTo" placeholder="از" />
+            <input class="search-input" style="width:120px" value="@_toDateText" @onchange="OnToDateChanged" data-jdp="true" data-jdp-only-date="true" data-jdp-min-date="@_fiscalFrom" data-jdp-max-date="@_fiscalTo" placeholder="تا" />
           </div>
         </div>
         <div class="filter-group filter-group-status">
@@ -1271,6 +1272,8 @@
   private string _toDateText = string.Empty;
   private DateTime? _fromDate;
   private DateTime? _toDate;
+  private string? _fiscalFrom;
+  private string? _fiscalTo;
 
   private List<DsPillGroup.DsPillItem> _sortItems = new()
   {
@@ -1280,6 +1283,14 @@
 
   protected override async Task OnInitializedAsync()
   {
+    try
+    {
+      var range = await FiscalRange.GetRangeAsync();
+      _fiscalFrom = range.From;
+      _fiscalTo = range.To;
+    }
+    catch { }
+
     await LoadAsync();
   }
 

@@ -184,6 +184,7 @@ namespace MiniBank.Web.Services.Auth
                 "/admin/members" => "اعضا",
                 "/admin/households" => "خانوارها",
                 "/admin/bank-accounts" => "حساب‌های بانکی",
+                "/admin/bank-cards" => "کارت‌های بانکی",
                 "/admin/deposit-types" => "انواع سپرده",
                 "/admin/tx-groups" => "گروه‌های تراکنش",
 
@@ -217,6 +218,7 @@ namespace MiniBank.Web.Services.Auth
                 "/admin/sms" => "ارسال پیامک",
 
                 "/me/profile" => "پروفایل عضو",
+                "/me/messages" => "پیام‌های من",
                 "/me/household" => "خانوار من",
                 "/me/loans" => "وام‌های من",
                 "/me/transactions" => "تراکنش‌های من",

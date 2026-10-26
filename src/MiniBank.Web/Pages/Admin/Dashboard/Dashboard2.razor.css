@@ -447,6 +447,11 @@
     color: white;
 }
 
+.service-item.red .service-icon {
+    background: linear-gradient(135deg, #e53935, #ef5350);
+    color: white;
+}
+
 @keyframes gradientShift {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }

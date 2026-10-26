@@ -1,0 +1,117 @@
+
+/* ---- Fiscal-year viewing banner (indigo → violet → cyan, matches header) ---- */
+.fy-banner {
+    position: sticky;
+    top: 0;
+    /* Below header chrome (.fy-backdrop 1050, .fy-menu 1060, .menu-card 2000,
+       member-area header 5000) and below every overlay/modal tier (1000+),
+       above ordinary page content. */
+    z-index: 990;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 8px 10px 0;
+    padding: 10px 16px;
+    background: linear-gradient(165deg, rgba(79, 70, 229, .34) 0%, rgba(109, 40, 217, .46) 55%, rgba(14, 165, 233, .34) 100%);
+    color: var(--text, #e5e7eb);
+    border: 2px dashed rgba(109, 40, 217, .85);
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.85;
+    text-align: center;
+    box-shadow: 0 8px 22px rgba(79, 70, 229, .24);
+}
+
+.fy-banner-msg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-inline: 4px;
+}
+
+.fy-banner-msg > i {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #6f37ff;
+    color: #fff;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(109, 40, 217, .45);
+}
+
+.fy-banner b {
+    font-weight: 900;
+    direction: ltr;
+    display: inline-block;
+    color: #4c1d95;
+    background: rgba(255, 255, 255, .85);
+    border: 1px dashed rgba(109, 40, 217, .6);
+    border-radius: 8px;
+    padding: 1px 9px;
+    line-height: 1.7;
+}
+
+.fy-banner-reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border: 1px dashed rgba(255, 255, 255, .85);
+    border-radius: 999px;
+    background: #6f37ff;
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(109, 40, 217, .4);
+    transition: background .15s ease, transform .15s ease;
+}
+
+.fy-banner-reset:hover {
+    background: #5b2ef0;
+}
+
+.fy-banner-reset:active {
+    transform: scale(.97);
+}
+
+.fy-banner-reset:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 640px) {
+    .fy-banner {
+        gap: 8px;
+        margin: 8px 8px 0;
+        padding: 10px 12px;
+        font-size: 12.5px;
+        line-height: 1.9;
+        border-radius: 14px;
+    }
+
+    .fy-banner-msg {
+        flex: 1 1 100%;
+        gap: 8px;
+        padding-inline: 2px;
+    }
+
+    .fy-banner-reset {
+        flex: 1 1 100%;
+        min-height: 42px;
+        font-size: 13px;
+        border-radius: 12px;
+    }
+}

@@ -1,0 +1,526 @@
+@page "/admin/notifications"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Models.Notifications
+@using MiniBank.Web.Services.Notifications
+@inject DsToastService Toasts
+@inject BaleBotRepository BaleRepo
+@inject NotificationRepository Repo
+@inject BaleApiClient Bale
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>اطلاع‌رسانی و بله</PageTitle>
+
+<DsPageHeader Title="اطلاع‌رسانی و پیام‌رسان بله"
+             Icon="fa-solid fa-bell"
+             Subtitle="اتصال ربات بله، انتخاب کانال هر اطلاع‌رسانی و تایید مدیر"
+             ShowBackButton="true" />
+
+<section class="ntf-page" dir="rtl">
+    <div class="ntf-grid">
+        <div class="ntf-card">
+            <div class="ntf-card-title">وضعیت اتصال</div>
+            <div class="ntf-stats">
+                <div class="ntf-stat">
+                    <div class="ntf-stat-value">@_stats.ActiveCount</div>
+                    <div class="ntf-stat-label">عضو متصل</div>
+                </div>
+                <div class="ntf-stat">
+                    <div class="ntf-stat-value">@_stats.TotalCount</div>
+                    <div class="ntf-stat-label">کل اتصال‌ها</div>
+                </div>
+                <div class="ntf-stat">
+                    <div class="ntf-stat-value">@_pendingCount</div>
+                    <div class="ntf-stat-label">در انتظار تایید</div>
+                </div>
+            </div>
+
+            <div class="ntf-links">
+                <a class="ntf-link" href="/admin/notifications/subscribers">مدیریت اعضای متصل</a>
+                <a class="ntf-link" href="/admin/notifications/queue">صف اطلاع‌رسانی‌ها</a>
+                <a class="ntf-link" href="/admin/bale-reports">گزارش پیام‌های بله</a>
+            </div>
+        </div>
+
+        <div class="ntf-card">
+            <div class="ntf-card-title">ربات بله</div>
+
+            <label class="ntf-check">
+                <input type="checkbox" checked="@_enabled" @onchange="OnEnabledChanged" />
+                <span>ارسال از طریق بله فعال باشد</span>
+            </label>
+
+            <label class="ntf-check" style="margin-top:-4px;">
+                <input type="checkbox" checked="@_requireBaleForMembers" @onchange="OnRequireBaleChanged" />
+                <span>اتصال اعضا به بله اجباری باشد</span>
+            </label>
+            <div class="ntf-muted" style="margin:-4px 0 12px;">
+                با فعال بودن این گزینه، عضو بدون اتصال به ربات بله نمی‌تواند وارد داشبورد اعضا شود و پنجره اتصال برای او باز می‌شود.
+                اعضا می‌توانند با لینک اختصاصی یا ارسال شماره موبایل ثبت‌شده در صندوق به ربات متصل شوند.
+                اگر یک شماره برای چند عضو ثبت شده باشد، همان شماره برای همهٔ آن اعضا معتبر است و اطلاع‌رسانی همهٔ آن‌ها به همان گفتگو ارسال می‌شود.
+            </div>
+
+            <div class="ntf-field">
+                <label>توکن ربات</label>
+                <input class="ntf-input" name="baleBotToken" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" type="@(_showToken ? "text" : "password")" value="@_botToken" @oninput="OnTokenChanged" placeholder="123456:ABC-DEF..." />
+                <button type="button" class="ntf-mini" @onclick="(() => _showToken = !_showToken)">
+                    @(_showToken ? "مخفی کردن" : "نمایش")
+                </button>
+            </div>
+
+            <div class="ntf-field">
+                <label>نام کاربری ربات (بدون @@)</label>
+                <input class="ntf-input" name="baleBotUsername" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" readonly="@(!_editBotUsername)" value="@_botUsername" @oninput="OnUsernameChanged" placeholder="mandogh_bot" />
+                <button type="button" class="ntf-mini" @onclick="(() => _editBotUsername = !_editBotUsername)">
+                    @(_editBotUsername ? "قفل" : "ویرایش")
+                </button>
+            </div>
+
+            <div class="ntf-field">
+                <label>آدرس پایه API</label>
+                <input class="ntf-input" name="baleApiBaseUrl" autocomplete="off" spellcheck="false" dir="ltr" value="@_apiBaseUrl" @oninput="OnApiBaseUrlChanged" placeholder="https://tapi.bale.ai" />
+            </div>
+
+            <div class="ntf-actions">
+                <button class="ntf-btn primary" @onclick="SaveSettingsAsync" disabled="@_busy">ذخیره تنظیمات</button>
+                <button class="ntf-btn" @onclick="TestConnectionAsync" disabled="@_busy">تست اتصال</button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_webhookUrl))
+            {
+                <div class="ntf-webhook">
+                    <div class="ntf-webhook-title">آدرس وبهوک</div>
+                    <input class="ntf-input" dir="ltr" readonly value="@_webhookUrl" />
+                    <div class="ntf-actions">
+                        <button class="ntf-btn" @onclick="CopyWebhookAsync">کپی</button>
+                        <button class="ntf-btn primary" @onclick="SetWebhookAsync" disabled="@_busy">ثبت وبهوک در بله</button>
+                        <button class="ntf-btn" @onclick="DeleteWebhookAsync" disabled="@_busy">حذف وبهوک</button>
+                    </div>
+                    <div class="ntf-muted">این آدرس شامل کلید امنیتی است؛ آن را در اختیار دیگران قرار ندهید.</div>
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_webhookInfo))
+            {
+                <div class="ntf-webhook-info" dir="ltr">@_webhookInfo</div>
+            }
+        </div>
+    </div>
+
+    <div class="ntf-card" style="margin-top:12px;">
+        <div class="ntf-card-title">کانال و تایید هر اطلاع‌رسانی</div>
+        <div class="ntf-muted" style="margin-bottom:10px;">
+            برای هر رویداد مشخص کنید از طریق پیامک، بله یا هر دو ارسال شود. در حالت «نیاز به تایید»، پیام ابتدا در صف تایید قرار می‌گیرد.
+        </div>
+        <div class="ntf-note">
+            فعال یا غیرفعال بودن هر رویداد و انتخاب کانال (پیامک، بله یا هر دو) فقط از همین جدول انجام می‌شود.
+            تنظیمات کلی پیامک (فعال بودن سامانه، اعتبار، هزینه پارت و شناسه تمپلیت) در
+            <a href="/admin/sms-panel">پنل پیامک</a> است و این صفحه آن‌ها را تغییر نمی‌دهد.
+            اولویت ارسال: یک رویداد پیامکی فقط وقتی پیامک می‌شود که هم در این جدول فعال باشد و کانالش شامل پیامک باشد،
+            هم سامانه پیامک در پنل پیامک فعال باشد. تنظیم تکراری دیگری برای رویدادها وجود ندارد.
+        </div>
+
+        @if (_loading)
+        {
+            <div>در حال بارگذاری...</div>
+        }
+        else
+        {
+            <div class="ntf-table-wrap">
+                <table class="ntf-table">
+                    <thead>
+                        <tr>
+                            <th>رویداد</th>
+                            <th>فعال</th>
+                            <th>کانال ارسال</th>
+                            <th>نیاز به تایید مدیر</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var f in _features)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="ntf-feature-title">@f.Title</div>
+                                    <div class="ntf-feature-key">@f.FeatureKey</div>
+                                </td>
+                                <td>
+                                    <input type="checkbox" checked="@f.IsEnabled" @onchange="(e) => OnFeatureEnabledChangedAsync(f, e)" />
+                                </td>
+                                <td>
+                                    <select class="ntf-input" disabled="@(!SupportsSms(f.FeatureKey))" value="@f.ChannelMask.ToString()" @onchange="(e) => OnChannelChangedAsync(f, e)">
+                                        @if (SupportsSms(f.FeatureKey))
+                                        {
+                                            <option value="1">پیامک</option>
+                                            <option value="2">بله</option>
+                                            <option value="3">پیامک + بله</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="2">بله (بدون قالب پیامک)</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="checkbox" checked="@(f.ApprovalMode == 1)" @onchange="(e) => OnApprovalChangedAsync(f, e)" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="ntf-card" style="margin-top:12px;">
+        <div class="ntf-card-title">یادآوری خودکار اقساط</div>
+        <div class="ntf-muted" style="margin-bottom:10px;">
+            در ساعت مشخص‌شده، برای اقساط نزدیک سررسید و معوق (طبق فیلترها) یک یادآوری برای هر قسط در صف قرار می‌گیرد. ارسال تکراری در یک روز انجام نمی‌شود.
+        </div>
+
+        <label class="ntf-check">
+            <input type="checkbox" checked="@_autoEnabled" @onchange="OnAutoEnabledChanged" />
+            <span>یادآوری خودکار فعال باشد</span>
+        </label>
+
+        <div class="ntf-inline">
+            <div class="ntf-field">
+                <label>چند روز قبل از سررسید</label>
+                <input class="ntf-input" dir="ltr" value="@_daysBeforeText" @oninput="OnDaysBeforeChanged" />
+            </div>
+            <div class="ntf-field">
+                <label>ساعت اجرا (۰ تا ۲۳)</label>
+                <input class="ntf-input" dir="ltr" value="@_runHourText" @oninput="OnRunHourChanged" />
+            </div>
+            <label class="ntf-check" style="align-self:end;">
+                <input type="checkbox" checked="@_includeOverdue" @onchange="OnIncludeOverdueChanged" />
+                <span>اقساط معوق هم یادآوری شوند</span>
+            </label>
+        </div>
+
+        <div class="ntf-actions">
+            <button class="ntf-btn primary" @onclick="SaveAutoSettingsAsync" disabled="@_busy">ذخیره تنظیمات یادآوری</button>
+        </div>
+
+        <div class="ntf-muted" style="margin-top:8px;">
+            آخرین اجرا: @(_auto?.LastRunDate.HasValue == true ? _auto.LastRunDate.Value.ToString("yyyy/MM/dd") : "-")
+        </div>
+    </div>
+</section>
+
+<style>
+    .ntf-page{direction:rtl;padding:16px 14px 80px;max-width:1100px;margin:0 auto}
+    .ntf-grid{display:grid;gap:12px;grid-template-columns:1fr 1.4fr}
+    @@media (max-width: 820px){.ntf-grid{grid-template-columns:1fr}}
+    .ntf-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px;box-shadow:0 8px 22px rgba(15,23,42,.05)}
+    .ntf-card-title{font-weight:950;color:#0f172a;margin-bottom:10px}
+    .ntf-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .ntf-stat{border:1px solid #e5e7eb;border-radius:14px;padding:10px;background:linear-gradient(180deg,#f8fafc,#fff);text-align:center}
+    .ntf-stat-value{font-weight:950;font-size:22px;color:#0f172a}
+    .ntf-stat-label{font-size:12px;color:#64748b;font-weight:800}
+    .ntf-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .ntf-link{display:inline-flex;align-items:center;gap:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0369a1;border-radius:12px;padding:8px 10px;font-weight:900;text-decoration:none;font-size:12px}
+    .ntf-check{display:flex;align-items:center;gap:8px;font-weight:900;color:#0f172a;margin:6px 0 12px}
+    .ntf-field{display:grid;gap:6px;margin-bottom:10px}
+    .ntf-field label{font-weight:900;font-size:12px;color:#0f172a}
+    .ntf-input{width:100%;height:40px;border-radius:12px;border:1px solid #cbd5e1;padding:0 10px;font-weight:800;background:#fff;outline:none}
+    .ntf-input:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(59,130,246,.12)}
+    .ntf-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .ntf-btn{height:38px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;color:#0f172a;font-weight:950;padding:0 14px;cursor:pointer}
+    .ntf-btn.primary{border-color:#0ea5e9;background:#0ea5e9;color:#fff}
+    .ntf-btn:disabled{opacity:.6;cursor:not-allowed}
+    .ntf-mini{height:28px;border-radius:10px;border:1px solid #e2e8f0;background:#fff;color:#0f172a;font-weight:900;padding:0 10px;cursor:pointer;margin-top:6px;font-size:12px}
+    .ntf-webhook{margin-top:12px;border-top:1px dashed #e5e7eb;padding-top:10px}
+    .ntf-webhook-title{font-weight:950;font-size:13px;margin-bottom:6px}
+    .ntf-webhook-info{margin-top:10px;font-size:11px;color:#475569;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:8px;word-break:break-all}
+    .ntf-muted{font-size:12px;color:#64748b;font-weight:800}
+    .ntf-note{font-size:12px;font-weight:800;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px;margin-bottom:10px;line-height:1.9}
+    .ntf-note a{color:#0369a1;font-weight:950;text-decoration:none}
+    .ntf-note a:hover{text-decoration:underline}
+    .ntf-inline{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:10px}
+    @@media (max-width: 720px){.ntf-inline{grid-template-columns:1fr}}
+    .ntf-table-wrap{overflow:auto}
+    .ntf-table{width:100%;border-collapse:separate;border-spacing:0 8px;min-width:680px}
+    .ntf-table th{font-size:12px;color:#64748b;font-weight:900;text-align:right;padding:0 10px}
+    .ntf-table td{background:#f8fafc;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;padding:10px}
+    .ntf-table td:first-child{border-right:1px solid #e5e7eb;border-radius:0 12px 12px 0}
+    .ntf-table td:last-child{border-left:1px solid #e5e7eb;border-radius:12px 0 0 12px}
+    .ntf-feature-title{font-weight:950;color:#0f172a}
+    .ntf-feature-key{font-size:11px;color:#64748b;font-weight:800;direction:ltr;text-align:left}
+    .ntf-table .ntf-input{height:34px;min-width:130px}
+</style>
+
+@code {
+    private bool _loading = true;
+    private bool _busy;
+
+    private bool _enabled;
+    private bool _requireBaleForMembers;
+    private string? _botToken;
+    private string? _botUsername;
+    private string _apiBaseUrl = "https://tapi.bale.ai";
+    private bool _showToken;
+    private bool _editBotUsername;
+
+    private string? _webhookUrl;
+    private string? _webhookInfo;
+
+    private List<NotificationFeature> _features = new();
+    private NotificationAutoSettings _auto = new();
+    private BaleBotRepository.SubscriberStats _stats = new();
+    private int _pendingCount;
+
+    private bool _autoEnabled;
+    private string _daysBeforeText = "2";
+    private string _runHourText = "9";
+    private bool _includeOverdue = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+
+            var settings = await BaleRepo.GetSettingsAsync();
+            _enabled = settings.IsEnabled;
+            _requireBaleForMembers = settings.RequireBaleConnectionForMembers;
+            _botToken = settings.BotToken;
+            _botUsername = settings.BotUsername;
+            _apiBaseUrl = settings.ApiBaseUrl;
+
+            var secret = await BaleRepo.EnsureWebhookSecretAsync();
+            _webhookUrl = $"{Nav.BaseUri.TrimEnd('/')}/api/bale/webhook/{secret}";
+
+            _features = (await Repo.GetFeaturesAsync()).ToList();
+            foreach (var f in _features)
+            {
+                if (!SupportsSms(f.FeatureKey) && f.ChannelMask != 2)
+                {
+                    f.ChannelMask = 2;
+                    await Repo.UpsertFeatureAsync(f.FeatureKey, f.IsEnabled, f.ChannelMask, f.ApprovalMode);
+                }
+            }
+            _auto = await Repo.GetAutoSettingsAsync();
+            _autoEnabled = _auto.LoanReminderEnabled;
+            _daysBeforeText = _auto.DaysBeforeDue.ToString();
+            _runHourText = _auto.RunHour.ToString();
+            _includeOverdue = _auto.IncludeOverdue;
+
+            _stats = await BaleRepo.GetStatsAsync();
+            _pendingCount = await Repo.CountPendingApprovalAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری تنظیمات: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnEnabledChanged(ChangeEventArgs e) => _enabled = e.Value is bool b && b;
+    private void OnRequireBaleChanged(ChangeEventArgs e) => _requireBaleForMembers = e.Value is bool b && b;
+    private void OnTokenChanged(ChangeEventArgs e) => _botToken = e.Value?.ToString();
+    private void OnUsernameChanged(ChangeEventArgs e) => _botUsername = e.Value?.ToString();
+    private void OnApiBaseUrlChanged(ChangeEventArgs e) => _apiBaseUrl = e.Value?.ToString() ?? "https://tapi.bale.ai";
+
+    private async Task SaveSettingsAsync()
+    {
+        try
+        {
+            _busy = true;
+            await BaleRepo.SaveSettingsAsync(_enabled, _botToken, _botUsername, _apiBaseUrl, _requireBaleForMembers);
+            Toasts.Success("تنظیمات ربات بله ذخیره شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره تنظیمات: {ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task TestConnectionAsync()
+    {
+        try
+        {
+            _busy = true;
+            var result = await Bale.GetMeAsync();
+            if (result.Ok)
+            {
+                if (!string.IsNullOrWhiteSpace(result.Username))
+                {
+                    _botUsername = result.Username;
+                    await BaleRepo.UpdateBotUsernameAsync(result.Username);
+                }
+                Toasts.Success($"اتصال به بله برقرار است. ربات: {result.Username ?? result.FirstName ?? "-"}");
+            }
+            else
+            {
+                Toasts.Error($"اتصال به بله ناموفق بود: {result.Error}");
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CopyWebhookAsync()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_webhookUrl))
+            {
+                await JS.InvokeVoidAsync("navigator.clipboard.writeText", _webhookUrl);
+                Toasts.Success("آدرس وبهوک کپی شد.");
+            }
+        }
+        catch
+        {
+            Toasts.Warning("کپی خودکار ممکن نشد؛ آدرس را دستی انتخاب کنید.");
+        }
+    }
+
+    private async Task SetWebhookAsync()
+    {
+        try
+        {
+            _busy = true;
+            if (string.IsNullOrWhiteSpace(_webhookUrl))
+            {
+                Toasts.Warning("ابتدا آدرس وبهوک ساخته شود.");
+                return;
+            }
+
+            var (ok, error) = await Bale.SetWebhookAsync(_webhookUrl);
+            if (ok)
+                Toasts.Success("وبهوک در بله ثبت شد.");
+            else
+                Toasts.Error($"ثبت وبهوک ناموفق بود: {error}");
+
+            _webhookInfo = await Bale.GetWebhookInfoAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DeleteWebhookAsync()
+    {
+        try
+        {
+            _busy = true;
+            var (ok, error) = await Bale.DeleteWebhookAsync();
+            if (ok)
+                Toasts.Success("وبهوک حذف شد.");
+            else
+                Toasts.Error($"حذف وبهوک ناموفق بود: {error}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static bool SupportsSms(string featureKey)
+        => !string.Equals(featureKey, "member_updated", StringComparison.OrdinalIgnoreCase)
+           && !string.Equals(featureKey, "deposit_interest_run", StringComparison.OrdinalIgnoreCase);
+
+    private async Task OnFeatureEnabledChangedAsync(NotificationFeature feature, ChangeEventArgs e)
+    {
+        try
+        {
+            feature.IsEnabled = e.Value is bool b && b;
+            await Repo.UpsertFeatureAsync(feature.FeatureKey, feature.IsEnabled, feature.ChannelMask, feature.ApprovalMode);
+            Toasts.Success("تغییر ذخیره شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره: {ex.Message}");
+        }
+    }
+
+    private async Task OnChannelChangedAsync(NotificationFeature feature, ChangeEventArgs e)
+    {
+        try
+        {
+            var raw = e.Value?.ToString();
+            if (byte.TryParse(raw, out var mask) && mask is 1 or 2 or 3)
+            {
+                if (!SupportsSms(feature.FeatureKey))
+                    mask = 2;
+
+                feature.ChannelMask = mask;
+                await Repo.UpsertFeatureAsync(feature.FeatureKey, feature.IsEnabled, feature.ChannelMask, feature.ApprovalMode);
+                Toasts.Success("کانال ارسال ذخیره شد.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره: {ex.Message}");
+        }
+    }
+
+    private async Task OnApprovalChangedAsync(NotificationFeature feature, ChangeEventArgs e)
+    {
+        try
+        {
+            feature.ApprovalMode = (byte)(e.Value is bool b && b ? 1 : 0);
+            await Repo.UpsertFeatureAsync(feature.FeatureKey, feature.IsEnabled, feature.ChannelMask, feature.ApprovalMode);
+            Toasts.Success("حالت تایید ذخیره شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره: {ex.Message}");
+        }
+    }
+
+    private void OnAutoEnabledChanged(ChangeEventArgs e) => _autoEnabled = e.Value is bool b && b;
+    private void OnIncludeOverdueChanged(ChangeEventArgs e) => _includeOverdue = e.Value is bool b && b;
+
+    private void OnDaysBeforeChanged(ChangeEventArgs e)
+    {
+        var digits = new string((e.Value?.ToString() ?? string.Empty).Where(char.IsDigit).ToArray());
+        _daysBeforeText = digits;
+    }
+
+    private void OnRunHourChanged(ChangeEventArgs e)
+    {
+        var digits = new string((e.Value?.ToString() ?? string.Empty).Where(char.IsDigit).ToArray());
+        _runHourText = digits;
+    }
+
+    private async Task SaveAutoSettingsAsync()
+    {
+        try
+        {
+            _busy = true;
+
+            var days = int.TryParse(_daysBeforeText, out var d) ? d : 2;
+            var hour = byte.TryParse(_runHourText, out var h) ? h : (byte)9;
+
+            await Repo.SaveAutoSettingsAsync(_autoEnabled, days, _includeOverdue, hour);
+            _auto = await Repo.GetAutoSettingsAsync();
+            Toasts.Success("تنظیمات یادآوری خودکار ذخیره شد.");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره: {ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

@@ -19,6 +19,7 @@
 @inject MiniBank.Web.Infrastructure.Repositories.HouseholdReceiptRepository ReceiptRepo
 @inject DsToastService Toast
 @inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 
 <PageTitle>صدور سند حسابداری چند مرحله‌ای</PageTitle>
 
@@ -1112,6 +1113,22 @@
         white-space: nowrap;
     }
 
+    .history-copy-btn {
+        padding: 4px 8px;
+        border: 1px solid #6366f1;
+        border-radius: 6px;
+        background: #6366f1;
+        color: white;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .history-copy-btn:hover {
+        background: #4f46e5;
+        border-color: #4f46e5;
+    }
+
     .history-restore-btn:hover {
         background: #059669;
         border-color: #059669;
@@ -1838,6 +1855,10 @@
                                                 <button class="history-restore-btn" @onclick="() => RestoreJournal(journal.JournalId)" @onclick:stopPropagation="true" title="بازگردانی سند">بازگردانی</button>
                                                 <button class="history-permanent-delete-btn" @onclick="() => RequestPermanentDelete(journal.JournalId)" @onclick:stopPropagation="true" title="حذف برای همیشه">حذف دائمی</button>
                                             }
+                                            @if (!journal.IsDeleted)
+                                            {
+                                                <button class="history-copy-btn" @onclick="() => RequestCopyJournal(journal.JournalId)" @onclick:stopPropagation="true" title="ایجاد نسخه کپی موقت و مستقل">کپی</button>
+                                            }
                                             <button class="history-details-btn" @onclick="() => ToggleJournalDetailsAsync(journal.JournalId)" @onclick:stopPropagation="true">جزئیات</button>
                                         </span>
                                     </td>
@@ -1989,6 +2010,20 @@
   OnConfirm="@ConfirmRevertToTemporary"
   OnCancel="@(() => showConfirmRevertDialog = false)" />
 
+@* Confirm Copy Journal dialog *@
+<DsConfirm
+  Show="@showCopyJournalDialog"
+  Title="تایید کپی سند"
+  Variant="warning"
+  ConfirmText="کپی کن"
+  CancelText="انصراف"
+  StackButtons="false"
+  ShowWarning="false"
+  Loading="@_copyingJournal"
+  Message="@copyJournalConfirmMessage"
+  OnConfirm="@ConfirmCopyJournal"
+  OnCancel="@(() => showCopyJournalDialog = false)" />
+
 @* Confirm Permanent Delete dialog *@
 <DsConfirm
   Show="@showPermanentDeleteDialog"
@@ -2074,6 +2109,12 @@
     private bool showConfirmRevertDialog;
     private long _revertConfirmJournalId;
 
+    // Copy journal dialog state
+    private bool showCopyJournalDialog;
+    private long _copySourceJournalId;
+    private string copyJournalConfirmMessage = "";
+    private bool _copyingJournal;
+
     // Permanent delete dialog state
     private bool showPermanentDeleteDialog;
     private long _permanentDeleteJournalId;
@@ -2141,12 +2182,9 @@
         // Default history date filter: from fiscal year start to end
         try
         {
-            var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
-            if (fy != null)
-            {
-                FromDate = fy.StartDate.ToPersianDate();
-                ToDate = fy.EndDate.ToPersianDate();
-            }
+            var range = await FiscalRange.GetRangeAsync();
+            FromDate = range.From;
+            ToDate = range.To;
         }
         catch { }
         if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))
@@ -2429,6 +2467,28 @@ ORDER BY r.CreatedAt DESC;";
         public string Description { get; set; } = string.Empty;
         public decimal Debit { get; set; }
         public decimal Credit { get; set; }
+    }
+
+    public sealed class JournalCopySource
+    {
+        public long JournalId { get; set; }
+        public DateTime OccurredAt { get; set; }
+        public string Notes { get; set; } = string.Empty;
+        public bool IsDeleted { get; set; }
+        public int? FiscalYearId { get; set; }
+    }
+
+    public sealed class ReceiptCopySource
+    {
+        public long HouseholdReceiptId { get; set; }
+        public long? TargetHouseholdId { get; set; }
+        public byte DocumentType { get; set; }
+        public string? TransactionType { get; set; }
+        public string? CounterpartyName { get; set; }
+        public decimal AmountTotal { get; set; }
+        public byte PayChannel { get; set; }
+        public DateTime OccurredAt { get; set; }
+        public string? Notes { get; set; }
     }
 
     private async Task LoadJournalHistory()
@@ -3588,6 +3648,187 @@ SELECT CAST(SCOPE_IDENTITY() AS BIGINT);";
     {
         showConfirmRevertDialog = false;
         await RevertToTemporaryAsync(_revertConfirmJournalId);
+    }
+
+    private void RequestCopyJournal(long journalId)
+    {
+        var source = JournalHistory.FirstOrDefault(x => x.JournalId == journalId);
+        if (source == null)
+        {
+            Toast.Error("سند مورد نظر یافت نشد");
+            return;
+        }
+
+        if (source.IsDeleted)
+        {
+            Toast.Warning("سند حذف‌شده قابل کپی نیست");
+            return;
+        }
+
+        _copySourceJournalId = journalId;
+        var docNo = source.DocumentNumber?.ToString() ?? $"P-{source.JournalId}";
+        copyJournalConfirmMessage =
+            "<div style='line-height:1.9'>" +
+            "<div>آیا از ایجاد نسخه کپی از این سند مطمئن هستید؟</div>" +
+            "<div style='margin-top:10px; background:rgba(15,76,150,.06); border:1px solid rgba(15,76,150,.25); border-radius:12px; padding:10px 12px'>" +
+            $"<div><strong>شماره سند مبدأ:</strong> {docNo}</div>" +
+            $"<div><strong>تاریخ:</strong> {source.OccurredAt:yyyy/MM/dd}</div>" +
+            $"<div><strong>مبلغ:</strong> {source.TransactionAmount:N0} ریال</div>" +
+            "</div>" +
+            "<div style='margin-top:10px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:10px 12px; color:#92400e'>" +
+            "نسخه کپی به‌صورت <strong>موقت و مستقل</strong> ثبت می‌شود و هیچ ارتباطی با سند اصلی ندارد. " +
+            "اطلاعات دستی عیناً کپی می‌شوند و شماره سند و سریال جدید به‌صورت خودکار توسط سیستم تخصیص داده می‌شود." +
+            "</div></div>";
+
+        showCopyJournalDialog = true;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmCopyJournal()
+    {
+        if (_copyingJournal) return;
+
+        var sourceJournalId = _copySourceJournalId;
+        _copyingJournal = true;
+        showCopyJournalDialog = false;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var newJournalId = await CopyJournalAsTemporaryAsync(sourceJournalId);
+            Toast.Success($"نسخه کپی به‌صورت موقت ثبت شد (شناسه موقت: P-{newJournalId}). شماره سند جدید پس از تایید نهایی خودکار تخصیص می‌یابد.");
+            await LoadJournalHistory();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"خطا در کپی سند: {ex.Message}");
+        }
+        finally
+        {
+            _copyingJournal = false;
+            _copySourceJournalId = 0;
+            copyJournalConfirmMessage = string.Empty;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task<long> CopyJournalAsTemporaryAsync(long sourceJournalId)
+    {
+        using var connection = await DbConnectionFactory.CreateConnectionAsync();
+        using var tx = connection.BeginTransaction();
+
+        try
+        {
+            var source = await connection.QuerySingleOrDefaultAsync<JournalCopySource>(
+                @"SELECT JournalId, OccurredAt, ISNULL(Notes, N'') AS Notes, IsDeleted, FiscalYearId
+                  FROM dbo.Journals
+                  WHERE JournalId = @JournalId",
+                new { JournalId = sourceJournalId }, tx);
+
+            if (source == null)
+                throw new InvalidOperationException("سند مبدأ یافت نشد.");
+
+            if (source.IsDeleted)
+                throw new InvalidOperationException("سند حذف‌شده قابل کپی نیست.");
+
+            var sourceReceipt = await connection.QuerySingleOrDefaultAsync<ReceiptCopySource>(
+                @"SELECT TOP 1 HouseholdReceiptId, TargetHouseholdId, DocumentType, TransactionType,
+                         CounterpartyName, AmountTotal, PayChannel, OccurredAt, Notes
+                  FROM dbo.HouseholdReceipts
+                  WHERE ExternalRef = CONCAT(N'J:', @JournalId)
+                  ORDER BY HouseholdReceiptId DESC",
+                new { JournalId = sourceJournalId }, tx);
+
+            if (sourceReceipt == null)
+            {
+                sourceReceipt = await connection.QuerySingleOrDefaultAsync<ReceiptCopySource>(
+                    @"SELECT TOP 1 hr.HouseholdReceiptId, hr.TargetHouseholdId, hr.DocumentType, hr.TransactionType,
+                             hr.CounterpartyName, hr.AmountTotal, hr.PayChannel, hr.OccurredAt, hr.Notes
+                      FROM dbo.Journals j
+                      INNER JOIN dbo.Transactions t ON t.TransactionId = j.TransactionId
+                      INNER JOIN dbo.HouseholdReceipts hr ON hr.HouseholdReceiptId = t.ParentReceiptId
+                      WHERE j.JournalId = @JournalId",
+                    new { JournalId = sourceJournalId }, tx);
+            }
+
+            long? newReceiptId = null;
+            if (sourceReceipt != null)
+            {
+                newReceiptId = await connection.QuerySingleAsync<long>(
+                    @"INSERT INTO dbo.HouseholdReceipts
+                        (TargetHouseholdId, DocumentType, TransactionType, CounterpartyName, AmountTotal,
+                         PayChannel, OccurredAt, CreatedAt, CreatedBy, Status, Notes, ExternalRef)
+                      VALUES
+                        (@TargetHouseholdId, @DocumentType, @TransactionType, @CounterpartyName, @AmountTotal,
+                         @PayChannel, @OccurredAt, GETUTCDATE(), @CreatedBy, 1, @Notes, NULL);
+                      SELECT CAST(SCOPE_IDENTITY() AS BIGINT);",
+                    new
+                    {
+                        sourceReceipt.TargetHouseholdId,
+                        sourceReceipt.DocumentType,
+                        sourceReceipt.TransactionType,
+                        sourceReceipt.CounterpartyName,
+                        sourceReceipt.AmountTotal,
+                        sourceReceipt.PayChannel,
+                        sourceReceipt.OccurredAt,
+                        CreatedBy = "admin",
+                        sourceReceipt.Notes
+                    }, tx);
+            }
+
+            var newJournalId = await connection.QuerySingleAsync<long>(
+                @"INSERT INTO dbo.Journals
+                    (TransactionId, OccurredAt, Notes, CreatedAt, CreatedBy, ProcessId, Status, FiscalYearId)
+                  VALUES
+                    (NULL, @OccurredAt, @Notes, GETUTCDATE(), @CreatedBy, @ProcessId, @Status, @FiscalYearId);
+                  SELECT CAST(SCOPE_IDENTITY() AS BIGINT);",
+                new
+                {
+                    source.OccurredAt,
+                    source.Notes,
+                    CreatedBy = "admin",
+                    ProcessId = Guid.NewGuid().ToString(),
+                    Status = (byte)1,
+                    source.FiscalYearId
+                }, tx);
+
+            if (newReceiptId.HasValue)
+            {
+                await connection.ExecuteAsync(
+                    @"UPDATE dbo.HouseholdReceipts
+                      SET ExternalRef = CONCAT(N'J:', @JournalId)
+                      WHERE HouseholdReceiptId = @ReceiptId",
+                    new { JournalId = newJournalId, ReceiptId = newReceiptId.Value }, tx);
+            }
+
+            // The balance trigger raises a divide-by-zero for temporary journals (Status=1),
+            // so it must stay disabled while the copied lines are written.
+            await connection.ExecuteAsync(
+                "DISABLE TRIGGER dbo.TR_Journals_EnforceBalance ON dbo.JournalLines", null, tx);
+            try
+            {
+                await connection.ExecuteAsync(
+                    @"INSERT INTO dbo.JournalLines
+                        (JournalId, [LineNo], AccountId, ParentAccountId, MemberId, LoanId, Debit, Credit, Description)
+                      SELECT @NewJournalId, [LineNo], AccountId, ParentAccountId, MemberId, LoanId, Debit, Credit, Description
+                      FROM dbo.JournalLines
+                      WHERE JournalId = @SourceJournalId;",
+                    new { NewJournalId = newJournalId, SourceJournalId = sourceJournalId }, tx);
+            }
+            finally
+            {
+                await connection.ExecuteAsync(
+                    "ENABLE TRIGGER dbo.TR_Journals_EnforceBalance ON dbo.JournalLines", null, tx);
+            }
+
+            tx.Commit();
+            return newJournalId;
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
     }
 
     private async Task ConfirmPermanentJournalAsync(long journalId)

@@ -5,6 +5,7 @@
 @using Dapper
 @using System.Data
 @inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 @inject MiniBank.Web.Infrastructure.IDbConnectionFactory DbConnectionFactory
 @inject DsToastService Toast
 @inject Microsoft.AspNetCore.Components.NavigationManager Navigation
@@ -310,14 +311,11 @@
         {
             try
             {
-                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
-                if (fy != null)
-                {
-                    if (string.IsNullOrEmpty(fromDateString))
-                        fromDateString = fy.StartDate.ToPersianDate();
-                    if (string.IsNullOrEmpty(toDateString))
-                        toDateString = fy.EndDate.ToPersianDate();
-                }
+                var range = await FiscalRange.GetRangeAsync();
+                if (string.IsNullOrEmpty(fromDateString))
+                    fromDateString = range.From;
+                if (string.IsNullOrEmpty(toDateString))
+                    toDateString = range.To;
             }
             catch { }
             if (string.IsNullOrEmpty(fromDateString) || string.IsNullOrEmpty(toDateString))

@@ -4,6 +4,7 @@
 @using MiniBank.Web.Components.DesignSystem
 @using MiniBank.Web.Models
 @using MiniBank.Web.Services
+@using MiniBank.Web.Services.Notifications
 @inject IDbConnection _db
 @inject NavigationManager NavigationManager
 @using Dapper
@@ -18,11 +19,10 @@
 @inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
 @inject IJSRuntime JS
 @inject DsToastService Toast
-@inject MiniBank.Web.Services.SmsSender SmsSender
 @inject MiniBank.Web.Infrastructure.Repositories.SmsPanelRepository SmsPanelRepo
-@inject MiniBank.Web.Services.SmsSendService SmsSendService
-@inject MiniBank.Web.Infrastructure.Repositories.SmsMessageLogRepository SmsLogRepo
+@inject MiniBank.Web.Services.Notifications.NotificationService Notifications
 @inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 @using System.Text.Json
 
 
@@ -2416,6 +2416,119 @@
         justify-content: center;
     }
 
+    /* Stage 2 post-save notification switch */
+    .notify-after-save-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+        user-select: none;
+        max-width: 380px;
+    }
+
+    .notify-after-save-toggle input {
+        width: 18px;
+        height: 18px;
+        accent-color: #2563eb;
+        flex: 0 0 auto;
+    }
+
+    .notify-after-save-text { display: grid; gap: 2px; line-height: 1.5; }
+    .notify-after-save-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: #111827;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .notify-after-save-title i { color: #2563eb; }
+    .notify-after-save-hint { font-size: 11px; color: #6b7280; font-weight: 600; }
+
+    /* Sectioned, scrollable notification modal */
+    .mje-nf-scroll {
+        display: grid;
+        gap: 10px;
+        text-align: right;
+        max-height: min(56vh, 520px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 2px;
+    }
+
+    .mje-nf-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border: 1px solid #e5e7eb;
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 10px;
+    }
+
+    .mje-nf-recipient { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .mje-nf-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #eff6ff;
+        color: #1d4ed8;
+        flex: 0 0 auto;
+    }
+    .mje-nf-label { font-size: 11px; color: #6b7280; font-weight: 700; }
+    .mje-nf-mobile { font-weight: 900; direction: ltr; text-align: right; }
+    .mje-nf-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .mje-nf-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    .mje-nf-stat {
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        border-radius: 12px;
+        padding: 10px;
+        display: grid;
+        gap: 6px;
+    }
+    .mje-nf-stat-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; font-weight: 700; }
+    .mje-nf-stat strong { font-size: 14px; font-weight: 900; color: #111827; }
+
+    .mje-nf-section { border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff; }
+    .mje-nf-section-head { padding: 9px 12px; font-weight: 900; font-size: 13px; border-bottom: 1px solid #eef2f7; }
+    .mje-nf-section-head span { display: inline-flex; align-items: center; gap: 8px; }
+    .mje-nf-section-head-sms { background: #f8fafc; color: #0f172a; }
+    .mje-nf-section-head-bale { background: #eff6ff; color: #1d4ed8; }
+    .mje-nf-text {
+        padding: 10px 12px;
+        font-weight: 700;
+        line-height: 1.95;
+        max-height: 120px;
+        overflow-y: auto;
+    }
+    .mje-nf-note { font-size: 12px; color: #6b7280; font-weight: 600; }
+
+    @@media (max-width: 768px) {
+        .mje-nf-scroll { max-height: 50vh; }
+        .notify-after-save-toggle { width: 100%; max-width: none; }
+    }
+
 </style>
 
 <div class="journal-entry-container">
@@ -2671,7 +2784,7 @@
                         <tbody>
                             @foreach (var line in JournalLines)
                             {
-                                <tr id="journal-line-@line.LineId" class="@GetRowClass(line)">
+                                <tr @key="line.LineId" id="journal-line-@line.LineId" class="@GetRowClass(line)">
                                     <td>
                                         <div class="table-cell-content">
                                             <DsDropdown Label="" 
@@ -3002,7 +3115,7 @@
                 @foreach (var line in JournalLines)
                 {
                     var lineIndex = JournalLines.IndexOf(line) + 1;
-                    <div id="journal-line-@line.LineId" class="mobile-line-card @GetRowClass(line)">
+                    <div @key="line.LineId" id="journal-line-@line.LineId" class="mobile-line-card @GetRowClass(line)">
                         <div class="mobile-line-header">
                             <div class="mobile-line-header-start">
                                 <button class="move-up-btn" @onclick="() => MoveLineUp(line)" disabled="@(JournalLines.IndexOf(line) == 0)" title="انتقال به بالا">
@@ -3353,6 +3466,13 @@
                 <span><i class="fas fa-check-circle"></i> ثبت سند</span>
             }
         </button>
+        <label class="notify-after-save-toggle">
+            <input type="checkbox" @bind="_notifyAfterSave" />
+            <span class="notify-after-save-text">
+                <span class="notify-after-save-title"><i class="fas fa-bell"></i> اطلاع‌رسانی پس از ثبت</span>
+                <span class="notify-after-save-hint">خاموش = هیچ پیامی از طریق پیامک یا بله ارسال نمی‌شود؛ حتی اگر پنل پیامک مجاز کرده باشد</span>
+            </span>
+        </label>
         <label style="display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border:1px solid #d1d5db; border-radius:10px; background:#fff; font-size:13px; font-weight:700; cursor:pointer; user-select:none;">
             <input type="checkbox" @bind="_isTemporary" style="width:18px;height:18px;accent-color:#2563eb;" />
             ذخیره به صورت موقت
@@ -3393,22 +3513,22 @@
            OnCancel="@CancelLeave" />
 
 <DsConfirm Show="@_showDepositSmsConfirm"
-           Title="ارسال پیامک واریز سپرده"
+           Title="اطلاع‌رسانی واریز سپرده"
            Message="@_depositSmsConfirmMessage"
            Variant="info"
            ConfirmText="ارسال"
-           CancelText="انصراف"
+           CancelText="بدون ارسال"
            StackButtons="false"
            ShowWarning="false"
            OnConfirm="@ConfirmDepositSmsAsync"
            OnCancel="@CancelDepositSms" />
 
 <DsConfirm Show="@_showLoanPaymentSmsConfirm"
-           Title="ارسال پیامک واریز قسط وام"
+           Title="اطلاع‌رسانی واریز قسط وام"
            Message="@_loanPaymentSmsConfirmMessage"
            Variant="info"
            ConfirmText="ارسال"
-           CancelText="انصراف"
+           CancelText="بدون ارسال"
            StackButtons="false"
            ShowWarning="false"
            OnConfirm="@ConfirmLoanPaymentSmsAsync"
@@ -3461,6 +3581,8 @@
     private decimal _depositAmount = 0m;
     private decimal _depositNewBalance = 0m;
     private string _depositMessageText = string.Empty;
+    private string _depositBaleMessageText = string.Empty;
+    private string _depositChannelLabel = "پیامک";
     private bool _pendingResetAfterDepositSms = false;
     private bool _pendingNavigateAfterDepositSms = false;
 
@@ -3471,6 +3593,8 @@
     private decimal _loanPaymentAmount = 0m;
     private decimal _loanPaymentNewBalance = 0m;
     private string _loanPaymentMessageText = string.Empty;
+    private string _loanPaymentBaleMessageText = string.Empty;
+    private string _loanPaymentChannelLabel = "پیامک";
     private long? _loanPaymentHouseholdId = null;
     private string _loanPaymentMemberIdsJson = string.Empty;
     private bool _pendingResetAfterLoanPaymentSms = false;
@@ -3547,6 +3671,8 @@
     // Confirmation dialog for amount exceed
     private bool _showAmountExceedConfirm = false;
     private bool _isTemporary = false;
+    // Off by default: stage 2 decides whether any SMS/Bale notification is sent after posting.
+    private bool _notifyAfterSave = false;
     private string _amountExceedTitle = "هشدار تجاوز از مبلغ";
     private string _amountExceedMessage = string.Empty;
 
@@ -3666,7 +3792,8 @@
 
     public class ManualJournalLine
     {
-        public int LineId { get; set; } = Random.Shared.Next(1000, 9999);
+        private static int _lineIdSeed;
+        public int LineId { get; set; } = System.Threading.Interlocked.Increment(ref _lineIdSeed);
         public long? JournalLineId { get; set; }
         public long AccountId { get; set; }
         public long? SubsidiaryId { get; set; }
@@ -4089,12 +4216,9 @@ ORDER BY InstallmentNo ASC";
         {
             try
             {
-                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
-                if (fy != null)
-                {
-                    if (string.IsNullOrWhiteSpace(FromDate)) FromDate = fy.StartDate.ToPersianDate();
-                    if (string.IsNullOrWhiteSpace(ToDate)) ToDate = fy.EndDate.ToPersianDate();
-                }
+                var range = await FiscalRange.GetRangeAsync();
+                if (string.IsNullOrWhiteSpace(FromDate)) FromDate = range.From;
+                if (string.IsNullOrWhiteSpace(ToDate)) ToDate = range.To;
             }
             catch { }
             if (string.IsNullOrWhiteSpace(FromDate) || string.IsNullOrWhiteSpace(ToDate))
@@ -4647,6 +4771,7 @@ ORDER BY InstallmentNo ASC";
         Description = "";
         OccurredAt = GetJalaliDate();
         _isTemporary = false;
+        _notifyAfterSave = false;
         // اگر در حالت ویرایش بودیم، به حالت ایجاد سند جدید برگرد
         IsEditMode = false;
         EditingJournalId = null;
@@ -4769,9 +4894,12 @@ ORDER BY InstallmentNo ASC";
                 Toast.Success("سند حسابداری با موفقیت ثبت شد");
             }
 
-            // After successful post, for deposit posting (codes 2201/2202), prompt SMS confirmation
-            if (!IsEditMode)
+            // After successful post, for deposit posting (codes 2201/2202), prompt SMS confirmation.
+            // The stage-2 switch overrides the SMS panel settings: while it is off nothing is sent.
+            // It applies to new and edited journals alike.
+            if (_notifyAfterSave)
             {
+                var navigateAfterPost = ReceiptId.HasValue || IsEditMode;
                 _queueLoanSmsAfterDeposit = false;
                 var loanSmsPrepared = await TryPrepareLoanPaymentSmsConfirmStateAsync();
 
@@ -4784,12 +4912,12 @@ ORDER BY InstallmentNo ASC";
                         _pendingResetAfterDepositSms = false;
                         _pendingNavigateAfterDepositSms = false;
                         _pendingResetAfterLoanPaymentSms = true;
-                        _pendingNavigateAfterLoanPaymentSms = ReceiptId.HasValue;
+                        _pendingNavigateAfterLoanPaymentSms = navigateAfterPost;
                     }
                     else
                     {
                         _pendingResetAfterDepositSms = true;
-                        _pendingNavigateAfterDepositSms = ReceiptId.HasValue;
+                        _pendingNavigateAfterDepositSms = navigateAfterPost;
                     }
                     StateHasChanged();
                     return;
@@ -4800,7 +4928,7 @@ ORDER BY InstallmentNo ASC";
                 if (willShowLoanSms)
                 {
                     _pendingResetAfterLoanPaymentSms = true;
-                    _pendingNavigateAfterLoanPaymentSms = ReceiptId.HasValue;
+                    _pendingNavigateAfterLoanPaymentSms = navigateAfterPost;
                     StateHasChanged();
                     return;
                 }
@@ -4891,15 +5019,6 @@ ORDER BY InstallmentNo ASC";
     {
         try
         {
-            var smsSettings = await SmsPanelRepo.GetSettingsAsync();
-            if (!smsSettings.IsEnabled)
-                return false;
-
-            var features = await SmsPanelRepo.GetFeaturesAsync();
-            var depositFeature = features.FirstOrDefault(f => string.Equals(f.FeatureKey, "deposit_credit", StringComparison.OrdinalIgnoreCase));
-            if (depositFeature == null || !depositFeature.IsEnabled)
-                return false;
-
             var amount = DetectDepositAmount();
 
             var memberIds = DetectDepositMemberIds();
@@ -4913,6 +5032,10 @@ ORDER BY InstallmentNo ASC";
                 return false;
             }
 
+            var availability = await Notifications.GetAvailabilityAsync("deposit_credit", headMobile, headMemberId);
+            if (!availability.Enabled || !availability.HasAnyChannel)
+                return false;
+
             // سند قبل از ارسال پیامک ثبت می‌شود؛ بنابراین مانده تجمیعی فعلی خانوار شامل این واریز است.
             // مبلغ رسید نباید دوباره به مانده اضافه شود.
             var newNet = totalCurrentNet;
@@ -4925,22 +5048,27 @@ ORDER BY InstallmentNo ASC";
             var NAME = headFullName ?? string.Empty;
 
             var text = BuildDepositSmsText(NAME, PRICE, BABAT, MANBAB, MANPRICE);
+            var baleText = await BuildDepositBaleTextAsync(memberIds, PRICE, MANPRICE);
 
             _depositSmsMobile = headMobile;
             _depositMemberId = headMemberId;
             _depositAmount = amount;
             _depositNewBalance = newNet;
             _depositMessageText = text;
+            _depositBaleMessageText = baleText;
             _depositHouseholdId = householdId;
             _depositMemberIdsJson = JsonSerializer.Serialize(memberIds);
+            _depositChannelLabel = availability.EffectiveLabel;
 
-            _depositSmsConfirmMessage = BuildDepositSmsConfirmMarkup(headMobile, PRICE, MANPRICE, text);
+            _depositSmsConfirmMessage = BuildDepositSmsConfirmMarkup(
+                headMobile, PRICE, MANPRICE, text, _depositChannelLabel,
+                availability.BaleReady ? baleText : null);
             _showDepositSmsConfirm = true;
             return true;
         }
         catch (Exception ex)
         {
-            Toasts.Error($"خطا در آماده‌سازی پیامک واریز سپرده: {ex.Message}");
+            Toasts.Error($"خطا در آماده‌سازی اطلاع‌رسانی واریز سپرده: {ex.Message}");
             return false;
         }
     }
@@ -4949,26 +5077,21 @@ ORDER BY InstallmentNo ASC";
     {
         try
         {
-            var smsSettings = await SmsPanelRepo.GetSettingsAsync();
-            if (!smsSettings.IsEnabled)
-                return false;
-
-            var features = await SmsPanelRepo.GetFeaturesAsync();
-            var loanFeature = features.FirstOrDefault(f => string.Equals(f.FeatureKey, "loan_payment", StringComparison.OrdinalIgnoreCase));
-            if (loanFeature == null || !loanFeature.IsEnabled)
-                return false;
-
             var amount = DetectLoanPaymentAmount();
             var memberIds = DetectLoanPaymentMemberIds();
             if (memberIds.Count == 0 || amount <= 0m)
                 return false;
 
-            var (headMobile, headMemberId, headFullName, totalCurrentRemaining, householdId) = await ResolveSingleHouseholdHeadAndCurrentLoanRemainingAsync(memberIds);
+            var (headMobile, headMemberId, headFullName, headFatherName, totalCurrentRemaining, householdId, installmentDueDate) = await ResolveSingleHouseholdHeadAndCurrentLoanRemainingAsync(memberIds);
             if (string.IsNullOrWhiteSpace(headMobile) || headMemberId <= 0)
             {
                 Toasts.Warning("برای اعضای انتخاب‌شده، سرخانوار واحد یا شماره موبایل سرخانوار یافت نشد.");
                 return false;
             }
+
+            var availability = await Notifications.GetAvailabilityAsync("loan_payment", headMobile, headMemberId);
+            if (!availability.Enabled || !availability.HasAnyChannel)
+                return false;
 
             // سند قبل از ارسال پیامک ثبت می‌شود؛ بنابراین مانده فعلی وام شامل این پرداخت است.
             // مبلغ رسید نباید دوباره از مانده کم شود.
@@ -4982,22 +5105,28 @@ ORDER BY InstallmentNo ASC";
             var NAME = headFullName ?? string.Empty;
 
             var text = BuildLoanPaymentSmsText(NAME, PRICE, BABAT, MANBAB, MANPRICE);
+            var dueDateText = installmentDueDate.HasValue ? ToPersianDigits(NotificationText.FormatJalaliDate(installmentDueDate.Value)) : string.Empty;
+            var baleText = BuildLoanPaymentBaleText(headFullName, headFatherName, PRICE, MANPRICE, dueDateText);
 
             _loanPaymentSmsMobile = headMobile;
             _loanPaymentMemberId = headMemberId;
             _loanPaymentAmount = amount;
             _loanPaymentNewBalance = newRemaining;
             _loanPaymentMessageText = text;
+            _loanPaymentBaleMessageText = baleText;
             _loanPaymentHouseholdId = householdId;
             _loanPaymentMemberIdsJson = JsonSerializer.Serialize(memberIds);
+            _loanPaymentChannelLabel = availability.EffectiveLabel;
 
-            _loanPaymentSmsConfirmMessage = BuildLoanPaymentSmsConfirmMarkup(headMobile, PRICE, MANPRICE, text);
+            _loanPaymentSmsConfirmMessage = BuildLoanPaymentSmsConfirmMarkup(
+                headMobile, PRICE, MANPRICE, text, _loanPaymentChannelLabel,
+                availability.BaleReady ? baleText : null);
             _showLoanPaymentSmsConfirm = true;
             return true;
         }
         catch (Exception ex)
         {
-            Toasts.Error($"خطا در آماده‌سازی پیامک واریز قسط وام: {ex.Message}");
+            Toasts.Error($"خطا در آماده‌سازی اطلاع‌رسانی واریز قسط وام: {ex.Message}");
             return false;
         }
     }
@@ -5006,22 +5135,17 @@ ORDER BY InstallmentNo ASC";
     {
         try
         {
-            var smsSettings = await SmsPanelRepo.GetSettingsAsync();
-            if (!smsSettings.IsEnabled)
-                return false;
-
-            var features = await SmsPanelRepo.GetFeaturesAsync();
-            var loanFeature = features.FirstOrDefault(f => string.Equals(f.FeatureKey, "loan_payment", StringComparison.OrdinalIgnoreCase));
-            if (loanFeature == null || !loanFeature.IsEnabled)
-                return false;
-
             var amount = DetectLoanPaymentAmount();
             var memberIds = DetectLoanPaymentMemberIds();
             if (memberIds.Count == 0 || amount <= 0m)
                 return false;
 
-            var (headMobile, headMemberId, headFullName, totalCurrentRemaining, householdId) = await ResolveSingleHouseholdHeadAndCurrentLoanRemainingAsync(memberIds);
+            var (headMobile, headMemberId, headFullName, headFatherName, totalCurrentRemaining, householdId, installmentDueDate) = await ResolveSingleHouseholdHeadAndCurrentLoanRemainingAsync(memberIds);
             if (string.IsNullOrWhiteSpace(headMobile) || headMemberId <= 0)
+                return false;
+
+            var availability = await Notifications.GetAvailabilityAsync("loan_payment", headMobile, headMemberId);
+            if (!availability.Enabled || !availability.HasAnyChannel)
                 return false;
 
             var newRemaining = totalCurrentRemaining;
@@ -5034,16 +5158,22 @@ ORDER BY InstallmentNo ASC";
             var NAME = headFullName ?? string.Empty;
 
             var text = BuildLoanPaymentSmsText(NAME, PRICE, BABAT, MANBAB, MANPRICE);
+            var dueDateText = installmentDueDate.HasValue ? ToPersianDigits(NotificationText.FormatJalaliDate(installmentDueDate.Value)) : string.Empty;
+            var baleText = BuildLoanPaymentBaleText(headFullName, headFatherName, PRICE, MANPRICE, dueDateText);
 
             _loanPaymentSmsMobile = headMobile;
             _loanPaymentMemberId = headMemberId;
             _loanPaymentAmount = amount;
             _loanPaymentNewBalance = newRemaining;
             _loanPaymentMessageText = text;
+            _loanPaymentBaleMessageText = baleText;
             _loanPaymentHouseholdId = householdId;
             _loanPaymentMemberIdsJson = JsonSerializer.Serialize(memberIds);
+            _loanPaymentChannelLabel = availability.EffectiveLabel;
 
-            _loanPaymentSmsConfirmMessage = BuildLoanPaymentSmsConfirmMarkup(headMobile, PRICE, MANPRICE, text);
+            _loanPaymentSmsConfirmMessage = BuildLoanPaymentSmsConfirmMarkup(
+                headMobile, PRICE, MANPRICE, text, _loanPaymentChannelLabel,
+                availability.BaleReady ? baleText : null);
             _showLoanPaymentSmsConfirm = false;
             return true;
         }
@@ -5179,10 +5309,10 @@ ORDER BY InstallmentNo ASC";
         return (headMobile, headId, head?.FullName, totalCurrentNet, householdId);
     }
 
-    private async Task<(string? headMobile, long headMemberId, string? headFullName, decimal totalCurrentRemaining, long? householdId)> ResolveSingleHouseholdHeadAndCurrentLoanRemainingAsync(List<long> memberIds)
+    private async Task<(string? headMobile, long headMemberId, string? headFullName, string? headFatherName, decimal totalCurrentRemaining, long? householdId, DateTime? installmentDueDate)> ResolveSingleHouseholdHeadAndCurrentLoanRemainingAsync(List<long> memberIds)
     {
         if (memberIds.Count == 0)
-            return (null, 0, null, 0m, null);
+            return (null, 0, null, null, 0m, null, null);
 
         var members = new List<Member>();
         foreach (var id in memberIds)
@@ -5193,7 +5323,7 @@ ORDER BY InstallmentNo ASC";
         }
 
         if (members.Count == 0)
-            return (null, 0, null, 0m, null);
+            return (null, 0, null, null, 0m, null, null);
 
         var headIds = members
             .Select(m => m.Household?.OwnerMemberId)
@@ -5203,17 +5333,27 @@ ORDER BY InstallmentNo ASC";
             .ToList();
 
         if (headIds.Count != 1)
-            return (null, 0, null, 0m, null);
+            return (null, 0, null, null, 0m, null, null);
 
         var headId = headIds[0];
         var head = await MemberService.GetByIdAsync(headId);
         var headMobile = head?.MobileNumber;
         if (string.IsNullOrWhiteSpace(headMobile))
-            return (null, 0, null, 0m, null);
+            return (null, 0, null, null, 0m, null, null);
 
         var householdId = members.FirstOrDefault()?.Household?.HouseholdId;
 
+        var relevantCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in members)
+        {
+            var sub = await AccountsRepo.GetSubsidiaryByMemberIdAsync(m.MemberId, includeInactive: true);
+            var code = (sub?.Code ?? string.Empty).Trim();
+            if (code.Length > 0)
+                relevantCodes.Add(code);
+        }
+
         decimal totalCurrentRemaining = 0m;
+        DateTime? installmentDueDate = null;
         if (householdId.HasValue && householdId.Value > 0)
         {
             var householdMembers = (await MemberService.GetAsync(householdId: householdId.Value, top: 1000)).ToList();
@@ -5229,59 +5369,94 @@ ORDER BY InstallmentNo ASC";
 
             var snaps = await MemberFinancial.GetSnapshotsByMemberCodesAsync(memberCodes);
             totalCurrentRemaining = snaps.Values.Sum(x => x.ActiveLoan?.RemainingTotal ?? 0m);
+
+            var dueDates = new List<DateTime>();
+            foreach (var kv in snaps)
+            {
+                if (!relevantCodes.Contains(kv.Key))
+                    continue;
+
+                var loanSnap = kv.Value.ActiveLoan;
+                if (loanSnap == null)
+                    continue;
+
+                // Partially paid current installment belongs to this payment; otherwise the just-paid
+                // installment is the last fully paid one.
+                var currentHasPayments =
+                    (loanSnap.CurrentInstallmentAchievedPrincipal > 0m || loanSnap.CurrentInstallmentAchievedInterest > 0m);
+                var due = currentHasPayments
+                    ? loanSnap.CurrentInstallmentDueDate
+                    : (loanSnap.LastPaidInstallmentDueDate ?? loanSnap.CurrentInstallmentDueDate);
+                if (due.HasValue)
+                    dueDates.Add(due.Value);
+            }
+
+            if (dueDates.Count > 0)
+                installmentDueDate = dueDates.Max();
         }
 
-        return (headMobile, headId, head?.FullName, totalCurrentRemaining, householdId);
+        return (headMobile, headId, head?.FullName, head?.FatherName, totalCurrentRemaining, householdId, installmentDueDate);
     }
 
-    private static string BuildDepositSmsConfirmMarkup(string mobile, string PRICE, string MANPRICE, string messageText)
+    private static string BuildDepositSmsConfirmMarkup(string mobile, string PRICE, string MANPRICE, string messageText, string channelLabel = "پیامک", string? baleText = null)
     {
-        var safeMsg = (messageText ?? string.Empty)
-            .Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;")
-            .Replace("\r\n", "\n")
-            .Replace("\r", "\n")
-            .Replace("\n", "<br/>");
+        static string EscapeMessage(string? value)
+            => (value ?? string.Empty)
+                .Replace("&", "&amp;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;")
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .Replace("\n", "<br/>");
+
+        var safeMsg = EscapeMessage(messageText);
+
+        var baleBlock = string.IsNullOrWhiteSpace(baleText)
+            ? string.Empty
+            : $@"
+  <div class='mje-nf-section'>
+    <div class='mje-nf-section-head mje-nf-section-head-bale'>
+      <span><i class='fa-solid fa-comments'></i> متن ارسال در بله</span>
+    </div>
+    <div class='mje-nf-text'>{EscapeMessage(baleText)}</div>
+  </div>";
+
+        var note = channelLabel.Contains("پیامک", StringComparison.Ordinal)
+            ? "با تایید شما پیام ارسال می‌شود و از اعتبار پنل پیامک کسر خواهد شد."
+            : "با تایید شما پیام از طریق بله ارسال می‌شود.";
 
         return $@"
-<div style='display:grid; gap:10px; text-align:right;'>
-  <div style='display:flex; gap:10px; align-items:flex-start; border:1px solid #e5e7eb; background:#f8fafc; border-radius:12px; padding:10px;'>
-    <div style='width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:#eff6ff; color:#1d4ed8; flex:0 0 auto;'>
-      <i class='fa-solid fa-phone'></i>
-    </div>
-    <div style='display:grid; gap:2px;'>
-      <div style='font-weight:900;'>گیرنده</div>
-      <div style='font-weight:900; direction:ltr;'>{mobile}</div>
-    </div>
-  </div>
-
-  <div style='display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));'>
-    <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
-      <div style='display:flex; gap:8px; align-items:center;'>
-        <i class='fa-solid fa-sack-dollar' style='color:#16a34a;'></i>
-        <div style='font-weight:900;'>مبلغ واریز</div>
+<div class='mje-nf-scroll'>
+  <div class='mje-nf-summary'>
+    <div class='mje-nf-recipient'>
+      <span class='mje-nf-icon'><i class='fa-solid fa-phone'></i></span>
+      <div>
+        <div class='mje-nf-label'>گیرنده</div>
+        <div class='mje-nf-mobile'>{mobile}</div>
       </div>
-      <div style='margin-top:6px; font-weight:900;'>{PRICE} ریال</div>
     </div>
-    <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
-      <div style='display:flex; gap:8px; align-items:center;'>
-        <i class='fa-solid fa-wallet' style='color:#0ea5e9;'></i>
-        <div style='font-weight:900;'>مانده سپرده خانوار</div>
-      </div>
-      <div style='margin-top:6px; font-weight:900;'>{MANPRICE} ریال</div>
+    <span class='mje-nf-chip'><i class='fa-solid fa-paper-plane'></i> {channelLabel}</span>
+  </div>
+
+  <div class='mje-nf-stats'>
+    <div class='mje-nf-stat'>
+      <span class='mje-nf-stat-label'><i class='fa-solid fa-sack-dollar'></i> مبلغ واریز</span>
+      <strong>{PRICE} ریال</strong>
+    </div>
+    <div class='mje-nf-stat'>
+      <span class='mje-nf-stat-label'><i class='fa-solid fa-wallet'></i> مانده سپرده خانوار</span>
+      <strong>{MANPRICE} ریال</strong>
     </div>
   </div>
 
-  <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
-    <div style='display:flex; gap:8px; align-items:center;'>
-      <i class='fa-solid fa-message' style='color:#0f172a;'></i>
-      <div style='font-weight:900;'>متن پیامک</div>
+  <div class='mje-nf-section'>
+    <div class='mje-nf-section-head mje-nf-section-head-sms'>
+      <span><i class='fa-solid fa-message'></i> متن پیامک</span>
     </div>
-    <div style='margin-top:8px; line-height:1.9; font-weight:800;'>{safeMsg}</div>
+    <div class='mje-nf-text'>{safeMsg}</div>
   </div>
-
-  <div style='font-size:12px; opacity:.75;'>با تایید شما، پیامک ارسال می‌شود و از اعتبار پنل کسر خواهد شد.</div>
+{baleBlock}
+  <div class='mje-nf-note'>{note}</div>
 </div>";
     }
 
@@ -5307,9 +5482,69 @@ ORDER BY InstallmentNo ASC";
         return BuildCommonSmsText(NAME, PRICE, BABAT, MANBAB, MANPRICE);
     }
 
+    private async Task<string> BuildDepositBaleTextAsync(IEnumerable<long> memberIds, string PRICE, string MANPRICE)
+    {
+        var names = new List<string>();
+        foreach (var id in memberIds.Distinct().Take(10))
+        {
+            try
+            {
+                var member = await MemberService.GetByIdAsync(id);
+                if (member != null && !string.IsNullOrWhiteSpace(member.FullName))
+                {
+                    var display = member.FullName.Trim();
+                    if (!string.IsNullOrWhiteSpace(member.FatherName) && !display.Contains('☆'))
+                        display = $"{display}☆{member.FatherName.Trim()}";
+                    names.Add(display);
+                }
+            }
+            catch
+            {
+                // نبود نام یک عضو نباید مانع ارسال اطلاع‌رسانی شود.
+            }
+        }
+
+        var owner = names.Count == 0 ? "عضو" : string.Join("، ", names);
+        var date = DateTime.Now.ToPersianDate()
+            .Replace('0', '۰').Replace('1', '۱').Replace('2', '۲').Replace('3', '۳').Replace('4', '۴')
+            .Replace('5', '۵').Replace('6', '۶').Replace('7', '۷').Replace('8', '۸').Replace('9', '۹');
+
+        return "عضو محترم صندوق امام علی(ع)\n" +
+               "با سلام\n" +
+               $"به اطلاع می‌رساند که مبلغ {PRICE} ریال بابت واریز سپرده متعلق به {owner} در تاریخ {date} ثبت سامانه گردید.\n" +
+               $"مانده کل سپرده شما تاکنون: {MANPRICE} ریال می باشد.\n\n" +
+               "صندوق امام علی (ع)";
+    }
+
     private static string BuildLoanPaymentSmsText(string NAME, string PRICE, string BABAT, string MANBAB, string MANPRICE)
     {
         return BuildCommonSmsText(NAME, PRICE, BABAT, MANBAB, MANPRICE);
+    }
+
+    private static string BuildLoanPaymentBaleText(string? headName, string? fatherName, string PRICE, string MANPRICE, string? dueDate)
+    {
+        var name = (headName ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(fatherName) && !name.Contains('☆'))
+            name = $"{name}☆{fatherName.Trim()}";
+
+        var person = string.IsNullOrWhiteSpace(name) ? "عضو محترم" : $"آقای {name}";
+        var dueClause = string.IsNullOrWhiteSpace(dueDate)
+            ? string.Empty
+            : $" به تاریخ سررسید {dueDate}";
+
+        return "عضو محترم صندوق امام علی (ع)\n" +
+               $"{person}\n" +
+               "با سلام\n" +
+               $"به اطلاع می‌رساند که مبلغ {PRICE} ریال بابت واریز قسط وام شما{dueClause} ثبت سامانه گردید.\n" +
+               $"مانده وام شما تاکنون: {MANPRICE} ریال می باشد.\n" +
+               "صندوق امام علی (ع)";
+    }
+
+    private static string ToPersianDigits(string value)
+    {
+        return value
+            .Replace('0', '۰').Replace('1', '۱').Replace('2', '۲').Replace('3', '۳').Replace('4', '۴')
+            .Replace('5', '۵').Replace('6', '۶').Replace('7', '۷').Replace('8', '۸').Replace('9', '۹');
     }
 
     private static string BuildCommonSmsText(string NAME, string PRICE, string BABAT, string MANBAB, string MANPRICE)
@@ -5337,54 +5572,65 @@ ORDER BY InstallmentNo ASC";
                $"صندوق امام علی(ع)";
     }
 
-    private static string BuildLoanPaymentSmsConfirmMarkup(string mobile, string PRICE, string MANPRICE, string messageText)
+    private static string BuildLoanPaymentSmsConfirmMarkup(string mobile, string PRICE, string MANPRICE, string messageText, string channelLabel = "پیامک", string? baleText = null)
     {
-        var safeMsg = (messageText ?? string.Empty)
-            .Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;")
-            .Replace("\r\n", "\n")
-            .Replace("\r", "\n")
-            .Replace("\n", "<br/>");
+        static string EscapeMessage(string? value)
+            => (value ?? string.Empty)
+                .Replace("&", "&amp;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;")
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .Replace("\n", "<br/>");
+
+        var safeMsg = EscapeMessage(messageText);
+
+        var baleBlock = string.IsNullOrWhiteSpace(baleText)
+            ? string.Empty
+            : $@"
+  <div class='mje-nf-section'>
+    <div class='mje-nf-section-head mje-nf-section-head-bale'>
+      <span><i class='fa-solid fa-comments'></i> متن ارسال در بله</span>
+    </div>
+    <div class='mje-nf-text'>{EscapeMessage(baleText)}</div>
+  </div>";
+
+        var note = channelLabel.Contains("پیامک", StringComparison.Ordinal)
+            ? "با تایید شما پیام ارسال می‌شود و از اعتبار پنل پیامک کسر خواهد شد."
+            : "با تایید شما پیام از طریق بله ارسال می‌شود.";
 
         return $@"
-<div style='display:grid; gap:10px; text-align:right;'>
-  <div style='display:flex; gap:10px; align-items:flex-start; border:1px solid #e5e7eb; background:#f8fafc; border-radius:12px; padding:10px;'>
-    <div style='width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:#eff6ff; color:#1d4ed8; flex:0 0 auto;'>
-      <i class='fa-solid fa-phone'></i>
-    </div>
-    <div style='display:grid; gap:2px;'>
-      <div style='font-weight:900;'>گیرنده</div>
-      <div style='font-weight:900; direction:ltr;'>{mobile}</div>
-    </div>
-  </div>
-
-  <div style='display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));'>
-    <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
-      <div style='display:flex; gap:8px; align-items:center;'>
-        <i class='fa-solid fa-money-bill-wave' style='color:#16a34a;'></i>
-        <div style='font-weight:900;'>مبلغ پرداخت</div>
+<div class='mje-nf-scroll'>
+  <div class='mje-nf-summary'>
+    <div class='mje-nf-recipient'>
+      <span class='mje-nf-icon'><i class='fa-solid fa-phone'></i></span>
+      <div>
+        <div class='mje-nf-label'>گیرنده</div>
+        <div class='mje-nf-mobile'>{mobile}</div>
       </div>
-      <div style='margin-top:6px; font-weight:900;'>{PRICE} ریال</div>
     </div>
-    <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
-      <div style='display:flex; gap:8px; align-items:center;'>
-        <i class='fa-solid fa-scale-balanced' style='color:#0ea5e9;'></i>
-        <div style='font-weight:900;'>مانده وام خانوار</div>
-      </div>
-      <div style='margin-top:6px; font-weight:900;'>{MANPRICE} ریال</div>
+    <span class='mje-nf-chip'><i class='fa-solid fa-paper-plane'></i> {channelLabel}</span>
+  </div>
+
+  <div class='mje-nf-stats'>
+    <div class='mje-nf-stat'>
+      <span class='mje-nf-stat-label'><i class='fa-solid fa-money-bill-wave'></i> مبلغ پرداخت</span>
+      <strong>{PRICE} ریال</strong>
+    </div>
+    <div class='mje-nf-stat'>
+      <span class='mje-nf-stat-label'><i class='fa-solid fa-scale-balanced'></i> مانده وام خانوار</span>
+      <strong>{MANPRICE} ریال</strong>
     </div>
   </div>
 
-  <div style='border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:10px;'>
-    <div style='display:flex; gap:8px; align-items:center;'>
-      <i class='fa-solid fa-message' style='color:#0f172a;'></i>
-      <div style='font-weight:900;'>متن پیامک</div>
+  <div class='mje-nf-section'>
+    <div class='mje-nf-section-head mje-nf-section-head-sms'>
+      <span><i class='fa-solid fa-message'></i> متن پیامک</span>
     </div>
-    <div style='margin-top:8px; line-height:1.9; font-weight:800;'>{safeMsg}</div>
+    <div class='mje-nf-text'>{safeMsg}</div>
   </div>
-
-  <div style='font-size:12px; opacity:.75;'>با تایید شما، پیامک ارسال می‌شود و از اعتبار پنل کسر خواهد شد.</div>
+{baleBlock}
+  <div class='mje-nf-note'>{note}</div>
 </div>";
     }
 
@@ -5403,8 +5649,6 @@ ORDER BY InstallmentNo ASC";
             if (templateId <= 0)
                 templateId = 828043;
 
-            var parts = EstimateParts(_depositMessageText);
-
             var PRICE = _depositAmount.ToString("N0");
             var BABAT = "واریز سپرده";
             var MANBAB = "سپرده";
@@ -5413,63 +5657,37 @@ ORDER BY InstallmentNo ASC";
             var head = await MemberService.GetByIdAsync(_depositMemberId);
             var NAME = head?.FullName ?? string.Empty;
 
-            var paramsJson = JsonSerializer.Serialize(new { NAME, PRICE, BABAT, MANBAB, MANPRICE });
-            var logId = await SmsLogRepo.CreateAsync(
-                featureKey: "deposit_credit",
-                householdId: _depositHouseholdId,
-                headMemberId: _depositMemberId,
-                memberIdsJson: _depositMemberIdsJson,
-                recipientMobile: _depositSmsMobile,
-                templateId: templateId,
-                paramsJson: paramsJson,
-                messageText: _depositMessageText);
-
-            string? rawResponse = null;
-            long? providerMessageId = null;
-            int? apiStatus = null;
-            string? apiMessage = null;
-            try
+            var result = await Notifications.NotifyAsync(new NotificationRequest
             {
-                rawResponse = await SmsSender.SendVerifyForFeatureAsync("deposit_credit", _depositSmsMobile, templateId, PRICE, BABAT, MANBAB, MANPRICE, NAME);
-
-                // Try parse messageId/status/message from json response (best-effort)
-                try
+                FeatureKey = "deposit_credit",
+                MessageText = _depositMessageText,
+                BaleMessageText = _depositBaleMessageText,
+                MemberId = _depositMemberId,
+                HouseholdId = _depositHouseholdId,
+                HeadMemberId = _depositMemberId,
+                MemberIdsJson = _depositMemberIdsJson,
+                RecipientMobile = _depositSmsMobile,
+                RecipientName = NAME,
+                SmsTemplateId = templateId,
+                SmsParams = new Dictionary<string, string>
                 {
-                    using var doc = JsonDocument.Parse(rawResponse);
-                    if (doc.RootElement.TryGetProperty("status", out var s) && s.TryGetInt32(out var st))
-                        apiStatus = st;
-                    if (doc.RootElement.TryGetProperty("message", out var m))
-                        apiMessage = m.GetString();
+                    ["NAME"] = NAME,
+                    ["PRICE"] = PRICE,
+                    ["BABAT"] = BABAT,
+                    ["MANBAB"] = MANBAB,
+                    ["MANPRICE"] = MANPRICE
+                },
+                CreatedBy = "manual-deposit"
+            });
 
-                    if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
-                    {
-                        if (data.TryGetProperty("messageId", out var mid) && mid.TryGetInt64(out var midVal))
-                            providerMessageId = midVal;
-                    }
-                }
-                catch
-                {
-                    // ignore parse errors
-                }
-
-                var isSuccess = apiStatus.HasValue ? apiStatus.Value == 1 : true;
-                await SmsLogRepo.MarkResultAsync(logId, isSuccess, rawResponse, providerMessageId, apiStatus, apiMessage, errorMessage: null);
-            }
-            catch (Exception exSend)
-            {
-                await SmsLogRepo.MarkResultAsync(logId, isSuccess: false, rawResponse, providerMessageId, apiStatus, apiMessage, errorMessage: exSend.Message);
-                throw;
-            }
-
-            var creditResult = await SmsSendService.ConsumeCreditAfterSuccessfulSendAsync(parts);
-            if (creditResult.lowCredit)
-                Toasts.Warning($"هشدار: اعتبار پیامک کمتر از {creditResult.thresholdRial:N0} ریال است.");
-
-            Toasts.Success("پیامک واریز سپرده ارسال شد.");
+            if (result.Ok)
+                Toasts.Success(result.Message);
+            else
+                Toasts.Error(result.Message);
         }
         catch (Exception ex)
         {
-            Toasts.Error($"خطا در ارسال پیامک واریز سپرده: {ex.Message}");
+            Toasts.Error($"خطا در ارسال اطلاع‌رسانی واریز سپرده: {ex.Message}");
         }
         finally
         {
@@ -5520,8 +5738,6 @@ ORDER BY InstallmentNo ASC";
             if (templateId <= 0)
                 templateId = 828043;
 
-            var parts = EstimateParts(_loanPaymentMessageText);
-
             var PRICE = _loanPaymentAmount.ToString("N0");
             var BABAT = "واریز قسط وام";
             var MANBAB = "وام";
@@ -5530,63 +5746,37 @@ ORDER BY InstallmentNo ASC";
             var head = await MemberService.GetByIdAsync(_loanPaymentMemberId);
             var NAME = head?.FullName ?? string.Empty;
 
-            var paramsJson = JsonSerializer.Serialize(new { NAME, PRICE, BABAT, MANBAB, MANPRICE });
-            var logId = await SmsLogRepo.CreateAsync(
-                featureKey: "loan_payment",
-                householdId: _loanPaymentHouseholdId,
-                headMemberId: _loanPaymentMemberId,
-                memberIdsJson: _loanPaymentMemberIdsJson,
-                recipientMobile: _loanPaymentSmsMobile,
-                templateId: templateId,
-                paramsJson: paramsJson,
-                messageText: _loanPaymentMessageText);
-
-            string? rawResponse = null;
-            long? providerMessageId = null;
-            int? apiStatus = null;
-            string? apiMessage = null;
-            try
+            var result = await Notifications.NotifyAsync(new NotificationRequest
             {
-                rawResponse = await SmsSender.SendVerifyForFeatureAsync("loan_payment", _loanPaymentSmsMobile, templateId, PRICE, BABAT, MANBAB, MANPRICE, NAME);
-
-                // Try parse messageId/status/message from json response (best-effort)
-                try
+                FeatureKey = "loan_payment",
+                MessageText = _loanPaymentMessageText,
+                BaleMessageText = _loanPaymentBaleMessageText,
+                MemberId = _loanPaymentMemberId,
+                HouseholdId = _loanPaymentHouseholdId,
+                HeadMemberId = _loanPaymentMemberId,
+                MemberIdsJson = _loanPaymentMemberIdsJson,
+                RecipientMobile = _loanPaymentSmsMobile,
+                RecipientName = NAME,
+                SmsTemplateId = templateId,
+                SmsParams = new Dictionary<string, string>
                 {
-                    using var doc = JsonDocument.Parse(rawResponse);
-                    if (doc.RootElement.TryGetProperty("status", out var s) && s.TryGetInt32(out var st))
-                        apiStatus = st;
-                    if (doc.RootElement.TryGetProperty("message", out var m))
-                        apiMessage = m.GetString();
+                    ["NAME"] = NAME,
+                    ["PRICE"] = PRICE,
+                    ["BABAT"] = BABAT,
+                    ["MANBAB"] = MANBAB,
+                    ["MANPRICE"] = MANPRICE
+                },
+                CreatedBy = "manual-loan-payment"
+            });
 
-                    if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
-                    {
-                        if (data.TryGetProperty("messageId", out var mid) && mid.TryGetInt64(out var midVal))
-                            providerMessageId = midVal;
-                    }
-                }
-                catch
-                {
-                    // ignore parse errors
-                }
-
-                var isSuccess = apiStatus.HasValue ? apiStatus.Value == 1 : true;
-                await SmsLogRepo.MarkResultAsync(logId, isSuccess, rawResponse, providerMessageId, apiStatus, apiMessage, errorMessage: null);
-            }
-            catch (Exception exSend)
-            {
-                await SmsLogRepo.MarkResultAsync(logId, isSuccess: false, rawResponse, providerMessageId, apiStatus, apiMessage, errorMessage: exSend.Message);
-                throw;
-            }
-
-            var creditResult = await SmsSendService.ConsumeCreditAfterSuccessfulSendAsync(parts);
-            if (creditResult.lowCredit)
-                Toasts.Warning($"هشدار: اعتبار پیامک کمتر از {creditResult.thresholdRial:N0} ریال است.");
-
-            Toasts.Success("پیامک واریز قسط وام ارسال شد.");
+            if (result.Ok)
+                Toasts.Success(result.Message);
+            else
+                Toasts.Error(result.Message);
         }
         catch (Exception ex)
         {
-            Toasts.Error($"خطا در ارسال پیامک قسط وام: {ex.Message}");
+            Toasts.Error($"خطا در ارسال اطلاع‌رسانی قسط وام: {ex.Message}");
         }
         finally
         {
@@ -5622,6 +5812,7 @@ ORDER BY InstallmentNo ASC";
         _depositAmount = 0m;
         _depositNewBalance = 0m;
         _depositMessageText = string.Empty;
+        _depositBaleMessageText = string.Empty;
 
         if (_pendingResetAfterDepositSms)
         {
@@ -5661,6 +5852,7 @@ ORDER BY InstallmentNo ASC";
         _loanPaymentAmount = 0m;
         _loanPaymentNewBalance = 0m;
         _loanPaymentMessageText = string.Empty;
+        _loanPaymentBaleMessageText = string.Empty;
         _loanPaymentHouseholdId = null;
         _loanPaymentMemberIdsJson = string.Empty;
     }
@@ -5687,14 +5879,6 @@ ORDER BY InstallmentNo ASC";
 
     private long? _depositHouseholdId;
     private string? _depositMemberIdsJson;
-
-    private static int EstimateParts(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return 1;
-        var len = text.Length;
-        var perPart = 70; // UCS-2 safe approximation for Persian
-        return (int)Math.Ceiling(len / (double)perPart);
-    }
 
     private static int ParseInt(string? raw)
     {

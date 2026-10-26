@@ -1,0 +1,220 @@
+@page "/admin/notifications/subscribers"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Models.Notifications
+@inject DsToastService Toasts
+@inject BaleBotRepository Repo
+
+<PageTitle>اعضای متصل به بله</PageTitle>
+
+<DsPageHeader Title="اعضای متصل به بله"
+             Icon="fa-brands fa-telegram"
+             Subtitle="فهرست اعضایی که حساب خود را به ربات بله متصل کرده‌اند"
+             ShowBackButton="true" />
+
+<section class="bs-page" dir="rtl">
+    <div class="bs-card">
+        <div class="bs-filters">
+            <div class="bs-field">
+                <label>جستجو (کد عضویت / نام / موبایل / نام کاربری / ChatId)</label>
+                <input class="bs-input" value="@_query" @oninput="OnQueryChanged" placeholder="مثلاً 11008 یا 0912..." />
+            </div>
+
+            <label class="bs-check">
+                <input type="checkbox" checked="@_onlyActive" @onchange="OnOnlyActiveChanged" />
+                <span>فقط اتصال‌های فعال</span>
+            </label>
+
+            <div class="bs-actions">
+                <button class="bs-btn primary" @onclick="LoadAsync" disabled="@_loading">جستجو</button>
+                <button class="bs-btn" @onclick="ClearAsync" disabled="@_loading">پاک کردن</button>
+            </div>
+        </div>
+
+        <div class="bs-summary">
+            <span>نمایش: <b>@_rows.Count</b></span>
+            <span>فعال: <b>@_stats.ActiveCount</b></span>
+            <span>کل: <b>@_stats.TotalCount</b></span>
+        </div>
+    </div>
+
+    <div class="bs-card" style="margin-top:12px;">
+        @if (_loading)
+        {
+            <div>در حال بارگذاری...</div>
+        }
+        else if (_rows.Count == 0)
+        {
+            <div class="bs-muted">موردی یافت نشد.</div>
+        }
+        else
+        {
+            <div class="bs-table-wrap">
+                <table class="bs-table">
+                    <thead>
+                        <tr>
+                            <th>کد عضویت</th>
+                            <th>نام عضو</th>
+                            <th>موبایل</th>
+                            <th>ChatId</th>
+                            <th>نام کاربری بله</th>
+                            <th>تاریخ اتصال</th>
+                            <th>آخرین فعالیت</th>
+                            <th>وضعیت</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in _rows)
+                        {
+                            <tr>
+                                <td dir="ltr">@s.MemberId</td>
+                                <td>@(string.IsNullOrWhiteSpace(s.MemberFullName) ? "-" : s.MemberFullName)</td>
+                                <td dir="ltr">@(string.IsNullOrWhiteSpace(s.MemberMobileNumber) ? "-" : s.MemberMobileNumber)</td>
+                                <td dir="ltr">@s.ChatId</td>
+                                <td dir="ltr">@(string.IsNullOrWhiteSpace(s.Username) ? "-" : "@" + s.Username)</td>
+                                <td dir="ltr">@s.LinkedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</td>
+                                <td dir="ltr">@(s.LastSeenAt.HasValue ? s.LastSeenAt.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm") : "-")</td>
+                                <td>
+                                    @if (s.IsActive)
+                                    {
+                                        <span class="bs-badge ok">متصل</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="bs-badge off">قطع شده</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (s.IsActive)
+                                    {
+                                        <button class="bs-btn danger" @onclick="(() => AskDisconnect(s))">قطع اتصال</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <DsConfirm Show="@_showDisconnectConfirm"
+               Title="قطع اتصال بله"
+               Message="@_disconnectMessage"
+               Variant="danger"
+               ConfirmText="قطع اتصال"
+               CancelText="انصراف"
+               OnConfirm="ConfirmDisconnectAsync"
+               OnCancel="CancelDisconnect" />
+</section>
+
+<style>
+    .bs-page{direction:rtl;padding:16px 14px 80px;max-width:1200px;margin:0 auto}
+    .bs-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px;box-shadow:0 8px 22px rgba(15,23,42,.05)}
+    .bs-filters{display:grid;gap:10px;grid-template-columns:1.6fr auto auto;align-items:end}
+    @@media (max-width: 780px){.bs-filters{grid-template-columns:1fr}}
+    .bs-field{display:grid;gap:6px}
+    .bs-field label{font-weight:900;font-size:12px;color:#0f172a}
+    .bs-input{width:100%;height:40px;border-radius:12px;border:1px solid #cbd5e1;padding:0 10px;font-weight:800;background:#fff;outline:none}
+    .bs-input:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(59,130,246,.12)}
+    .bs-check{display:flex;align-items:center;gap:8px;font-weight:900;color:#0f172a;white-space:nowrap}
+    .bs-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .bs-btn{height:38px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;color:#0f172a;font-weight:950;padding:0 14px;cursor:pointer}
+    .bs-btn.primary{border-color:#0ea5e9;background:#0ea5e9;color:#fff}
+    .bs-btn.danger{border-color:#fecaca;background:#fef2f2;color:#b91c1c;height:32px;padding:0 10px;font-size:12px}
+    .bs-btn:disabled{opacity:.6;cursor:not-allowed}
+    .bs-summary{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:#475569;font-weight:800}
+    .bs-summary b{color:#0f172a}
+    .bs-muted{font-size:12px;color:#64748b;font-weight:800}
+    .bs-table-wrap{overflow:auto}
+    .bs-table{width:100%;border-collapse:collapse;min-width:900px}
+    .bs-table th{font-size:12px;color:#64748b;font-weight:900;text-align:right;padding:8px;border-bottom:1px solid #e5e7eb}
+    .bs-table td{padding:9px 8px;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;font-size:12px}
+    .bs-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-weight:950;font-size:11px}
+    .bs-badge.ok{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
+    .bs-badge.off{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+</style>
+
+@code {
+    private bool _loading = true;
+    private string _query = string.Empty;
+    private bool _onlyActive = true;
+    private List<BaleSubscriber> _rows = new();
+    private BaleBotRepository.SubscriberStats _stats = new();
+
+    private bool _showDisconnectConfirm;
+    private BaleSubscriber? _pendingDisconnect;
+    private string _disconnectMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _rows = (await Repo.ListAsync(_query, _onlyActive, 500)).ToList();
+            _stats = await Repo.GetStatsAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری فهرست: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnQueryChanged(ChangeEventArgs e) => _query = e.Value?.ToString() ?? string.Empty;
+    private void OnOnlyActiveChanged(ChangeEventArgs e) => _onlyActive = e.Value is bool b && b;
+
+    private async Task ClearAsync()
+    {
+        _query = string.Empty;
+        _onlyActive = true;
+        await LoadAsync();
+    }
+
+    private void AskDisconnect(BaleSubscriber subscriber)
+    {
+        _pendingDisconnect = subscriber;
+        _disconnectMessage = $"آیا اتصال عضو {(string.IsNullOrWhiteSpace(subscriber.MemberFullName) ? subscriber.MemberId.ToString() : subscriber.MemberFullName)} به بله قطع شود؟";
+        _showDisconnectConfirm = true;
+    }
+
+    private Task CancelDisconnect()
+    {
+        _showDisconnectConfirm = false;
+        _pendingDisconnect = null;
+        _disconnectMessage = string.Empty;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmDisconnectAsync()
+    {
+        var subscriber = _pendingDisconnect;
+        _showDisconnectConfirm = false;
+        _pendingDisconnect = null;
+        _disconnectMessage = string.Empty;
+
+        if (subscriber == null)
+            return;
+
+        try
+        {
+            await Repo.DeactivateByMemberAsync(subscriber.MemberId);
+            Toasts.Success("اتصال بله عضو قطع شد.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در قطع اتصال: {ex.Message}");
+        }
+    }
+}

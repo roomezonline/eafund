@@ -1,10 +1,13 @@
 @page "/admin/fiscal-years/closing/{FiscalYearId:int}"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 @using MiniBank.Web.Components.DesignSystem
 @using MiniBank.Web.Models
 @inject MiniBank.Web.Services.FiscalYearService FiscalYearService
-@inject MiniBank.Web.Services.LoadingService Loading
+@inject MiniBank.Web.Services.FiscalYearContext FyContext
 @inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="report-container">
   <button class="back-btn" @onclick="GoBack">
@@ -28,8 +31,8 @@
     {
       <div class="report-header">
         <div class="report-title">
-          <i class="fa-solid fa-lock"></i>
-          <span>اختتامیه سال مالی @_preview.FiscalYear!.YearCode</span>
+          <i class="fa-solid fa-arrow-right-arrow-left"></i>
+          <span>انتقال مانده سال مالی @_preview.FiscalYear!.YearCode به سال @_preview.NextFiscalYear?.YearCode</span>
         </div>
         <div class="report-subtitle">@_preview.FiscalYear.Title</div>
         <div class="report-subtitle" style="margin-top: 4px; color: #6b7280;">
@@ -37,32 +40,79 @@
         </div>
       </div>
 
-      var bsRows = _preview.SummaryRows.Where(r => r.AccountType is 1 or 2 or 3).ToList();
+      var hasUnfinalized = _preview.UnfinalizedJournalCount > 0;
 
-      if (bsRows.Count > 0)
+      if (hasUnfinalized)
       {
-        var totalDebit = bsRows.Where(r => r.AccountType == 1).Sum(r => r.NetBalance);
-        var totalCredit = bsRows.Where(r => r.AccountType != 1).Sum(r => r.NetBalance);
-        var diff = totalDebit - totalCredit;
-        var hasDiscrepancy = Math.Abs(diff) > 0.01m;
+        <div class="unfinalized-warning">
+          <div class="unfinalized-icon">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="unfinalized-body">
+            <div class="unfinalized-title">امکان اختتامیه وجود ندارد</div>
+            <div class="unfinalized-desc">
+              تعداد <strong>@_preview.UnfinalizedJournalCount</strong> سند در این سال مالی هنوز قطعی نشده است.
+            </div>
+            <div class="unfinalized-hint">
+              ابتدا تمام اسناد را از وضعیت موقت یا دائمی به وضعیت <strong>قطعی</strong> تغییر دهید.
+            </div>
+          </div>
+        </div>
+      }
 
+      if (_preview.InactiveAccountsWithBalance.Count > 0)
+      {
+        <div class="unfinalized-warning">
+          <div class="unfinalized-icon">
+            <i class="fa-solid fa-user-slash"></i>
+          </div>
+          <div class="unfinalized-body">
+            <div class="unfinalized-title">حساب غیرفعالِ دارای مانده</div>
+            <div class="unfinalized-desc">
+              @string.Join("، ", _preview.InactiveAccountsWithBalance)
+            </div>
+            <div class="unfinalized-hint">
+              این حساب‌ها در محاسبهٔ مانده لحاظ نمی‌شوند و اگر مانده‌شان صفر نباشد، سند انتقال نامتوازن می‌شود.
+              ابتدا ماندهٔ این حساب‌ها را با انتقال به حسابِ فعال صفر کنید.
+            </div>
+          </div>
+        </div>
+      }
+
+      var allRows = _preview.SummaryRows;
+      var bsRows = allRows.Where(r => r.AccountType is 1 or 2 or 3).ToList();
+
+      // مغایرت ترازنامه فقط روی دارایی/بدهی/سرمایه (نوع 1..3) محاسبه می‌شود و دست‌نخورده می‌ماند.
+      var totalDebit = bsRows.Where(r => r.AccountType == 1).Sum(r => r.NetBalance);
+      var totalCredit = bsRows.Where(r => r.AccountType != 1).Sum(r => r.NetBalance);
+      var diff = totalDebit - totalCredit;
+      var hasDiscrepancy = Math.Abs(diff) > 0.01m;
+
+      // جدول، همهٔ ردیف‌های خلاصه را نشان می‌دهد تا در سال‌هایی که فقط مانده نوع 4/5 دارند جدول خالی نماند.
+      var footerDebit = allRows.Where(r => r.AccountType is 1 or 5).Sum(r => r.NetBalance);
+      var footerCredit = allRows.Where(r => r.AccountType != 1 && r.AccountType != 5).Sum(r => r.NetBalance);
+
+      if (allRows.Count > 0)
+      {
         <div class="table-scroll">
           <table class="report-table">
             <thead>
               <tr>
+                <th class="th-yellow">کد</th>
                 <th class="th-yellow">نوع حساب</th>
                 <th class="th-blue">بدهکار</th>
                 <th class="th-credit-header">بستانکار</th>
               </tr>
             </thead>
             <tbody>
-              @foreach (var row in bsRows)
+              @foreach (var row in allRows)
               {
-                var isDebitType = row.AccountType == 1;
+                var isDebitType = row.AccountType is 1 or 5;
                 var displayDebit = isDebitType && row.NetBalance > 0 ? row.NetBalance : 0m;
                 var displayCredit = !isDebitType && row.NetBalance > 0 ? row.NetBalance : 0m;
-                <tr>
-                  <td class="td-white">@row.TypeName</td>
+                <tr class="clickable-row" @onclick="@(() => ShowDetail(row))">
+                  <td class="td-white" style="text-align:center; font-family:monospace;">@row.AccountCode</td>
+                  <td class="td-white">@row.AccountName</td>
                   <td class="amount-value td-blue">@(displayDebit > 0 ? displayDebit.ToString("N0") : "-")</td>
                   <td class="amount-value td-credit">@(displayCredit > 0 ? displayCredit.ToString("N0") : "-")</td>
                 </tr>
@@ -70,9 +120,10 @@
             </tbody>
             <tfoot>
               <tr class="total-row">
+                <td class="td-white"></td>
                 <td class="td-white" style="text-align:center; font-weight:800;">جمع</td>
-                <td class="amount-value td-blue" style="color:#111827;">@totalDebit.ToString("N0")</td>
-                <td class="amount-value td-credit" style="font-size:12px;">@totalCredit.ToString("N0")</td>
+                <td class="amount-value td-blue" style="color:#111827;">@footerDebit.ToString("N0")</td>
+                <td class="amount-value td-credit" style="font-size:12px;">@footerCredit.ToString("N0")</td>
               </tr>
             </tfoot>
           </table>
@@ -88,20 +139,173 @@
         }
       }
 
+      @if (_preview.JournalLines.Count > 0)
+      {
+        <div style="margin-top: 28px;">
+          <div style="font-size:16px; font-weight:800; color:#111827; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-file-invoice" style="color:#2563eb;"></i>
+            <span>پیش‌نمایش سند انتقال (افتتاحیه) به سال @_preview.NextFiscalYear?.YearCode</span>
+            <span style="font-weight:400; color:#6b7280; font-size:13px;">(@_preview.JournalLines.Count خط)</span>
+          </div>
+          <div class="table-scroll">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th class="th-yellow" style="width:40px;">ردیف</th>
+                  <th class="th-yellow">معین</th>
+                  <th class="th-yellow">تفصیلی</th>
+                  <th class="th-yellow" style="width:60px;">سطح</th>
+                  <th class="th-blue">بدهکار</th>
+                  <th class="th-credit-header">بستانکار</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var line in _preview.JournalLines)
+                {
+                  <tr>
+                    <td class="td-white" style="text-align:center;">@line.LineNo</td>
+                    <td class="td-white">
+                      <span style="font-family:monospace; font-size:12px; color:#6b7280;">@line.MoeenCode</span>
+                      <span style="margin-right:6px;">@line.MoeenName</span>
+                    </td>
+                    <td class="td-white">
+                      @if (line.Level == 4)
+                      {
+                        <span style="font-family:monospace; font-size:12px; color:#6b7280;">@line.AccountCode</span>
+                        <span style="margin-right:6px;">@line.AccountName</span>
+                      }
+                      else
+                      {
+                        <span style="color:#9ca3af;">—</span>
+                      }
+                    </td>
+                    <td class="td-white" style="text-align:center;">
+                      <span class="level-badge @(line.Level == 3 ? "badge-moein" : "badge-tafsili")">
+                        @(line.Level == 3 ? "معین" : "تفصیلی")
+                      </span>
+                    </td>
+                    <td class="amount-value td-blue">@(line.Debit > 0 ? line.Debit.ToString("N0") : "-")</td>
+                    <td class="amount-value td-credit">@(line.Credit > 0 ? line.Credit.ToString("N0") : "-")</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td colspan="4" class="td-white" style="text-align:center; font-weight:800;">جمع</td>
+                  <td class="amount-value td-blue" style="color:#111827;">@_preview.TotalDebit.ToString("N0")</td>
+                  <td class="amount-value td-credit" style="font-size:12px;">@_preview.TotalCredit.ToString("N0")</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      }
+
       <div style="text-align: center; margin-top: 24px;">
-        <button class="btn primary" @onclick="ExecuteClosing" disabled="@_executing">
+        <button class="btn primary" @onclick="ShowClosingConfirm" disabled="@(_executing || hasUnfinalized)">
           @if (_executing)
           {
             <span>در حال اجرا...</span>
           }
+          else if (hasUnfinalized)
+          {
+            <span><i class="fa-solid fa-lock" style="margin-left:6px;"></i>غیرفعال - اسناد قطعی نشده</span>
+          }
           else
           {
-            <span>تأیید و ثبت اختتامیه</span>
+            <span>تأیید و انتقال به سال @_preview.NextFiscalYear?.YearCode</span>
           }
         </button>
       </div>
     }
 </div>
+
+<DsConfirm Show="@_showClosingConfirm"
+           Title="تأیید انتقال مانده"
+           Message="@_closingConfirmMessage"
+           Variant="warning"
+           ConfirmText="تأیید و انتقال"
+           CancelText="انصراف"
+           Loading="@_executing"
+           OnConfirm="ExecuteClosing"
+           OnCancel="CancelClosing" />
+
+@if (_showDetailModal)
+{
+  <div class="detail-overlay" @onclick="CloseDetail">
+    <div class="detail-modal" @onclick:stopPropagation>
+      <div class="detail-modal-header">
+        <div class="detail-modal-title">
+          @if (_detailDrillStack.Count > 0)
+          {
+            <button class="detail-back-btn" @onclick="DrillBack">
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          }
+          <i class="fa-solid fa-layer-group"></i>
+          <span>جزئیات: @_detailAccountName <span style="font-weight:400; color:#6b7280;">(@_detailAccountCode)</span></span>
+        </div>
+        <button class="detail-close-btn" @onclick="CloseDetail">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="detail-modal-body">
+        @if (_detailLoading)
+        {
+          <div style="text-align:center; padding:30px; color:#6b7280;">در حال بارگیری...</div>
+        }
+        else if (_detailRows.Count == 0)
+        {
+          <div style="text-align:center; padding:30px; color:#6b7280;">حساب با مانده یافت نشد.</div>
+        }
+        else
+        {
+          <div class="detail-table-scroll">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>کد</th>
+                  <th>نام حساب</th>
+                  <th>نوع</th>
+                  <th>بدهکار</th>
+                  <th>بستانکار</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var row in _detailRows)
+                {
+                  var dDebit = row.TotalDebit > row.TotalCredit ? row.TotalDebit - row.TotalCredit : 0m;
+                  var dCredit = row.TotalCredit > row.TotalDebit ? row.TotalCredit - row.TotalDebit : 0m;
+                  var isClickable = row.Level < 4;
+                  <tr class="@(isClickable ? "clickable-row" : "")"
+                      style="@(isClickable ? "cursor:pointer;" : "")"
+                      @onclick="@(isClickable ? () => DrillInto(row) : null)">
+                    <td class="detail-td-code">@row.Code</td>
+                    <td class="detail-td-name">@row.Name</td>
+                    <td class="detail-td-level">
+                      <span class="level-badge @(row.Level == 3 ? "badge-moein" : "badge-tafsili")">
+                        @(row.Level == 3 ? "معین" : "تفصیلی")
+                      </span>
+                    </td>
+                    <td class="detail-td-amount detail-debit">@(dDebit > 0 ? dDebit.ToString("N0") : "-")</td>
+                    <td class="detail-td-amount detail-credit">@(dCredit > 0 ? dCredit.ToString("N0") : "-")</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="detail-total-row">
+                  <td colspan="3">جمع</td>
+                  <td class="detail-td-amount detail-debit">@_detailRows.Sum(r => r.TotalDebit > r.TotalCredit ? r.TotalDebit - r.TotalCredit : 0m).ToString("N0")</td>
+                  <td class="detail-td-amount detail-credit">@_detailRows.Sum(r => r.TotalCredit > r.TotalDebit ? r.TotalCredit - r.TotalDebit : 0m).ToString("N0")</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
 
 @code {
   [Parameter] public int FiscalYearId { get; set; }
@@ -110,6 +314,8 @@
   private string? _error;
   private FiscalYearService.ClosingPreview? _preview;
   private bool _executing;
+  private bool _showClosingConfirm;
+  private string _closingConfirmMessage = "";
 
   protected override async Task OnInitializedAsync() => await LoadData();
 
@@ -131,18 +337,55 @@
     }
   }
 
+  private void ShowClosingConfirm()
+  {
+    if (_preview == null) return;
+    _closingConfirmMessage =
+      $@"با تأیید، هر سه مرحله با هم انجام می‌شود:
+         <br/>1) سال مالی <strong>{_preview.FiscalYear!.YearCode}</strong> <b>بسته</b> می‌شود.
+         <br/>2) یک <b>سند انتقال</b> در سال <strong>{_preview.NextFiscalYear?.YearCode}</strong> ثبت می‌شود.
+         <br/>3) سال مالی <strong>{_preview.NextFiscalYear?.YearCode}</strong> <b>افتتاح (باز)</b> می‌شود.
+         <br/>تعداد خطوط سند: <strong>{_preview.JournalLines.Count}</strong>
+         <br/>بدهکار: <strong>{_preview.TotalDebit:N0}</strong> | بستانکار: <strong>{_preview.TotalCredit:N0}</strong>
+         <br/><br/>آیا از انتقال مطمئن هستید؟";
+    _showClosingConfirm = true;
+  }
+
+  private void CancelClosing() => _showClosingConfirm = false;
+
+  private async Task<string> GetActorNameAsync()
+  {
+    try
+    {
+      var state = await AuthStateProvider.GetAuthenticationStateAsync();
+      var name = state.User?.Identity?.Name;
+      if (!string.IsNullOrWhiteSpace(name)) return name;
+      var byId = state.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+      if (!string.IsNullOrWhiteSpace(byId)) return byId;
+    }
+    catch { }
+    return "admin";
+  }
+
   private async Task ExecuteClosing()
   {
     _executing = true;
     try
     {
-      var journalId = await FiscalYearService.ExecuteClosingAsync(FiscalYearId, "admin");
-      Toasts.Success($"اختتامیه با موفقیت ثبت شد (سند شماره {journalId})");
+      var nextYearCode = _preview?.NextFiscalYear?.YearCode;
+      var docNum = await FiscalYearService.ExecuteClosingAsync(FiscalYearId, await GetActorNameAsync());
+      if (nextYearCode.HasValue)
+      {
+        try { await FyContext.SetAsync(nextYearCode.Value); } catch { }
+      }
+      _showClosingConfirm = false;
+      Toasts.Success($"سال مالی بسته، سند انتقال ثبت و سال {nextYearCode} افتتاح شد (سند شماره {docNum})");
       Navigation.NavigateTo("/admin/fiscal-years");
     }
     catch (Exception ex)
     {
-      Toasts.Error($"خطا در ثبت اختتامیه: {ex.Message}");
+      _showClosingConfirm = false;
+      Toasts.Error($"خطا در انتقال: {ex.Message}");
     }
     finally
     {
@@ -151,4 +394,101 @@
   }
 
   private void GoBack() => Navigation.NavigateTo("/admin/fiscal-years");
+
+  private bool _showDetailModal;
+  private string _detailAccountName = "";
+  private string _detailAccountCode = "";
+  private long _detailAccountId;
+  private List<FiscalYearService.AccountDetailRow> _detailRows = new();
+  private bool _detailLoading;
+  private List<(string Name, string Code, long Id)> _detailDrillStack = new();
+
+  private async Task ShowDetail(FiscalYearService.ClosingSummaryRow row)
+  {
+    _detailAccountName = row.AccountName;
+    _detailAccountCode = row.AccountCode;
+    _detailAccountId = row.AccountId;
+    _detailRows = new();
+    _detailDrillStack.Clear();
+    _showDetailModal = true;
+    _detailLoading = true;
+    StateHasChanged();
+
+    try
+    {
+      _detailRows = await FiscalYearService.GetAccountDetailAsync(
+        row.AccountId, FiscalYearId);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگیری جزئیات: {ex.Message}");
+    }
+    finally
+    {
+      _detailLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task DrillInto(FiscalYearService.AccountDetailRow row)
+  {
+    _detailDrillStack.Add((_detailAccountName, _detailAccountCode, _detailAccountId));
+    _detailAccountName = row.Name;
+    _detailAccountCode = row.Code;
+    _detailAccountId = row.AccountId;
+    _detailRows = new();
+    _detailLoading = true;
+    StateHasChanged();
+
+    try
+    {
+      _detailRows = await FiscalYearService.GetAccountDetailAsync(
+        row.AccountId, FiscalYearId);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگیری جزئیات: {ex.Message}");
+    }
+    finally
+    {
+      _detailLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task DrillBack()
+  {
+    if (_detailDrillStack.Count == 0) return;
+
+    var prev = _detailDrillStack[^1];
+    _detailDrillStack.RemoveAt(_detailDrillStack.Count - 1);
+    _detailAccountName = prev.Name;
+    _detailAccountCode = prev.Code;
+    _detailAccountId = prev.Id;
+    _detailRows = new();
+    _detailLoading = true;
+    StateHasChanged();
+
+    try
+    {
+      _detailRows = await FiscalYearService.GetAccountDetailAsync(
+        prev.Id, FiscalYearId);
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در بارگیری جزئیات: {ex.Message}");
+    }
+    finally
+    {
+      _detailLoading = false;
+      StateHasChanged();
+    }
+  }
+
+  private void CloseDetail()
+  {
+    _showDetailModal = false;
+    _detailDrillStack.Clear();
+    StateHasChanged();
+  }
 }

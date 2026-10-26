@@ -1,0 +1,441 @@
+@page "/admin/notifications/queue"
+@using MiniBank.Web.Components.DesignSystem
+@using MiniBank.Web.Infrastructure.Repositories
+@using MiniBank.Web.Models.Notifications
+@using MiniBank.Web.Services.Notifications
+@using System.Security.Claims
+@inject Microsoft.JSInterop.IJSRuntime JS
+@inject DsToastService Toasts
+@inject NotificationRepository Repo
+@inject NotificationService Notifications
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>صف اطلاع‌رسانی</PageTitle>
+
+<DsPageHeader Title="صف اطلاع‌رسانی"
+             Icon="fa-solid fa-paper-plane"
+             Subtitle="تایید، ارسال فوری، تلاش مجدد و لغو اطلاع‌رسانی‌ها"
+             ShowBackButton="true" />
+
+<section class="nq-page" dir="rtl">
+    <div class="nq-card">
+        <div class="nq-filters">
+            <div class="nq-field">
+                <label>وضعیت</label>
+                <select class="nq-input" value="@_statusFilter" @onchange="OnStatusChanged">
+                    <option value="">همه</option>
+                    <option value="0">در انتظار تایید</option>
+                    <option value="1">در صف</option>
+                    <option value="2">در حال ارسال</option>
+                    <option value="3">ارسال شده</option>
+                    <option value="4">ناموفق</option>
+                    <option value="5">ارسال نشده</option>
+                    <option value="6">لغو شده</option>
+                </select>
+            </div>
+
+            <div class="nq-field">
+                <label>نوع اطلاع‌رسانی</label>
+                <select class="nq-input" value="@_featureFilter" @onchange="OnFeatureChanged">
+                    <option value="">همه</option>
+                    @foreach (var f in _features)
+                    {
+                        <option value="@f.FeatureKey">@f.Title</option>
+                    }
+                </select>
+            </div>
+
+            <div class="nq-field">
+                <label>جستجو (شناسه / عضو / موبایل / متن)</label>
+                <input class="nq-input" value="@_query" @oninput="OnQueryChanged" placeholder="مثلاً 120 یا 0912..." />
+            </div>
+
+            <div class="nq-actions">
+                <button class="nq-btn primary" @onclick="LoadAsync" disabled="@_loading">بارگذاری</button>
+                <button class="nq-btn" @onclick="ClearAsync" disabled="@_loading">پاک کردن</button>
+            </div>
+        </div>
+
+        <div class="nq-actions" style="margin-top:10px;">
+            <button class="nq-btn" @onclick="SelectAllPending" disabled="@_loading">انتخاب همه در انتظار تایید (همین صفحه)</button>
+            <button class="nq-btn success" @onclick="ApproveSelectedAsync" disabled="@(_busy || _selected.Count == 0)">
+                تایید انتخاب‌شده‌ها (@_selected.Count)
+            </button>
+            <button class="nq-btn success" @onclick="ApproveAllFilteredAsync" disabled="@(_busy || _loading)">
+                تایید همه در انتظار (با فیلتر فعلی)
+            </button>
+        </div>
+        <div class="nq-muted" style="margin-top:8px;">
+            تایید انبوه، پیام‌ها را فقط در صف قرار می‌دهد؛ ارسال توسط سرویس پس‌زمینه و به‌ترتیب انجام می‌شود و در همین صفحه قابل پیگیری است.
+        </div>
+    </div>
+
+    <div class="nq-card" style="margin-top:12px;">
+        @if (_loading)
+        {
+            <div>در حال بارگذاری...</div>
+        }
+        else if (_rows.Count == 0)
+        {
+            <div class="nq-muted">موردی یافت نشد.</div>
+        }
+        else
+        {
+            <div class="nq-list">
+                @foreach (var x in _rows)
+                {
+                    var featureTitle = _featureTitles.TryGetValue(x.FeatureKey, out var ft) ? ft : x.FeatureKey;
+                    var name = string.IsNullOrWhiteSpace(x.MemberFullName) ? (x.RecipientName ?? "-") : x.MemberFullName;
+                    var badgeClass = StatusClass(x.Status);
+
+                    <div class="nq-row">
+                        <div class="nq-row-head">
+                            <input type="checkbox"
+                                   checked="@_selected.Contains(x.NotificationId)"
+                                   disabled="@(x.Status != NotificationStatuses.PendingApproval)"
+                                   @onchange="(e) => ToggleSelected(x.NotificationId, e)" />
+
+                            <div class="nq-main">
+                                <div class="nq-title">@featureTitle</div>
+                                <div class="nq-meta">
+                                    <span>شناسه: <b dir="ltr">@x.NotificationId</b></span>
+                                    <span>عضو: <b>@name</b></span>
+                                    <span>موبایل: <b dir="ltr">@(string.IsNullOrWhiteSpace(x.RecipientMobile) ? "-" : x.RecipientMobile)</b></span>
+                                    <span>کانال: <b>@NotificationChannels.Label(x.ChannelMask)</b></span>
+                                    <span>تلاش: <b>@x.Attempts</b></span>
+                                </div>
+                                <details class="nq-details">
+                                    <summary>متن پیام</summary>
+                                    <pre class="nq-pre">@x.MessageText</pre>
+                                </details>
+                            </div>
+
+                            <div class="nq-side">
+                                <span class="nq-badge @badgeClass">@NotificationStatuses.Label(x.Status)</span>
+                                <span class="nq-time">@x.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</span>
+                                @if (x.SmsSentAt.HasValue)
+                                {
+                                    <span class="nq-chip">پیامک ارسال شد</span>
+                                }
+                                @if (x.BaleSentAt.HasValue)
+                                {
+                                    <span class="nq-chip">بله ارسال شد</span>
+                                }
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(x.LastError))
+                        {
+                            <div class="nq-error">@x.LastError</div>
+                        }
+
+                        <div class="nq-row-actions">
+                            @if (x.Status == NotificationStatuses.PendingApproval)
+                            {
+                                <button class="nq-btn success" @onclick="(() => ApproveAndSendAsync(x))" disabled="@_busy">تایید و ارسال</button>
+                                <button class="nq-btn danger" @onclick="(() => CancelAsync(x))" disabled="@_busy">لغو</button>
+                            }
+                            else if (x.Status == NotificationStatuses.Queued)
+                            {
+                                <button class="nq-btn primary" @onclick="(() => SendNowAsync(x))" disabled="@_busy">ارسال فوری</button>
+                                <button class="nq-btn danger" @onclick="(() => CancelAsync(x))" disabled="@_busy">لغو</button>
+                            }
+                            else if (x.Status is NotificationStatuses.Failed or NotificationStatuses.Skipped)
+                            {
+                                <button class="nq-btn" @onclick="(() => RetryAsync(x))" disabled="@_busy">تلاش مجدد</button>
+                                <button class="nq-btn danger" @onclick="(() => CancelAsync(x))" disabled="@_busy">لغو</button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+<style>
+    .nq-page{direction:rtl;padding:16px 14px 80px;max-width:1200px;margin:0 auto}
+    .nq-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px;box-shadow:0 8px 22px rgba(15,23,42,.05)}
+    .nq-filters{display:grid;gap:10px;grid-template-columns:1fr 1.2fr 1.6fr auto;align-items:end}
+    @@media (max-width: 900px){.nq-filters{grid-template-columns:1fr}}
+    .nq-field{display:grid;gap:6px}
+    .nq-field label{font-weight:900;font-size:12px;color:#0f172a}
+    .nq-input{width:100%;height:40px;border-radius:12px;border:1px solid #cbd5e1;padding:0 10px;font-weight:800;background:#fff;outline:none}
+    .nq-input:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(59,130,246,.12)}
+    .nq-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .nq-btn{height:36px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;color:#0f172a;font-weight:950;padding:0 12px;cursor:pointer;font-size:12px}
+    .nq-btn.primary{border-color:#0ea5e9;background:#0ea5e9;color:#fff}
+    .nq-btn.success{border-color:#16a34a;background:#16a34a;color:#fff}
+    .nq-btn.danger{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
+    .nq-btn:disabled{opacity:.55;cursor:not-allowed}
+    .nq-muted{font-size:12px;color:#64748b;font-weight:800}
+    .nq-list{display:grid;gap:10px}
+    .nq-row{border:1px solid #e5e7eb;border-radius:16px;padding:12px;background:linear-gradient(180deg,#f8fafc,#fff)}
+    .nq-row-head{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start}
+    @@media (max-width: 720px){.nq-row-head{grid-template-columns:auto 1fr}}
+    .nq-main{display:grid;gap:6px}
+    .nq-title{font-weight:950;color:#0f172a}
+    .nq-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#475569;font-weight:800}
+    .nq-meta b{color:#0f172a}
+    .nq-side{display:grid;gap:6px;justify-items:end}
+    .nq-badge{display:inline-flex;padding:2px 10px;border-radius:999px;font-weight:950;font-size:11px;border:1px solid transparent}
+    .nq-badge.pending{background:#fef3c7;color:#92400e;border-color:#fde68a}
+    .nq-badge.queued{background:#e0f2fe;color:#075985;border-color:#bae6fd}
+    .nq-badge.sending{background:#ede9fe;color:#5b21b6;border-color:#ddd6fe}
+    .nq-badge.sent{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+    .nq-badge.failed{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+    .nq-badge.skipped{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+    .nq-badge.cancelled{background:#f3f4f6;color:#6b7280;border-color:#e5e7eb}
+    .nq-time{font-size:11px;color:#64748b;font-weight:800;direction:ltr}
+    .nq-chip{font-size:10px;font-weight:900;color:#166534;background:#dcfce7;border-radius:999px;padding:1px 8px}
+    .nq-details summary{cursor:pointer;font-size:12px;font-weight:900;color:#0369a1}
+    .nq-pre{white-space:pre-wrap;font-family:inherit;font-size:12px;line-height:1.9;color:#0f172a;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px;margin:6px 0 0}
+    .nq-error{margin-top:8px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:8px;font-size:12px;font-weight:800}
+    .nq-row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+</style>
+
+@code {
+    private bool _loading = true;
+    private bool _busy;
+    private string _statusFilter = string.Empty;
+    private string _featureFilter = string.Empty;
+    private string _query = string.Empty;
+    private List<NotificationQueueItem> _rows = new();
+    private List<NotificationFeature> _features = new();
+    private readonly Dictionary<string, string> _featureTitles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<long> _selected = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _features = (await Repo.GetFeaturesAsync()).ToList();
+        foreach (var f in _features)
+            _featureTitles[f.FeatureKey] = f.Title;
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _selected.Clear();
+
+            byte? status = byte.TryParse(_statusFilter, out var s) ? s : null;
+            var featureKey = string.IsNullOrWhiteSpace(_featureFilter) ? null : _featureFilter;
+
+            _rows = (await Repo.SearchAsync(status, featureKey, _query, 250)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری صف: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnStatusChanged(ChangeEventArgs e) => _statusFilter = e.Value?.ToString() ?? string.Empty;
+    private void OnFeatureChanged(ChangeEventArgs e) => _featureFilter = e.Value?.ToString() ?? string.Empty;
+    private void OnQueryChanged(ChangeEventArgs e) => _query = e.Value?.ToString() ?? string.Empty;
+
+    private async Task ClearAsync()
+    {
+        _statusFilter = string.Empty;
+        _featureFilter = string.Empty;
+        _query = string.Empty;
+        await LoadAsync();
+    }
+
+    private void ToggleSelected(long id, ChangeEventArgs e)
+    {
+        if (e.Value is bool selected && selected)
+            _selected.Add(id);
+        else
+            _selected.Remove(id);
+    }
+
+    private void SelectAllPending()
+    {
+        _selected.Clear();
+        foreach (var row in _rows.Where(x => x.Status == NotificationStatuses.PendingApproval))
+            _selected.Add(row.NotificationId);
+    }
+
+    private async Task<string?> CurrentUserAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        return state.User.FindFirst(ClaimTypes.Name)?.Value
+               ?? state.User.Identity?.Name
+               ?? "admin";
+    }
+
+    private async Task ApproveSelectedAsync()
+    {
+        if (_selected.Count == 0)
+            return;
+
+        try
+        {
+            _busy = true;
+            var user = await CurrentUserAsync();
+            var ids = _selected.ToArray();
+
+            var approved = await Repo.ApproveAsync(ids, user);
+
+            Toasts.Success(approved > 0
+                ? $"{approved} مورد تایید شد و در صف ارسال پس‌زمینه قرار گرفت."
+                : "موردی برای تایید وجود نداشت.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در تایید: {ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ApproveAllFilteredAsync()
+    {
+        if (_busy)
+            return;
+
+        try
+        {
+            var featureKey = string.IsNullOrWhiteSpace(_featureFilter) ? null : _featureFilter;
+            var label = featureKey == null
+                ? "همه انواع اطلاع‌رسانی"
+                : (_featureTitles.TryGetValue(featureKey, out var title) ? title : featureKey);
+
+            var confirmed = await JS.InvokeAsync<bool>("confirm",
+                $"همه اطلاع‌رسانی‌های در انتظار تایید «{label}» تایید و برای ارسال در صف قرار بگیرند؟");
+            if (!confirmed)
+                return;
+
+            _busy = true;
+            var user = await CurrentUserAsync();
+            var approved = await Repo.ApproveAllPendingAsync(featureKey, user);
+
+            Toasts.Success(approved > 0
+                ? $"{approved} مورد تایید شد و در صف ارسال پس‌زمینه قرار گرفت."
+                : "موردی در انتظار تایید نبود.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در تایید انبوه: {ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ApproveAndSendAsync(NotificationQueueItem item)
+    {
+        try
+        {
+            _busy = true;
+            var user = await CurrentUserAsync();
+            await Repo.ApproveAsync(new[] { item.NotificationId }, user);
+            var outcome = await Notifications.DispatchNowAsync(item.NotificationId);
+            if (outcome.Ok)
+                Toasts.Success(outcome.Message);
+            else
+                Toasts.Warning(outcome.Message);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ارسال: {ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SendNowAsync(NotificationQueueItem item)
+    {
+        try
+        {
+            _busy = true;
+            var outcome = await Notifications.DispatchNowAsync(item.NotificationId);
+            if (outcome.Ok)
+                Toasts.Success(outcome.Message);
+            else
+                Toasts.Warning(outcome.Message);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ارسال: {ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RetryAsync(NotificationQueueItem item)
+    {
+        try
+        {
+            _busy = true;
+            await Repo.RetryAsync(item.NotificationId);
+            var outcome = await Notifications.DispatchNowAsync(item.NotificationId);
+            if (outcome.Ok)
+                Toasts.Success(outcome.Message);
+            else
+                Toasts.Warning(outcome.Message);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در تلاش مجدد: {ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CancelAsync(NotificationQueueItem item)
+    {
+        try
+        {
+            _busy = true;
+            var user = await CurrentUserAsync();
+            var ok = await Repo.CancelAsync(item.NotificationId, user, "لغو توسط مدیر");
+            if (ok)
+                Toasts.Success("اطلاع‌رسانی لغو شد.");
+            else
+                Toasts.Warning("این مورد قابل لغو نیست.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در لغو: {ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string StatusClass(byte status) => status switch
+    {
+        NotificationStatuses.PendingApproval => "pending",
+        NotificationStatuses.Queued => "queued",
+        NotificationStatuses.Sending => "sending",
+        NotificationStatuses.Sent => "sent",
+        NotificationStatuses.Failed => "failed",
+        NotificationStatuses.Skipped => "skipped",
+        NotificationStatuses.Cancelled => "cancelled",
+        _ => "skipped"
+    };
+}

@@ -8,6 +8,7 @@
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthStateProvider
 @inject AuthRepository AuthRepo
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 
 <PageTitle>گزارش واتساپ</PageTitle>
 
@@ -88,7 +89,7 @@
     <div class="ws-row two">
         <div class="ws-field">
             <label>تا تاریخ</label>
-            <input class="ws-input" value="@_asOfText" @onchange="OnAsOfChanged" data-jdp="true" data-jdp-only-date="true" placeholder="1404/11/11" />
+            <input class="ws-input" value="@_asOfText" @onchange="OnAsOfChanged" data-jdp="true" data-jdp-only-date="true" data-jdp-min-date="@_fiscalFrom" data-jdp-max-date="@_fiscalTo" placeholder="1404/11/11" />
         </div>
         <div class="ws-field">
             <label>ارزش اسمی هر سهم (ریال)</label>
@@ -145,6 +146,8 @@
   private ReportMode _mode = ReportMode.None;
 
   private string _asOfText = string.Empty;
+  private string? _fiscalFrom;
+  private string? _fiscalTo;
   private string _shareNominalText = "1000000";
   private decimal _shareNominal = 1000000m;
   private string _issuerName = string.Empty;
@@ -179,7 +182,17 @@
 
   protected override async Task OnInitializedAsync()
   {
-    _asOfText = DateTime.Now.ToPersianDate();
+    try
+    {
+      var range = await FiscalRange.GetRangeAsync();
+      _fiscalFrom = range.From;
+      _fiscalTo = range.To;
+      _asOfText = await FiscalRange.ClampAsync(DateTime.Now.ToPersianDate());
+    }
+    catch
+    {
+      _asOfText = DateTime.Now.ToPersianDate();
+    }
     _issuerName = await GetIssuerNameAsync();
   }
 

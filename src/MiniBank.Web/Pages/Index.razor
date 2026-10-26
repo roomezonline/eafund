@@ -5,6 +5,8 @@
 @inject AuthenticationStateProvider AuthStateProvider
 
 @code {
+    private string _target = "/admin/dashboard2";
+
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -12,17 +14,21 @@
 
         if (user?.Identity?.IsAuthenticated != true)
         {
-            Nav.NavigateTo("/login", forceLoad: true);
+            _target = "/login";
             return;
         }
 
         var role = user.FindFirst(ClaimTypes.Role)?.Value;
-        if (string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase))
-        {
-            Nav.NavigateTo("/dashboard", forceLoad: true);
-            return;
-        }
+        _target = string.Equals(role, "Member", StringComparison.OrdinalIgnoreCase)
+            ? "/dashboard"
+            : "/admin/dashboard2";
+    }
 
-        Nav.NavigateTo("/admin/dashboard2", forceLoad: true);
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Nav.NavigateTo(_target, forceLoad: true);
+        }
     }
 }

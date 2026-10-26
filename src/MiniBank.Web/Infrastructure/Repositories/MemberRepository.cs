@@ -116,6 +116,24 @@ namespace MiniBank.Web.Infrastructure.Repositories
             return members.FirstOrDefault();
         }
 
+        public async Task<IReadOnlyList<long>> GetActiveMemberIdsByMobileLast10Async(string last10)
+        {
+            if (string.IsNullOrWhiteSpace(last10) || last10.Length != 10)
+                return Array.Empty<long>();
+
+            const string sql = @"
+                SELECT MemberId
+                FROM Members
+                WHERE IsActive = 1
+                  AND RIGHT(
+                        REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(ISNULL(MobileNumber, N''), N' ', N''), N'-', N''), N'+', N''), N'(', N''), N')', N''), N'.', N''),
+                        10) = @last10
+                ORDER BY MemberId;";
+
+            var rows = await Connection.QueryAsync<long>(sql, new { last10 });
+            return rows.ToList();
+        }
+
         public async Task<IReadOnlyList<Member>> GetByIdsAsync(IReadOnlyCollection<long> ids)
         {
             if (ids == null || ids.Count == 0)

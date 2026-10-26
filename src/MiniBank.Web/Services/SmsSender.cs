@@ -71,7 +71,7 @@ namespace MiniBank.Web.Services
             IReadOnlyDictionary<string, string> parameters,
             CancellationToken ct = default)
         {
-            await EnsureSmsEnabledAsync(featureKey: null);
+            await EnsureSmsEnabledAsync();
 
             var apiKey = GetApiKey();
 
@@ -97,57 +97,11 @@ namespace MiniBank.Web.Services
             return body;
         }
 
-        public async Task<string> SendVerifyForFeatureAsync(
-            string featureKey,
-            string mobile,
-            int templateId,
-            string PRICE,
-            string BABAT,
-            string MANBAB,
-            string MANPRICE,
-            string NAME = "",
-            CancellationToken ct = default)
-        {
-            await EnsureSmsEnabledAsync(featureKey);
-
-            return await SendVerifyWithParametersAsync(
-                mobile,
-                templateId,
-                new Dictionary<string, string>
-                {
-                    ["PRICE"] = PRICE,
-                    ["BABAT"] = BABAT,
-                    ["MANBAB"] = MANBAB,
-                    ["MANPRICE"] = MANPRICE,
-                    ["NAME"] = NAME
-                },
-                ct);
-        }
-
-        public async Task<string> SendVerifyWithParametersForFeatureAsync(
-            string featureKey,
-            string mobile,
-            int templateId,
-            IReadOnlyDictionary<string, string> parameters,
-            CancellationToken ct = default)
-        {
-            await EnsureSmsEnabledAsync(featureKey);
-            return await SendVerifyWithParametersAsync(mobile, templateId, parameters, ct);
-        }
-
-        private async Task EnsureSmsEnabledAsync(string? featureKey)
+        private async Task EnsureSmsEnabledAsync()
         {
             var settings = await _smsPanelRepository.GetSettingsAsync();
             if (!settings.IsEnabled)
                 throw new InvalidOperationException("ارسال پیامک در پنل پیامک غیرفعال است.");
-
-            if (string.IsNullOrWhiteSpace(featureKey))
-                return;
-
-            var features = await _smsPanelRepository.GetFeaturesAsync();
-            var f = features.FirstOrDefault(x => string.Equals(x.FeatureKey, featureKey, StringComparison.OrdinalIgnoreCase));
-            if (f == null || !f.IsEnabled)
-                throw new InvalidOperationException("این قابلیت ارسال پیامک در پنل پیامک غیرفعال است.");
         }
 
         public async Task<SmsIrApiResponse<SmsIrMessageStatusData>?> GetMessageStatusAsync(long messageId, CancellationToken ct = default)

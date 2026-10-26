@@ -12,6 +12,7 @@
 @inject NavigationManager Nav
 @inject IConfiguration Configuration
 @inject FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 
 <PageTitle>مرور حسابها</PageTitle>
 
@@ -1016,18 +1017,9 @@
     {
         try
         {
-            var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
-            if (fy != null)
-            {
-                fromDate = fy.StartDate.ToPersianDate();
-                toDate = fy.EndDate.ToPersianDate();
-            }
-            else
-            {
-                var r = DateTimeExtensions.CurrentJalaliYearRange();
-                fromDate = r.From;
-                toDate = r.To;
-            }
+            var range = await FiscalRange.GetRangeAsync();
+            fromDate = range.From;
+            toDate = range.To;
         }
         catch
         {

@@ -10,8 +10,8 @@ window.initPersianDatePicker = function(elementId, dotNetRef) {
         // Simple Persian date picker implementation
         // Using a basic approach that works with Persian calendar
         
-        // Set default Persian date (today)
-        const today = new Date();
+        // Set default Persian date (today), clamped to the fiscal year range
+        const today = clampToRange(new Date(), element);
         const persianDate = convertToPersianDate(today);
         element.value = persianDate;
         
@@ -68,6 +68,22 @@ function convertToGregorianDate(persianDateString) {
         console.error('Error converting Persian date:', error);
     }
     return new Date();
+}
+
+function clampToRange(date, element) {
+    if (!date || isNaN(date.getTime())) return date;
+    const min = element && element.getAttribute('data-min');
+    const max = element && element.getAttribute('data-max');
+    let result = date;
+    if (min) {
+        const minDate = new Date(min + 'T00:00:00');
+        if (!isNaN(minDate.getTime()) && result < minDate) result = minDate;
+    }
+    if (max) {
+        const maxDate = new Date(max + 'T00:00:00');
+        if (!isNaN(maxDate.getTime()) && result > maxDate) result = maxDate;
+    }
+    return result;
 }
 
 function showPersianDatePicker(element, dotNetRef) {
@@ -210,11 +226,17 @@ function showPersianDatePicker(element, dotNetRef) {
     const cancelBtn = modal.querySelector('.btn-cancel');
     const selectBtn = modal.querySelector('.btn-select');
     
-    // Set current date
-    const today = new Date();
-    gregorianInput.value = today.toISOString().split('T')[0];
+    // Set current date, limited to the fiscal year range of the host input
+    const minAttr = element.getAttribute('data-min');
+    const maxAttr = element.getAttribute('data-max');
+    if (minAttr) gregorianInput.min = minAttr;
+    if (maxAttr) gregorianInput.max = maxAttr;
+
+    const today = clampToRange(new Date(), element);
+    const todayIso = today.toISOString().split('T')[0];
+    gregorianInput.value = todayIso;
     persianDisplay.textContent = convertToPersianDate(today);
-    
+
     // Update Persian display when Gregorian date changes
     gregorianInput.addEventListener('change', function() {
         const selectedDate = new Date(this.value);

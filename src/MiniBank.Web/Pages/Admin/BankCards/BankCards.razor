@@ -1,0 +1,268 @@
+@page "/admin/bank-cards"
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Services.BankCardService BankCardService
+@inject DsToastService Toasts
+
+<div class="cards-shell">
+    <DsPageHeader Icon="fa-solid fa-credit-card"
+                  Title="کارت‌های بانکی"
+                  Subtitle="@($"کارت‌های اطلاع‌رسانی برای واریز اعضا — {_items.Count} مورد")"
+                  ShowBackButton="true"
+                  ShowRefreshButton="true"
+                  ShowAddButton="true"
+                  AddButtonTitle="افزودن کارت"
+                  OnRefreshClick="LoadAsync"
+                  OnAddClick="ShowCreate" />
+
+    <div class="cards-note">
+        <span class="note-icon"><i class="fa-solid fa-circle-info"></i></span>
+        <span class="note-text">
+            این کارت‌ها مستقل از حساب‌های بانکی حسابداری هستند و فقط برای اطلاع‌رسانی به اعضای صندوق استفاده می‌شوند.
+            فقط کارت‌های <b>فعال</b> در داشبورد اعضا نمایش داده می‌شوند.
+        </span>
+        <span class="note-chips">
+            <span class="note-chip on"><i class="fa-solid fa-circle-check"></i> @_activeCount فعال</span>
+            <span class="note-chip off"><i class="fa-solid fa-circle-minus"></i> @_inactiveCount غیرفعال</span>
+        </span>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="cards-grid">
+            @for (var i = 0; i < 2; i++)
+            {
+                <div class="card-skeleton">
+                    <div class="sk-line w60"></div>
+                    <div class="sk-line w90"></div>
+                    <div class="sk-line w40"></div>
+                </div>
+            }
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="cards-empty">
+            <div class="empty-icon"><i class="fa-solid fa-credit-card"></i></div>
+            <div class="empty-title">هنوز کارت بانکی ثبت نشده است</div>
+            <div class="empty-desc">اولین کارت را اضافه کنید تا در داشبورد اعضا برای واریز وجه نمایش داده شود.</div>
+            <button type="button" class="empty-btn" @onclick="ShowCreate">
+                <i class="fa-solid fa-plus"></i>
+                افزودن کارت بانکی
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="cards-grid">
+            @foreach (var item in _items)
+            {
+                <div class="card-wrap @(item.IsActive ? null : "off")">
+                    <div class="bank-visual">
+                        <div class="bv-top">
+                            <span class="bv-bank">@item.BankName</span>
+                            <span class="bv-chip"></span>
+                        </div>
+                        <div class="bv-number" dir="ltr">@BankCardFormat.FormatCard(item.CardNumber)</div>
+                        <div class="bv-meta">
+                            @if (!string.IsNullOrWhiteSpace(item.AccountNumber))
+                            {
+                                <div class="bv-meta-row">
+                                    <span class="bv-meta-label">شماره حساب</span>
+                                    <span class="bv-meta-value" dir="ltr">@item.AccountNumber</span>
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.Shaba))
+                            {
+                                <div class="bv-meta-row">
+                                    <span class="bv-meta-label">شبا</span>
+                                    <span class="bv-meta-value" dir="ltr">@BankCardFormat.FormatShaba(item.Shaba)</span>
+                                </div>
+                            }
+                        </div>
+                        @if (!item.IsActive)
+                        {
+                            <span class="bv-off-badge">غیرفعال</span>
+                        }
+                    </div>
+
+                    <div class="card-foot">
+                        <div class="active-toggle">
+                            <label class="switch">
+                                <input type="checkbox" checked="@item.IsActive" @onchange="e => ToggleActiveAsync(item, (bool)e.Value!)" />
+                                <span class="slider"></span>
+                            </label>
+                            <span class="state @(item.IsActive ? "on" : "off")">@(item.IsActive ? "فعال" : "غیرفعال")</span>
+                        </div>
+                        <div class="row-actions">
+                            <button type="button" class="icon-btn edit" @onclick="() => Edit(item)" title="ویرایش" aria-label="ویرایش">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button type="button" class="icon-btn delete" @onclick="() => Delete(item)" title="حذف" aria-label="حذف">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<DsFab Title="افزودن کارت" Icon="fa-plus" OnClick="ShowCreate" />
+
+<DsConfirm Show="_showDeleteConfirm"
+           Title="حذف کارت بانکی"
+           Message="@_deleteConfirmMessage"
+           Variant="danger"
+           ConfirmText="حذف"
+           CancelText="انصراف"
+           OnConfirm="ConfirmDelete"
+           OnCancel="CancelDelete" />
+
+@if (_showForm)
+{
+    <BankCardForm Model="_current" IsNew="_isNew" OnClose="OnFormClose" />
+}
+
+@code {
+    private List<BankCard> _items = new();
+    private bool _loading = true;
+    private bool _showForm;
+    private bool _isNew;
+    private BankCard _current = new();
+
+    private bool _showDeleteConfirm;
+    private string _deleteConfirmMessage = string.Empty;
+    private BankCard? _pendingDelete;
+
+    private int _activeCount => _items.Count(x => x.IsActive);
+    private int _inactiveCount => _items.Count(x => !x.IsActive);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            StateHasChanged();
+
+            var items = await BankCardService.GetAsync(null, 200);
+            _items = items.ToList();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در بارگذاری کارت‌ها: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ShowCreate()
+    {
+        _current = new BankCard { IsActive = true };
+        _isNew = true;
+        _showForm = true;
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    private async Task Edit(BankCard item)
+    {
+        _current = new BankCard
+        {
+            CardId = item.CardId,
+            BankName = item.BankName,
+            CardNumber = item.CardNumber,
+            AccountNumber = item.AccountNumber,
+            Shaba = item.Shaba,
+            IsActive = item.IsActive,
+            CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
+        };
+        _isNew = false;
+        _showForm = true;
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    private async Task OnFormClose(bool saved)
+    {
+        _showForm = false;
+        StateHasChanged();
+
+        if (saved)
+        {
+            await LoadAsync();
+            Toasts.Success("کارت بانکی ذخیره شد");
+        }
+    }
+
+    private async Task ToggleActiveAsync(BankCard item, bool isActive)
+    {
+        var previous = item.IsActive;
+        item.IsActive = isActive;
+        StateHasChanged();
+
+        try
+        {
+            await BankCardService.SetActiveAsync(item.CardId, isActive);
+            Toasts.Success(isActive ? "کارت فعال شد و در داشبورد اعضا نمایش داده می‌شود" : "کارت غیرفعال شد");
+        }
+        catch (Exception ex)
+        {
+            item.IsActive = previous;
+            StateHasChanged();
+            Toasts.Error($"خطا در تغییر وضعیت: {ex.Message}");
+        }
+    }
+
+    private void Delete(BankCard item)
+    {
+        _pendingDelete = item;
+        _deleteConfirmMessage = $"آیا کارت «{item.BankName}» به شماره {BankCardFormat.FormatCard(item.CardNumber)} حذف شود؟";
+        _showDeleteConfirm = true;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var item = _pendingDelete;
+        _showDeleteConfirm = false;
+        StateHasChanged();
+
+        if (item is null)
+            return;
+
+        try
+        {
+            await BankCardService.DeleteAsync(item.CardId);
+            await LoadAsync();
+            Toasts.Success("کارت بانکی حذف شد");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در حذف: {ex.Message}");
+        }
+        finally
+        {
+            _pendingDelete = null;
+        }
+    }
+
+    private Task CancelDelete()
+    {
+        _showDeleteConfirm = false;
+        _pendingDelete = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+}

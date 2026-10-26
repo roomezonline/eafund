@@ -130,8 +130,24 @@
     <script src="~/js/collapse-toggle.js" asp-append-version="true"></script>
     <script>
       // Global initializer for JalaliDatePicker - safe to call multiple times
+      // minDate/maxDate: 'attr' makes the library read data-jdp-min-date / data-jdp-max-date
+      // from each input. Inputs without those attributes stay unconstrained.
       window.initJdp = function(){
-        try { jalaliDatepicker.startWatch({ autoInit: true }); } catch(e) { console.warn('JDP init failed', e); }
+        try { jalaliDatepicker.startWatch({ autoInit: true, minDate: 'attr', maxDate: 'attr' }); } catch(e) { console.warn('JDP init failed', e); }
+      };
+      // Cookie helpers used by FiscalYearContext (selected fiscal year)
+      window.mbGetCookie = function(name){
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? decodeURIComponent(m.pop()) : '';
+      };
+      window.mbSetCookie = function(name, value, days){
+        var expires = '';
+        if (days > 0) {
+          var d = new Date();
+          d.setTime(d.getTime() + days * 86400000);
+          expires = '; expires=' + d.toUTCString();
+        }
+        document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; SameSite=Lax' + expires;
       };
       // Initialize on first load as well
       document.addEventListener('DOMContentLoaded', function(){

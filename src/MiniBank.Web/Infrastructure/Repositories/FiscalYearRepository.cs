@@ -43,7 +43,7 @@ namespace MiniBank.Web.Infrastructure.Repositories
             return await _connection.QuerySingleAsync<int>(sql, model);
         }
 
-        public async Task UpdateAsync(FiscalYear model)
+        public async Task UpdateAsync(FiscalYear model, IDbTransaction? tx = null)
         {
             var sql = @"UPDATE FiscalYears SET
                             Title = @Title,
@@ -55,7 +55,7 @@ namespace MiniBank.Web.Infrastructure.Repositories
                             ClosedBy = @ClosedBy,
                             Notes = @Notes
                         WHERE FiscalYearId = @FiscalYearId";
-            await _connection.ExecuteAsync(sql, model);
+            await _connection.ExecuteAsync(sql, model, transaction: tx);
         }
 
         public async Task DeleteAsync(int id)
@@ -70,18 +70,18 @@ namespace MiniBank.Web.Infrastructure.Repositories
                 new { fiscalYearId });
         }
 
-        public async Task SaveBalancesAsync(int fiscalYearId, IEnumerable<FiscalYearBalance> balances)
+        public async Task SaveBalancesAsync(int fiscalYearId, IEnumerable<FiscalYearBalance> balances, IDbTransaction? tx = null)
         {
             await _connection.ExecuteAsync(
                 "DELETE FROM FiscalYearBalances WHERE FiscalYearId = @fiscalYearId",
-                new { fiscalYearId });
+                new { fiscalYearId }, transaction: tx);
 
             foreach (var b in balances)
             {
                 await _connection.ExecuteAsync(
                     @"INSERT INTO FiscalYearBalances (FiscalYearId, AccountId, OpeningDebit, OpeningCredit)
                       VALUES (@FiscalYearId, @AccountId, @OpeningDebit, @OpeningCredit)",
-                    new { fiscalYearId, b.AccountId, b.OpeningDebit, b.OpeningCredit });
+                    new { fiscalYearId, b.AccountId, b.OpeningDebit, b.OpeningCredit }, transaction: tx);
             }
         }
     }

@@ -73,3 +73,128 @@
   .dic-field.dic-field-half{min-width:0;flex:1 1 calc(50% - 10px)}
   .dic-table{min-width:860px}
 }
+
+.dic-year-group { margin-bottom: 8px; }
+.dic-year-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(15,76,150,.12), rgba(59,130,246,.10));
+  border: 1px solid rgba(148,163,184,.35);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all .18s ease;
+  user-select: none;
+}
+.dic-year-header:hover {
+  background: linear-gradient(135deg, rgba(15,76,150,.18), rgba(59,130,246,.14));
+  border-color: rgba(15,76,150,.45);
+}
+.dic-year-toggle-icon {
+  color: #0f4c96;
+  font-size: 14px;
+  transition: transform .2s ease;
+  min-width: 20px;
+}
+.dic-year-title {
+  font-weight: 900;
+  color: #0f172a;
+  font-size: 15px;
+}
+.dic-year-count {
+  font-size: 12px;
+  color: #475569;
+  background: rgba(148,163,184,.18);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.dic-year-total {
+  margin-right: auto;
+  font-size: 13px;
+  font-weight: 900;
+  color: #047857;
+  background: rgba(16,185,129,.12);
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+.dic-year-content {
+  margin-top: 8px;
+  animation: dicSlideDown .25s ease-out;
+}
+@keyframes dicSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dic-notify-panel{
+  margin-top:12px;
+  border:1px solid rgba(37,99,235,.25);
+  background:linear-gradient(135deg, rgba(37,99,235,.06), rgba(16,185,129,.04));
+  border-radius:14px;
+  padding:12px;
+}
+.dic-notify-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.dic-notify-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.dic-notify-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 10px;border-radius:999px;
+  font-size:12px;font-weight:900;
+  border:1px solid rgba(148,163,184,.4);
+  background:#fff;color:#0f172a;
+}
+.dic-notify-chip.total{background:#0f4c96;color:#fff;border-color:#0f4c96}
+.dic-notify-chip.pending{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.dic-notify-chip.queued{background:#e0f2fe;color:#075985;border-color:#bae6fd}
+.dic-notify-chip.sending{background:#ede9fe;color:#5b21b6;border-color:#ddd6fe}
+.dic-notify-chip.sent{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+.dic-notify-chip.failed{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+.dic-notify-chip.skipped{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+.dic-notify-note{margin-top:10px;font-size:12px;font-weight:800;color:#334155;line-height:1.9}
+.dic-notify-note a{color:#0369a1;font-weight:900;text-decoration:none}
+.dic-notify-note a:hover{text-decoration:underline}
+.dic-notify-warning{
+  margin-top:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;
+  padding:8px 10px;color:#92400e;font-size:12px;font-weight:800;line-height:1.9;
+}
+.dic-notify-warning a{color:#b45309;font-weight:900;text-decoration:none}
+.dic-notify-error{
+  margin-top:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;
+  padding:8px 10px;color:#991b1b;font-size:12px;font-weight:800;
+}
+
+
+.dic-progress-card{
+  margin-top:14px;background:#fff;border:1px solid rgba(148,163,184,.45);
+  border-radius:16px;padding:14px 16px;box-shadow:0 10px 26px rgba(15,23,42,.08);
+}
+.dic-progress-card.is-live{border-color:rgba(37,99,235,.55);box-shadow:0 10px 30px rgba(37,99,235,.14)}
+.dic-progress-card.is-done{border-color:rgba(16,185,129,.45)}
+.dic-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.dic-progress-title{display:flex;align-items:center;gap:10px;font-weight:900;color:#0f172a}
+.dic-progress-card.is-live .dic-progress-title i{color:#2563eb;animation:dicPlanePulse 1.4s ease-in-out infinite}
+.dic-progress-card.is-done .dic-progress-title i{color:#059669}
+@keyframes dicPlanePulse{0%,100%{opacity:1;transform:translateX(0)}50%{opacity:.55;transform:translateX(-4px)}}
+.dic-progress-count{display:flex;align-items:center;gap:10px;font-weight:900;color:#334155;font-variant-numeric:tabular-nums}
+.dic-progress-percent{background:#0f4c96;color:#fff;border-radius:999px;padding:2px 10px;font-size:12px}
+.dic-progress-bar{
+  margin-top:10px;height:12px;border-radius:999px;background:rgba(148,163,184,.28);
+  overflow:hidden;position:relative;
+}
+.dic-progress-fill{
+  height:100%;border-radius:999px;background:linear-gradient(90deg,#0ea5e9,#10b981);
+  transition:width .25s ease;
+}
+.dic-progress-card.is-live .dic-progress-fill{
+  background-image:linear-gradient(45deg,rgba(255,255,255,.28) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.28) 50%,rgba(255,255,255,.28) 75%,transparent 75%,transparent);
+  background-size:18px 18px;animation:dicProgressStripe .7s linear infinite;
+}
+@keyframes dicProgressStripe{from{background-position:0 0}to{background-position:-18px 0}}
+.dic-progress-foot{
+  margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  font-size:12px;font-weight:800;color:#334155;
+}
+@media (max-width:768px){
+  .dic-progress-head{align-items:flex-start}
+  .dic-progress-count{width:100%;justify-content:space-between}
+}

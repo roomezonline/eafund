@@ -5,6 +5,7 @@
 @inject MiniBank.Web.Infrastructure.Repositories.MemberRepository MemberRepo
 @inject MiniBank.Web.Core.Interfaces.IHouseholdRepository HouseholdRepo
 @inject MiniBank.Web.Infrastructure.Repositories.FiscalYearRepository FiscalYearRepo
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 
 <h3>گزارش تجمیعی تراکنش‌ها (گروه/زیرگروه/نوع)</h3>
 
@@ -29,10 +30,10 @@
         </select>
 
         <label>از تاریخ</label>
-        <input class="form-control" type="date" @bind-value="fromDate" />
+        <input class="form-control" type="date" min="@_minDate" max="@_maxDate" @bind-value="fromDate" />
 
         <label>تا تاریخ</label>
-        <input class="form-control" type="date" @bind-value="toDate" />
+        <input class="form-control" type="date" min="@_minDate" max="@_maxDate" @bind-value="toDate" />
     </div>
     <div class="actions mt-2">
         <button class="btn btn-primary" @onclick="Load">بارگذاری گزارش</button>
@@ -73,6 +74,8 @@
     private long? memberId;
     private DateTime? fromDate;
     private DateTime? toDate;
+    private string? _minDate;
+    private string? _maxDate;
 
     private List<Household> households = new();
     private List<Member> members = new();
@@ -80,18 +83,23 @@
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            var range = await FiscalRange.GetGregorianRangeAsync();
+            _minDate = range.Start.ToString("yyyy-MM-dd");
+            _maxDate = range.End.ToString("yyyy-MM-dd");
+        }
+        catch { }
+
         households = (await HouseholdRepo.GetActiveHouseholdsAsync()).ToList();
 
         if (!fromDate.HasValue || !toDate.HasValue)
         {
             try
             {
-                var fy = await FiscalYearRepo.GetOpenYearForDateAsync(DateTime.Today);
-                if (fy != null)
-                {
-                    if (!fromDate.HasValue) fromDate = fy.StartDate;
-                    if (!toDate.HasValue) toDate = fy.EndDate;
-                }
+                var g = await FiscalRange.GetGregorianRangeAsync();
+                if (!fromDate.HasValue) fromDate = g.Start;
+                if (!toDate.HasValue) toDate = g.End;
             }
             catch { }
             if (!fromDate.HasValue || !toDate.HasValue)

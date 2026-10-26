@@ -1,0 +1,222 @@
+@using MiniBank.Web.Models
+@using MiniBank.Web.Components.Extensions
+@using MiniBank.Web.Components.DesignSystem
+@inject MiniBank.Web.Services.BankCardService BankCardService
+@inject DsToastService Toasts
+
+<div class="bc-overlay" @onclick="Cancel">
+    <div class="bc-sheet" @onclick:stopPropagation="true">
+        <div class="bc-handle"></div>
+
+        <div class="bc-head">
+            <div>
+                <div class="bc-title">@(IsNew ? "کارت بانکی جدید" : "ویرایش کارت بانکی")</div>
+                <div class="bc-sub">این کارت در داشبورد اعضا برای واریز وجه نمایش داده می‌شود</div>
+            </div>
+            <button type="button" class="bc-close" @onclick="Cancel" aria-label="بستن">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="bc-body">
+            <div class="bc-preview">
+                <div class="bc-preview-top">
+                    <span class="bc-preview-bank">@(string.IsNullOrWhiteSpace(Model.BankName) ? "نام بانک" : Model.BankName.Trim())</span>
+                    <span class="bc-chip"></span>
+                </div>
+                <div class="bc-preview-number" dir="ltr">
+                    @(string.IsNullOrWhiteSpace(Model.CardNumber) ? "•••• •••• •••• ••••" : BankCardFormat.FormatCard(Model.CardNumber))
+                </div>
+                <div class="bc-preview-foot">
+                    <span dir="ltr">@(string.IsNullOrWhiteSpace(Model.Shaba) ? "IR •••• •••• •••• ••••" : BankCardFormat.FormatShaba(Model.Shaba))</span>
+                    <i class="fa-solid fa-building-columns"></i>
+                </div>
+            </div>
+
+            <div class="bc-fields">
+                <div class="bc-field">
+                    <label class="bc-label" for="bc-bank">بانک / مؤسسه</label>
+                    <input id="bc-bank" type="text" class="bc-input @(_bankError is not null ? "error" : null)"
+                           list="bank-cards-banks" placeholder="مثال: بانک ملی ایران"
+                           @bind="Model.BankName" @bind:event="oninput" />
+                    <datalist id="bank-cards-banks">
+                        <option value="بانک ملی ایران"></option>
+                        <option value="بانک ملت"></option>
+                        <option value="بانک صادرات ایران"></option>
+                        <option value="بانک تجارت"></option>
+                        <option value="بانک سپه"></option>
+                        <option value="بانک کشاورزی"></option>
+                        <option value="بانک مسکن"></option>
+                        <option value="بانک رفاه کارگران"></option>
+                        <option value="بانک پاسارگاد"></option>
+                        <option value="بانک پارسیان"></option>
+                        <option value="بانک سامان"></option>
+                        <option value="بانک اقتصاد نوین"></option>
+                        <option value="بانک سرمایه"></option>
+                        <option value="پست بانک ایران"></option>
+                        <option value="بانک شهر"></option>
+                        <option value="بانک آینده"></option>
+                        <option value="بانک دی"></option>
+                        <option value="بانک سینا"></option>
+                        <option value="بانک ایران زمین"></option>
+                        <option value="بانک گردشگری"></option>
+                        <option value="بانک قوامین"></option>
+                        <option value="بانک حکمت ایرانیان"></option>
+                        <option value="بانک قرض‌الحسنه مهر ایران"></option>
+                        <option value="بانک قرض‌الحسنه رسالت"></option>
+                        <option value="بانک کارآفرین"></option>
+                        <option value="بانک خاورمیانه"></option>
+                        <option value="بانک توسعه تعاون"></option>
+                        <option value="بانک صنعت و معدن"></option>
+                        <option value="بانک توسعه صادرات ایران"></option>
+                    </datalist>
+                    @if (_bankError is not null)
+                    {
+                        <div class="bc-error">@_bankError</div>
+                    }
+                </div>
+
+                <div class="bc-field">
+                    <label class="bc-label" for="bc-card">شماره کارت</label>
+                    <input id="bc-card" type="text" class="bc-input ltr @(_cardError is not null ? "error" : null)"
+                           dir="ltr" inputmode="numeric" maxlength="19" autocomplete="off"
+                           placeholder="6037 9977 1234 5678"
+                           value="@BankCardFormat.FormatCard(Model.CardNumber)"
+                           @oninput="OnCardInput" />
+                    @if (_cardError is not null)
+                    {
+                        <div class="bc-error">@_cardError</div>
+                    }
+                    else
+                    {
+                        <div class="bc-hint">۱۶ رقم روی کارت</div>
+                    }
+                </div>
+
+                <div class="bc-field">
+                    <label class="bc-label" for="bc-account">شماره حساب</label>
+                    <input id="bc-account" type="text" class="bc-input ltr"
+                           dir="ltr" inputmode="numeric" maxlength="30" autocomplete="off"
+                           placeholder="اختیاری" @bind="Model.AccountNumber" />
+                </div>
+
+                <div class="bc-field">
+                    <label class="bc-label" for="bc-shaba">شماره شبا</label>
+                    <input id="bc-shaba" type="text" class="bc-input ltr @(_shabaError is not null ? "error" : null)"
+                           dir="ltr" inputmode="numeric" maxlength="34" autocomplete="off"
+                           placeholder="IR 1234 5678 9012 3456 7890 1234"
+                           value="@BankCardFormat.FormatShaba(Model.Shaba)"
+                           @oninput="OnShabaInput" />
+                    @if (_shabaError is not null)
+                    {
+                        <div class="bc-error">@_shabaError</div>
+                    }
+                    else
+                    {
+                        <div class="bc-hint">اختیاری — ۲۴ رقم بعد از IR</div>
+                    }
+                </div>
+
+                <div class="bc-active-row">
+                    <div class="bc-active-text">
+                        <span class="bc-active-title">کارت فعال</span>
+                        <span class="bc-active-sub">فقط کارت‌های فعال در داشبورد اعضا نمایش داده می‌شوند</span>
+                    </div>
+                    <label class="bc-switch">
+                        <input type="checkbox" @bind="Model.IsActive" />
+                        <span class="bc-switch-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="bc-actions">
+            <button type="button" class="bc-btn ghost" @onclick="Cancel" disabled="@_saving">انصراف</button>
+            <button type="button" class="bc-btn primary" @onclick="SaveAsync" disabled="@_saving">
+                @if (_saving)
+                {
+                    <span class="bc-spinner"></span>
+                }
+                else
+                {
+                    <i class="fa-solid fa-check"></i>
+                    <span>ذخیره کارت</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public BankCard Model { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+    [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+    private bool _saving;
+    private string? _bankError;
+    private string? _cardError;
+    private string? _shabaError;
+
+    private void OnCardInput(ChangeEventArgs e)
+    {
+        Model.CardNumber = BankCardFormat.CardDigits(e.Value?.ToString());
+    }
+
+    private void OnShabaInput(ChangeEventArgs e)
+    {
+        var digits = BankCardFormat.ShabaDigits(e.Value?.ToString());
+        Model.Shaba = digits;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_saving)
+            return;
+
+        _bankError = string.IsNullOrWhiteSpace(Model.BankName) ? "نام بانک الزامی است" : null;
+
+        var cardDigits = BankCardFormat.CardDigits(Model.CardNumber);
+        _cardError = cardDigits.Length != 16 ? "شماره کارت باید ۱۶ رقم باشد" : null;
+
+        var shabaDigits = BankCardFormat.ShabaDigits(Model.Shaba);
+        var hasShaba = !string.IsNullOrWhiteSpace(Model.Shaba);
+        _shabaError = hasShaba && shabaDigits.Length != 24 ? "شماره شبا باید ۲۴ رقم (بدون IR) باشد" : null;
+
+        if (_bankError is not null || _cardError is not null || _shabaError is not null)
+            return;
+
+        _saving = true;
+        try
+        {
+            Model.BankName = Model.BankName.Trim();
+            Model.CardNumber = cardDigits;
+            Model.AccountNumber = string.IsNullOrWhiteSpace(Model.AccountNumber)
+                ? null
+                : BankCardFormat.DigitsOnly(Model.AccountNumber);
+            Model.Shaba = shabaDigits.Length == 24 ? "IR" + shabaDigits : null;
+
+            if (IsNew)
+                Model.CardId = await BankCardService.CreateAsync(Model);
+            else
+                await BankCardService.UpdateAsync(Model);
+
+            await OnClose.InvokeAsync(true);
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error($"خطا در ذخیره کارت: {ex.Message}");
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Cancel()
+    {
+        if (_saving)
+            return;
+        await OnClose.InvokeAsync(false);
+    }
+}

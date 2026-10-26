@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @using MiniBank.Web.Models
+@using MiniBank.Web.Models.Notifications
 @using MiniBank.Web.Components.Member
 
 @inject AuthenticationStateProvider AuthStateProvider
@@ -11,6 +12,8 @@
 @inject MiniBank.Web.Services.Auth.AuthService Auth
 @inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
 @inject NavigationManager Nav
+@inject MiniBank.Web.Infrastructure.Repositories.BaleBotRepository BaleRepo
+@inject IJSRuntime JS
 
 <MemberSelector OnMemberChanged="OnMemberSelectorChanged" />
 
@@ -66,6 +69,77 @@
     <div style="height:12px"></div>
 
     <div class="card">
+      <div class="title">اطلاع‌رسانی پیام‌رسان بله</div>
+
+      @if (_baleError != null)
+      {
+        <div class="muted" style="color:#b91c1c">@_baleError</div>
+      }
+      else if (_baleSettings == null || !_baleSettings.IsEnabled)
+      {
+        <div class="muted">سامانه اطلاع‌رسانی بله در حال حاضر فعال نیست.</div>
+      }
+      else if (_baleSubscriber != null)
+      {
+        <div class="kv" style="margin-bottom:10px;">
+          <div class="k">وضعیت</div>
+          <div class="v" style="color:#16a34a">متصل</div>
+        </div>
+        <div class="kv" style="margin-bottom:10px;">
+          <div class="k">تاریخ اتصال</div>
+          <div class="v">@_baleSubscriber.LinkedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</div>
+        </div>
+        <div class="muted" style="margin-bottom:10px;">از این پس اطلاع‌رسانی‌های صندوق را در بله دریافت می‌کنید.</div>
+        <div class="muted">اتصال به بله اجباری است و از این بخش قابل قطع نیست. برای تغییر یا قطع اتصال در موارد ضروری با مدیر صندوق تماس بگیرید.</div>
+      }
+      else
+      {
+        <div class="muted" style="margin-bottom:10px;">
+          با اتصال حساب خود به ربات بله، اطلاع‌رسانی‌های صندوق (واریز، قسط و یادآوری‌ها) را در بله دریافت می‌کنید.
+        </div>
+
+        @if (string.IsNullOrWhiteSpace(_baleLink))
+        {
+          <button class="btn primary" @onclick="CreateBaleLinkAsync" disabled="@_baleBusy">
+            <i class="fa-solid fa-link"></i>
+            @(_baleBusy ? "در حال ساخت لینک..." : "دریافت لینک اتصال")
+          </button>
+        }
+        else
+        {
+          <div class="muted" style="margin-bottom:6px;">لینک اختصاصی شما (۱۵ دقیقه اعتبار):</div>
+          <input class="inp" readonly dir="ltr" value="@_baleLink" />
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+            <button class="btn primary" @onclick="CopyBaleLinkAsync">
+              <i class="fa-solid fa-copy"></i>
+              کپی لینک
+            </button>
+            <a class="btn" style="border:1px solid #e5e7eb;background:#fff;color:#0f172a;text-decoration:none;" href="@_baleLink" target="_blank" rel="noopener">
+              باز کردن بله
+            </a>
+          </div>
+          <div class="muted" style="margin-top:8px;">پس از باز شدن بله، دکمه «شروع» را بزنید تا اتصال کامل شود.</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_baleSettings.BotUsername))
+        {
+          <div class="muted" style="margin-top:8px;">
+            اگر لینک را باز نکردید،
+            <a href="https://ble.ir/@(_baleSettings.BotUsername.Trim().TrimStart('@'))" target="_blank" rel="noopener" style="color:#0369a1;font-weight:900;">ربات را در بله باز کنید</a>
+            و شماره موبایل ثبت‌شده در صندوق را ارسال کنید.
+          </div>
+        }
+
+        @if (string.IsNullOrWhiteSpace(_baleSettings.BotUsername))
+        {
+          <div class="muted" style="margin-top:8px;color:#b45309;">نام کاربری ربات بله توسط مدیر تنظیم نشده است.</div>
+        }
+      }
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="card">
       <div class="title">تغییر رمز عبور</div>
       <div class="muted" style="margin-bottom:10px">برای تغییر رمز، ابتدا رمز فعلی را وارد کنید.</div>
 
@@ -104,6 +178,12 @@
   
   // Member selector for admin/staff
   private long? _adminSelectedMemberId;
+
+  private BaleBotSettings? _baleSettings;
+  private BaleSubscriber? _baleSubscriber;
+  private string _baleLink = string.Empty;
+  private string? _baleError;
+  private bool _baleBusy;
 
   private string _currentPassword = string.Empty;
   private string _newPassword = string.Empty;
@@ -234,6 +314,8 @@
         _error = "عضو یافت نشد.";
         return;
       }
+
+      await LoadBaleAsync(_me.MemberId);
     }
     catch (Exception ex)
     {
@@ -242,6 +324,75 @@
     finally
     {
       _loading = false;
+    }
+  }
+
+  private async Task LoadBaleAsync(long memberId)
+  {
+    try
+    {
+      _baleError = null;
+      _baleSettings = await BaleRepo.GetSettingsAsync();
+      _baleSubscriber = await BaleRepo.GetActiveByMemberAsync(memberId);
+      _baleLink = string.Empty;
+    }
+    catch
+    {
+      _baleSettings = null;
+      _baleSubscriber = null;
+      _baleError = "اطلاعات اطلاع‌رسانی بله در دسترس نیست.";
+    }
+  }
+
+  private async Task CreateBaleLinkAsync()
+  {
+    if (_me == null)
+      return;
+
+    try
+    {
+      _baleBusy = true;
+
+      if (_baleSettings == null || !_baleSettings.IsEnabled)
+      {
+        Toasts.Warning("سامانه اطلاع‌رسانی بله فعال نیست.");
+        return;
+      }
+
+      var username = (_baleSettings.BotUsername ?? string.Empty).Trim().TrimStart('@');
+      if (string.IsNullOrWhiteSpace(username))
+      {
+        Toasts.Warning("نام کاربری ربات بله توسط مدیر تنظیم نشده است.");
+        return;
+      }
+
+      var token = await BaleRepo.CreateLinkTokenAsync(_me.MemberId, TimeSpan.FromMinutes(15));
+      _baleLink = $"https://ble.ir/{username}?start={token}";
+      Toasts.Success("لینک اتصال ساخته شد.");
+    }
+    catch (Exception ex)
+    {
+      Toasts.Error($"خطا در ساخت لینک اتصال: {ex.Message}");
+    }
+    finally
+    {
+      _baleBusy = false;
+    }
+  }
+
+  private async Task CopyBaleLinkAsync()
+  {
+    try
+    {
+      if (string.IsNullOrWhiteSpace(_baleLink))
+        return;
+
+      await JS.InvokeVoidAsync("navigator.clipboard.writeText", _baleLink);
+      Toasts.Success("لینک کپی شد.");
+    }
+    catch
+    {
+      Toasts.Warning("کپی خودکار ممکن نشد؛ لینک را دستی انتخاب کنید.");
     }
   }
 }

@@ -342,6 +342,35 @@ END
 GO
 
 -- ==================================================
+-- جدول کارت‌های بانکی اطلاع‌رسانی برای اعضا (BankCards)
+-- مستقل از حساب‌های بانکی حسابداری (BankAccounts)
+-- ==================================================
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[BankCards]') AND type in (N'U'))
+BEGIN
+    CREATE TABLE [dbo].[BankCards] (
+        [CardId]        BIGINT IDENTITY(1,1) NOT NULL,
+        [BankName]      NVARCHAR(200) NOT NULL,
+        [CardNumber]    NVARCHAR(32)  NOT NULL,
+        [AccountNumber] NVARCHAR(50)  NULL,
+        [Shaba]         NVARCHAR(32)  NULL,
+        [IsActive]      BIT NOT NULL DEFAULT(1),
+        [CreatedAt]     DATETIME2(7) NOT NULL DEFAULT(GETUTCDATE()),
+        [UpdatedAt]     DATETIME2(7) NULL,
+        CONSTRAINT [PK_BankCards] PRIMARY KEY CLUSTERED ([CardId] ASC)
+    )
+
+    PRINT N'جدول BankCards ایجاد شد'
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BankCards]') AND name = N'IX_BankCards_IsActive')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_BankCards_IsActive] ON [dbo].[BankCards] ([IsActive] ASC, [CreatedAt] DESC);
+    PRINT N'ایندکس IX_BankCards_IsActive ایجاد شد'
+END
+GO
+
+-- ==================================================
 -- Legacy TransactionGroups and TransactionTypes removed
 -- Using double-entry accounting with Chart of Accounts instead
 -- ==================================================
@@ -2116,5 +2145,324 @@ END
 ELSE
 BEGIN
     PRINT 'FiscalYearBalances table already exists';
+END
+GO
+
+-- ==================================================
+-- Bale (پیامرسان بله) + Unified Notifications
+-- ==================================================
+IF OBJECT_ID(N'dbo.BaleBotSettings', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BaleBotSettings] (
+        [SettingsId] INT NOT NULL,
+        [IsEnabled] BIT NOT NULL CONSTRAINT [DF_BaleBotSettings_IsEnabled] DEFAULT(0),
+        [BotToken] NVARCHAR(MAX) NULL,
+        [BotUsername] NVARCHAR(100) NULL,
+        [WebhookSecret] NVARCHAR(400) NULL,
+        [ApiBaseUrl] NVARCHAR(200) NOT NULL CONSTRAINT [DF_BaleBotSettings_ApiBaseUrl] DEFAULT(N'https://tapi.bale.ai'),
+        [RequireBaleConnectionForMembers] BIT NOT NULL CONSTRAINT [DF_BaleBotSettings_RequireBale] DEFAULT(0),
+        [CreatedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_BaleBotSettings_CreatedAt] DEFAULT(GETUTCDATE()),
+        [UpdatedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_BaleBotSettings_UpdatedAt] DEFAULT(GETUTCDATE()),
+        CONSTRAINT [PK_BaleBotSettings] PRIMARY KEY CLUSTERED ([SettingsId] ASC)
+    );
+    PRINT N'جدول BaleBotSettings ایجاد شد';
+END
+GO
+
+IF COL_LENGTH('dbo.BaleBotSettings', 'RequireBaleConnectionForMembers') IS NULL
+BEGIN
+    ALTER TABLE dbo.BaleBotSettings
+    ADD [RequireBaleConnectionForMembers] BIT NOT NULL CONSTRAINT [DF_BaleBotSettings_RequireBale] DEFAULT(0);
+    PRINT N'ستون RequireBaleConnectionForMembers به BaleBotSettings اضافه شد';
+END
+GO
+
+IF OBJECT_ID(N'dbo.BaleSubscribers', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BaleSubscribers] (
+        [SubscriberId] BIGINT IDENTITY(1,1) NOT NULL,
+        [MemberId] BIGINT NOT NULL,
+        [ChatId] BIGINT NOT NULL,
+        [BaleUserId] BIGINT NULL,
+        [Username] NVARCHAR(100) NULL,
+        [FirstName] NVARCHAR(150) NULL,
+        [LastName] NVARCHAR(150) NULL,
+        [IsActive] BIT NOT NULL CONSTRAINT [DF_BaleSubscribers_IsActive] DEFAULT(1),
+        [LinkedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_BaleSubscribers_LinkedAt] DEFAULT(GETUTCDATE()),
+        [LastSeenAt] DATETIME2(7) NULL,
+        [OptedOutAt] DATETIME2(7) NULL,
+        CONSTRAINT [PK_BaleSubscribers] PRIMARY KEY CLUSTERED ([SubscriberId] ASC)
+    );
+    PRINT N'جدول BaleSubscribers ایجاد شد';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BaleSubscribers]') AND name = N'UX_BaleSubscribers_ActiveMemberId')
+BEGIN
+    CREATE UNIQUE INDEX [UX_BaleSubscribers_ActiveMemberId] ON [dbo].[BaleSubscribers] ([MemberId] ASC) WHERE [IsActive] = 1;
+END
+GO
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BaleSubscribers]') AND name = N'UX_BaleSubscribers_ActiveChatId')
+BEGIN
+    DROP INDEX [UX_BaleSubscribers_ActiveChatId] ON [dbo].[BaleSubscribers];
+    PRINT N'ایندکس یکتای چت حذف شد تا یک شماره/چت بتواند چند عضو را پوشش دهد';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BaleSubscribers]') AND name = N'IX_BaleSubscribers_ChatId')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_BaleSubscribers_ChatId] ON [dbo].[BaleSubscribers] ([ChatId] ASC);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BaleSubscribers]') AND name = N'IX_BaleSubscribers_MemberId')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_BaleSubscribers_MemberId] ON [dbo].[BaleSubscribers] ([MemberId] ASC);
+END
+GO
+
+IF OBJECT_ID(N'dbo.BaleLinkTokens', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BaleLinkTokens] (
+        [TokenId] BIGINT IDENTITY(1,1) NOT NULL,
+        [Token] NVARCHAR(64) NOT NULL,
+        [MemberId] BIGINT NOT NULL,
+        [CreatedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_BaleLinkTokens_CreatedAt] DEFAULT(GETUTCDATE()),
+        [ExpiresAt] DATETIME2(7) NOT NULL,
+        [UsedAt] DATETIME2(7) NULL,
+        [UsedChatId] BIGINT NULL,
+        CONSTRAINT [PK_BaleLinkTokens] PRIMARY KEY CLUSTERED ([TokenId] ASC)
+    );
+    PRINT N'جدول BaleLinkTokens ایجاد شد';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BaleLinkTokens]') AND name = N'UX_BaleLinkTokens_Token')
+BEGIN
+    CREATE UNIQUE INDEX [UX_BaleLinkTokens_Token] ON [dbo].[BaleLinkTokens] ([Token] ASC);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BaleLinkTokens]') AND name = N'IX_BaleLinkTokens_MemberId')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_BaleLinkTokens_MemberId] ON [dbo].[BaleLinkTokens] ([MemberId] ASC, [UsedAt] ASC);
+END
+GO
+
+IF OBJECT_ID(N'dbo.BaleMessageLogs', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BaleMessageLogs] (
+        [LogId] BIGINT IDENTITY(1,1) NOT NULL,
+        [NotificationId] BIGINT NULL,
+        [MemberId] BIGINT NULL,
+        [ChatId] BIGINT NULL,
+        [FeatureKey] NVARCHAR(64) NULL,
+        [MessageText] NVARCHAR(MAX) NULL,
+        [ProviderMessageId] BIGINT NULL,
+        [ApiStatus] INT NULL,
+        [ApiMessage] NVARCHAR(250) NULL,
+        [IsSuccess] BIT NULL,
+        [ErrorMessage] NVARCHAR(500) NULL,
+        [RawResponse] NVARCHAR(MAX) NULL,
+        [CreatedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_BaleMessageLogs_CreatedAt] DEFAULT(GETUTCDATE()),
+        [SentAt] DATETIME2(7) NULL,
+        [ReadAt] DATETIME2(7) NULL,
+        CONSTRAINT [PK_BaleMessageLogs] PRIMARY KEY CLUSTERED ([LogId] ASC)
+    );
+    PRINT N'جدول BaleMessageLogs ایجاد شد';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BaleMessageLogs]') AND name = N'IX_BaleMessageLogs_CreatedAt')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_BaleMessageLogs_CreatedAt] ON [dbo].[BaleMessageLogs] ([CreatedAt] DESC);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BaleMessageLogs]') AND name = N'IX_BaleMessageLogs_MemberId')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_BaleMessageLogs_MemberId] ON [dbo].[BaleMessageLogs] ([MemberId] ASC);
+END
+GO
+
+IF COL_LENGTH(N'dbo.BaleMessageLogs', N'ReadAt') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[BaleMessageLogs] ADD [ReadAt] DATETIME2(7) NULL;
+    EXEC(N'UPDATE [dbo].[BaleMessageLogs] SET [ReadAt] = [CreatedAt] WHERE [ReadAt] IS NULL;');
+    PRINT N'ستون ReadAt به BaleMessageLogs اضافه شد';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[BaleMessageLogs]') AND name = N'IX_BaleMessageLogs_MemberId_ReadAt')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_BaleMessageLogs_MemberId_ReadAt]
+        ON [dbo].[BaleMessageLogs] ([MemberId] ASC, [ReadAt] ASC, [CreatedAt] DESC)
+        INCLUDE ([IsSuccess]);
+END
+GO
+
+IF OBJECT_ID(N'dbo.BaleUpdates', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BaleUpdates] (
+        [UpdateId] BIGINT NOT NULL,
+        [ChatId] BIGINT NULL,
+        [MessageText] NVARCHAR(MAX) NULL,
+        [ProcessedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_BaleUpdates_ProcessedAt] DEFAULT(GETUTCDATE()),
+        CONSTRAINT [PK_BaleUpdates] PRIMARY KEY CLUSTERED ([UpdateId] ASC)
+    );
+    PRINT N'جدول BaleUpdates ایجاد شد';
+END
+GO
+
+IF OBJECT_ID(N'dbo.NotificationFeatures', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[NotificationFeatures] (
+        [FeatureKey] NVARCHAR(64) NOT NULL,
+        [Title] NVARCHAR(200) NOT NULL,
+        [IsEnabled] BIT NOT NULL CONSTRAINT [DF_NotificationFeatures_IsEnabled] DEFAULT(0),
+        [ChannelMask] TINYINT NOT NULL CONSTRAINT [DF_NotificationFeatures_ChannelMask] DEFAULT(1),
+        [ApprovalMode] TINYINT NOT NULL CONSTRAINT [DF_NotificationFeatures_ApprovalMode] DEFAULT(0),
+        [CreatedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_NotificationFeatures_CreatedAt] DEFAULT(GETUTCDATE()),
+        [UpdatedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_NotificationFeatures_UpdatedAt] DEFAULT(GETUTCDATE()),
+        CONSTRAINT [PK_NotificationFeatures] PRIMARY KEY CLUSTERED ([FeatureKey] ASC)
+    );
+    PRINT N'جدول NotificationFeatures ایجاد شد';
+END
+GO
+
+IF OBJECT_ID(N'dbo.NotificationQueue', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[NotificationQueue] (
+        [NotificationId] BIGINT IDENTITY(1,1) NOT NULL,
+        [EventKey] NVARCHAR(200) NULL,
+        [FeatureKey] NVARCHAR(64) NOT NULL,
+        [MemberId] BIGINT NULL,
+        [HouseholdId] BIGINT NULL,
+        [HeadMemberId] BIGINT NULL,
+        [MemberIdsJson] NVARCHAR(MAX) NULL,
+        [RecipientMobile] NVARCHAR(20) NULL,
+        [RecipientName] NVARCHAR(200) NULL,
+        [SmsTemplateId] INT NULL,
+        [SmsParamsJson] NVARCHAR(MAX) NULL,
+        [MessageText] NVARCHAR(MAX) NOT NULL,
+        [BaleMessageText] NVARCHAR(MAX) NULL,
+        [ChannelMask] TINYINT NOT NULL,
+        [Status] TINYINT NOT NULL CONSTRAINT [DF_NotificationQueue_Status] DEFAULT(0),
+        [CreatedBy] NVARCHAR(128) NULL,
+        [CreatedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_NotificationQueue_CreatedAt] DEFAULT(GETUTCDATE()),
+        [ScheduledAt] DATETIME2(7) NULL,
+        [ApprovedBy] NVARCHAR(128) NULL,
+        [ApprovedAt] DATETIME2(7) NULL,
+        [Attempts] INT NOT NULL CONSTRAINT [DF_NotificationQueue_Attempts] DEFAULT(0),
+        [NextAttemptAt] DATETIME2(7) NULL,
+        [LastError] NVARCHAR(500) NULL,
+        [SmsLogId] BIGINT NULL,
+        [SmsSentAt] DATETIME2(7) NULL,
+        [BaleLogId] BIGINT NULL,
+        [BaleSentAt] DATETIME2(7) NULL,
+        [SentAt] DATETIME2(7) NULL,
+        [CancelledAt] DATETIME2(7) NULL,
+        [CancelledBy] NVARCHAR(128) NULL,
+        [CancelReason] NVARCHAR(300) NULL,
+        CONSTRAINT [PK_NotificationQueue] PRIMARY KEY CLUSTERED ([NotificationId] ASC)
+    );
+    PRINT N'جدول NotificationQueue ایجاد شد';
+END
+GO
+
+IF COL_LENGTH(N'dbo.NotificationQueue', N'BaleMessageText') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[NotificationQueue] ADD [BaleMessageText] NVARCHAR(MAX) NULL;
+    PRINT N'ستون BaleMessageText به جدول NotificationQueue اضافه شد';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[NotificationQueue]') AND name = N'UX_NotificationQueue_EventKey')
+BEGIN
+    CREATE UNIQUE INDEX [UX_NotificationQueue_EventKey] ON [dbo].[NotificationQueue] ([EventKey] ASC) WHERE [EventKey] IS NOT NULL;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[NotificationQueue]') AND name = N'IX_NotificationQueue_Status_NextAttemptAt')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_NotificationQueue_Status_NextAttemptAt] ON [dbo].[NotificationQueue] ([Status] ASC, [NextAttemptAt] ASC) INCLUDE ([ChannelMask], [Attempts]);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[NotificationQueue]') AND name = N'IX_NotificationQueue_CreatedAt')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_NotificationQueue_CreatedAt] ON [dbo].[NotificationQueue] ([CreatedAt] DESC);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[NotificationQueue]') AND name = N'IX_NotificationQueue_MemberId')
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_NotificationQueue_MemberId] ON [dbo].[NotificationQueue] ([MemberId] ASC);
+END
+GO
+
+IF OBJECT_ID(N'dbo.NotificationAutoSettings', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[NotificationAutoSettings] (
+        [SettingsId] INT NOT NULL,
+        [LoanReminderEnabled] BIT NOT NULL CONSTRAINT [DF_NotificationAutoSettings_LoanReminderEnabled] DEFAULT(0),
+        [DaysBeforeDue] INT NOT NULL CONSTRAINT [DF_NotificationAutoSettings_DaysBeforeDue] DEFAULT(2),
+        [IncludeOverdue] BIT NOT NULL CONSTRAINT [DF_NotificationAutoSettings_IncludeOverdue] DEFAULT(1),
+        [RunHour] TINYINT NOT NULL CONSTRAINT [DF_NotificationAutoSettings_RunHour] DEFAULT(9),
+        [LastRunDate] DATE NULL,
+        [UpdatedAt] DATETIME2(7) NOT NULL CONSTRAINT [DF_NotificationAutoSettings_UpdatedAt] DEFAULT(GETUTCDATE()),
+        CONSTRAINT [PK_NotificationAutoSettings] PRIMARY KEY CLUSTERED ([SettingsId] ASC)
+    );
+    PRINT N'جدول NotificationAutoSettings ایجاد شد';
+END
+GO
+
+-- Seeds (idempotent)
+IF OBJECT_ID(N'dbo.BaleBotSettings', N'U') IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM dbo.BaleBotSettings WHERE SettingsId = 1)
+        INSERT INTO dbo.BaleBotSettings (SettingsId, IsEnabled, BotToken, BotUsername, WebhookSecret, ApiBaseUrl)
+        VALUES (1, 0, NULL, NULL, NULL, N'https://tapi.bale.ai');
+END
+GO
+
+IF OBJECT_ID(N'dbo.NotificationFeatures', N'U') IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM dbo.NotificationFeatures WHERE FeatureKey = N'deposit_credit')
+        INSERT INTO dbo.NotificationFeatures (FeatureKey, Title, IsEnabled, ChannelMask, ApprovalMode)
+        VALUES (N'deposit_credit', N'اطلاع‌رسانی واریز سپرده', 1, 1, 0);
+    IF NOT EXISTS (SELECT 1 FROM dbo.NotificationFeatures WHERE FeatureKey = N'loan_payment')
+        INSERT INTO dbo.NotificationFeatures (FeatureKey, Title, IsEnabled, ChannelMask, ApprovalMode)
+        VALUES (N'loan_payment', N'اطلاع‌رسانی پرداخت قسط وام', 1, 1, 0);
+    IF NOT EXISTS (SELECT 1 FROM dbo.NotificationFeatures WHERE FeatureKey = N'loan_installment_reminder')
+        INSERT INTO dbo.NotificationFeatures (FeatureKey, Title, IsEnabled, ChannelMask, ApprovalMode)
+        VALUES (N'loan_installment_reminder', N'یادآوری سررسید اقساط', 1, 1, 0);
+    IF NOT EXISTS (SELECT 1 FROM dbo.NotificationFeatures WHERE FeatureKey = N'member_updated')
+        INSERT INTO dbo.NotificationFeatures (FeatureKey, Title, IsEnabled, ChannelMask, ApprovalMode)
+        VALUES (N'member_updated', N'اطلاع‌رسانی ویرایش اطلاعات عضو', 0, 2, 0);
+    IF NOT EXISTS (SELECT 1 FROM dbo.NotificationFeatures WHERE FeatureKey = N'deposit_interest_run')
+        INSERT INTO dbo.NotificationFeatures (FeatureKey, Title, IsEnabled, ChannelMask, ApprovalMode)
+        VALUES (N'deposit_interest_run', N'اطلاع‌رسانی واریز سود سپرده', 1, 2, 0);
+    ELSE
+        UPDATE dbo.NotificationFeatures
+        SET Title = N'اطلاع‌رسانی واریز سود سپرده',
+            ChannelMask = 2,
+            ApprovalMode = 0,
+            UpdatedAt = GETUTCDATE()
+        WHERE FeatureKey = N'deposit_interest_run';
+
+    -- این کلید فعلاً نقطه فراخوانی ندارد و در تنظیمات نمایش داده نمی‌شود.
+    IF EXISTS (SELECT 1 FROM dbo.NotificationFeatures WHERE FeatureKey = N'member_created')
+       AND NOT EXISTS (SELECT 1 FROM dbo.NotificationQueue WHERE FeatureKey = N'member_created')
+        DELETE FROM dbo.NotificationFeatures WHERE FeatureKey = N'member_created';
+END
+GO
+
+IF OBJECT_ID(N'dbo.NotificationAutoSettings', N'U') IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM dbo.NotificationAutoSettings WHERE SettingsId = 1)
+        INSERT INTO dbo.NotificationAutoSettings (SettingsId, LoanReminderEnabled, DaysBeforeDue, IncludeOverdue, RunHour)
+        VALUES (1, 0, 2, 1, 9);
 END
 GO

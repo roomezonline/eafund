@@ -1,11 +1,13 @@
 @using MiniBank.Web.Models
 @using MiniBank.Web.Services
+@using MiniBank.Web.Services.Notifications
 @using MiniBank.Web.Components.DesignSystem
 @using MiniBank.Web.Components.Extensions
 @inject MemberService MemberService
 @inject HouseholdService HouseholdService
 @inject MiniBank.Web.Infrastructure.Repositories.AccountsRepository AccountsRepo
 @inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
+@inject NotificationService Notifications
 @inject IJSRuntime JS
 
 @if (_isVisible)
@@ -577,6 +579,33 @@
         }
     }
 
+    private async Task SendMemberUpdateNotificationAsync()
+    {
+        if (Model.MemberId <= 0)
+            return;
+
+        try
+        {
+            var name = string.IsNullOrWhiteSpace(Model.FullName) ? "عضو" : Model.FullName;
+
+            await Notifications.NotifyAsync(new NotificationRequest
+            {
+                FeatureKey = "member_updated",
+                MessageText = $"عضو محترم {name}\nاطلاعات عضویت شما در صندوق به‌روزرسانی شد.",
+                MemberId = Model.MemberId,
+                HeadMemberId = Model.MemberId,
+                RecipientMobile = Model.MobileNumber,
+                RecipientName = name,
+                CreatedBy = "member-form",
+                DispatchNow = true
+            });
+        }
+        catch
+        {
+            // اطلاع‌رسانی نباید ذخیره اطلاعات عضو را متوقف کند.
+        }
+    }
+
     private async Task OnConfirm()
     {
         if (_isSaving) return;
@@ -717,6 +746,7 @@
             else
             {
                 await MemberService.UpdateAsync(Model);
+                await SendMemberUpdateNotificationAsync();
             }
 
             // Apply head-of-household relation if applicable

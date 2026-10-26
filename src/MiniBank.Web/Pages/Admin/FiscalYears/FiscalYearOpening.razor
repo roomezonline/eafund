@@ -1,10 +1,12 @@
 @page "/admin/fiscal-years/opening/{SourceYearId:int}/{TargetYearCode:int}"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 @using MiniBank.Web.Components.DesignSystem
 @using MiniBank.Web.Models
 @inject MiniBank.Web.Services.FiscalYearService FiscalYearService
-@inject MiniBank.Web.Services.LoadingService Loading
 @inject MiniBank.Web.Components.DesignSystem.DsToastService Toasts
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="fy-opening-shell">
   <button class="back-btn" @onclick="GoBack">
@@ -24,7 +26,7 @@
     <div class="fy-error">
       <i class="fa-solid fa-circle-exclamation"></i>
       <div>@_error</div>
-      <button class="btn primary" @onclick="LoadData">تلاش مجدد</button>
+      <button class="btn primary" @onclick="GoBack">بازگشت به سال‌های مالی</button>
     </div>
   }
   else if (_preview != null)
@@ -150,7 +152,7 @@
     try
     {
       var journalId = await FiscalYearService.ExecuteOpeningAsync(
-        SourceYearId, _preview.TargetFiscalYear!.FiscalYearId, "admin");
+        SourceYearId, _preview.TargetFiscalYear!.FiscalYearId, await GetActorNameAsync());
       Toasts.Success($"افتتاحیه با موفقیت ثبت شد (سند شماره {journalId})");
       Navigation.NavigateTo("/admin/fiscal-years");
     }
@@ -162,6 +164,20 @@
     {
       _executing = false;
     }
+  }
+
+  private async Task<string> GetActorNameAsync()
+  {
+    try
+    {
+      var state = await AuthStateProvider.GetAuthenticationStateAsync();
+      var name = state.User?.Identity?.Name;
+      if (!string.IsNullOrWhiteSpace(name)) return name;
+      var byId = state.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+      if (!string.IsNullOrWhiteSpace(byId)) return byId;
+    }
+    catch { }
+    return "admin";
   }
 
   private void GoBack() => Navigation.NavigateTo("/admin/fiscal-years");

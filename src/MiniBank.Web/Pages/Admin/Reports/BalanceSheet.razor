@@ -2,6 +2,7 @@
 @inject HttpClient Http
 @inject MiniBank.Web.Components.DesignSystem.DsToastService Toast
 @inject IJSRuntime JS
+@inject MiniBank.Web.Services.FiscalYearRangeProvider FiscalRange
 
 <MiniBank.Web.Components.DesignSystem.DsPageHeader 
     Icon="fa-solid fa-chart-line" 
@@ -21,6 +22,8 @@
                        class="persian-date-input" 
                        type="text" 
                        placeholder="انتخاب تاریخ..." 
+                       data-min="@_minDate"
+                       data-max="@_maxDate"
                        readonly />
             </div>
             <button class="btn-generate" @onclick="LoadData" disabled="@loading">
@@ -145,11 +148,23 @@
 
 @code {
   private DateTime asOfLocal = DateTime.Today;
+  private string? _minDate;
+  private string? _maxDate;
   private bool loading = false;
   private BalanceSheetDto? snapshot;
 
   protected override async Task OnInitializedAsync()
   {
+    try
+    {
+      var range = await FiscalRange.GetGregorianRangeAsync();
+      _minDate = range.Start.ToString("yyyy-MM-dd");
+      _maxDate = range.End.ToString("yyyy-MM-dd");
+      if (asOfLocal < range.Start) asOfLocal = range.Start;
+      if (asOfLocal > range.End) asOfLocal = range.End;
+    }
+    catch { }
+
     await InitializePersianDatePicker();
     // Don't auto-load data on init, let user select date first
   }

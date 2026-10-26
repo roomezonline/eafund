@@ -1,7 +1,7 @@
 .report-container {
-  max-width: 860px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 16px 14px 100px;
+  padding: 16px 8px 100px;
   direction: rtl;
 }
 
@@ -81,11 +81,6 @@
   color: #111827 !important;
 }
 
-.th-green {
-  background: #b7f7b7 !important;
-  color: #111827 !important;
-}
-
 .td-blue {
   background: #7dd3fc !important;
   color: #111827 !important;
@@ -93,11 +88,6 @@
 
 .td-credit {
   background: #fca5a5 !important;
-  color: #111827 !important;
-}
-
-.td-green {
-  background: #b7f7b7 !important;
   color: #111827 !important;
 }
 
@@ -153,11 +143,6 @@
   color: #111827;
 }
 
-.td-blue {
-  background: #7dd3fc !important;
-  color: #111827 !important;
-}
-
 .th-credit-header {
   background: #fff200 !important;
   color: #111827 !important;
@@ -167,44 +152,6 @@
   font-weight: 800;
   font-size: 16px;
   white-space: nowrap;
-}
-
-.td-green {
-  background: #b7f7b7 !important;
-  color: #111827 !important;
-}
-
-.td-white {
-  background: #ffffff !important;
-  color: #111827 !important;
-}
-
-.amount-value {
-  font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-  font-variant-numeric: tabular-nums lining-nums;
-  font-feature-settings: 'tnum' 1, 'lnum' 1;
-  direction: ltr;
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: .2px;
-  text-align: right;
-  width: 150px;
-}
-
-.amount-credit {
-  color: #dc2626 !important;
-}
-
-.amount-debit, .amount-credit-old {
-  font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-  font-variant-numeric: tabular-nums lining-nums;
-  font-feature-settings: 'tnum' 1, 'lnum' 1;
-  direction: ltr;
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: .2px;
-  text-align: right;
-  width: 150px;
 }
 
 .total-row td {
@@ -244,4 +191,246 @@
   .amount-value { font-size: 13px; width: auto; min-width: 70px; }
   .discrepancy-box { margin-top: 14px; padding: 10px 16px; }
   .dc-amount { font-size: 15px; }
+}
+
+.unfinalized-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 20px 24px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 2px solid #f59e0b;
+  direction: rtl;
+}
+
+.unfinalized-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.unfinalized-body {
+  flex: 1;
+}
+
+.unfinalized-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #92400e;
+  margin-bottom: 6px;
+}
+
+.unfinalized-desc {
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.7;
+}
+
+.unfinalized-hint {
+  font-size: 13px;
+  color: #92400e;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f59e0b44;
+}
+
+@media (max-width: 768px) {
+  .unfinalized-warning { padding: 14px 12px; gap: 10px; }
+  .unfinalized-icon { width: 38px; height: 38px; font-size: 18px; }
+  .unfinalized-title { font-size: 15px; }
+  .unfinalized-desc { font-size: 13px; }
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background .15s;
+}
+.clickable-row:hover {
+  background: #f0f9ff !important;
+}
+
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.detail-modal {
+  background: #fff;
+  border-radius: 18px;
+  max-width: 720px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+}
+
+.detail-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid #e5e7eb;
+  direction: rtl;
+}
+
+.detail-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.detail-close-btn:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.detail-back-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.detail-back-btn:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.detail-modal-body {
+  padding: 16px 22px 22px;
+  overflow-y: auto;
+  direction: rtl;
+}
+
+.detail-table-scroll {
+  overflow-x: auto;
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.detail-table th {
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  padding: 10px 12px;
+  text-align: right;
+  font-weight: 700;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.detail-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  white-space: nowrap;
+}
+
+.detail-td-code {
+  font-family: monospace;
+  text-align: center;
+  color: #6b7280;
+}
+
+.detail-td-name {
+  text-align: right;
+  font-weight: 500;
+  color: #111827;
+}
+
+.detail-td-level {
+  text-align: center;
+}
+
+.level-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-moein {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-tafsili {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.detail-td-amount {
+  font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  direction: ltr;
+  text-align: right;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.detail-debit {
+  color: #1e40af;
+}
+
+.detail-credit {
+  color: #dc2626;
+}
+
+.detail-total-row td {
+  font-weight: 800;
+  border-top: 2px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+@media (max-width: 768px) {
+  .detail-overlay { padding: 10px; }
+  .detail-modal { border-radius: 14px; max-height: 90vh; }
+  .detail-modal-header { padding: 14px 16px; }
+  .detail-modal-body { padding: 12px 16px 16px; }
+  .detail-table { font-size: 13px; }
+  .detail-table th, .detail-table td { padding: 7px 8px; }
 }

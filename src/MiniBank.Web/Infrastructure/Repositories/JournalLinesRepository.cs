@@ -43,7 +43,7 @@ namespace MiniBank.Web.Infrastructure.Repositories
         public async Task<List<JournalLine>> GetByJournalIdAsync(long journalId)
         {
             const string sql = @"
-                SELECT jl.JournalLineId, jl.JournalId, jl.[LineNo] AS LineNo, jl.AccountId, jl.MemberId, 
+                SELECT jl.JournalLineId, jl.JournalId, jl.[LineNo] AS [LineNo], jl.AccountId, jl.MemberId, 
                        jl.Debit, jl.Credit, jl.Description, jl.LoanId
                 FROM dbo.JournalLines jl
                 WHERE jl.JournalId = @journalId
@@ -82,7 +82,7 @@ namespace MiniBank.Web.Infrastructure.Repositories
             if (toDate.HasValue) whereClause += " AND j.OccurredAt < DATEADD(DAY, 1, @toDate)";
 
             var sql = $@"
-                SELECT TOP (@limit) jl.JournalLineId, jl.JournalId, jl.[LineNo] AS LineNo, jl.AccountId, jl.MemberId, 
+                SELECT TOP (@limit) jl.JournalLineId, jl.JournalId, jl.[LineNo] AS [LineNo], jl.AccountId, jl.MemberId, 
                        jl.Debit, jl.Credit, jl.Description, jl.LoanId
                 FROM dbo.JournalLines jl
                 JOIN dbo.vw_ApprovedJournals j ON j.JournalId = jl.JournalId
@@ -100,12 +100,12 @@ namespace MiniBank.Web.Infrastructure.Repositories
             if (toDate.HasValue) whereClause += " AND j.OccurredAt < DATEADD(DAY, 1, @toDate)";
 
             var sql = $@"
-                SELECT TOP (@limit) jl.JournalLineId, jl.JournalId, jl.LineNo, jl.AccountId, jl.MemberId, 
+                SELECT TOP (@limit) jl.JournalLineId, jl.JournalId, jl.[LineNo], jl.AccountId, jl.MemberId, 
                        jl.Debit, jl.Credit, jl.Description, jl.LoanId
                 FROM dbo.JournalLines jl
                 JOIN dbo.vw_ApprovedJournals j ON j.JournalId = jl.JournalId
                 {whereClause}
-                ORDER BY j.OccurredAt DESC, jl.LineNo";
+                ORDER BY j.OccurredAt DESC, jl.[LineNo]";
             
             var result = await _db.QueryAsync<JournalLine>(sql, new { memberId, fromDate, toDate, limit });
             return result.ToList();

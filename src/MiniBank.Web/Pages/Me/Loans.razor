@@ -113,15 +113,25 @@
                   ? _instForLoan.Sum(x => Math.Max(0m, x.InterestAmount - x.PaidInterest))
                   : 0m;
                 var remainingTotal = remainingPrincipal + remainingInterest;
+                var hasInst = _instForLoan != null && _instForLoan.Count > 0;
+                var totalInterest = hasInst
+                  ? _instForLoan!.Sum(x => x.InterestAmount)
+                  : Math.Max(0m, l.EmiAmount * l.TermMonths - l.Principal);
+                var totalLoan = hasInst
+                  ? _instForLoan!.Sum(x => x.EmiAmount)
+                  : l.EmiAmount * l.TermMonths;
                 <div class="loan @(l.Status == LoanStatus.Settled ? "settled" : null)">
                   <div class="loan-top">
                     <div style="min-width:0">
                       <div class="loan-name">وام شماره @l.LoanId</div>
-                      <div class="loan-meta">@FmtDate(l.DisbursedAt) | <span class="badge @LoanBadge(l.Status)">@FmtLoanStatus(l.Status)</span></div>
+                      <div class="loan-meta">تاریخ پرداخت وام: @FmtDate(l.DisbursedAt) | <span class="badge @LoanBadge(l.Status)">@FmtLoanStatus(l.Status)</span></div>
                     </div>
                   </div>
 
                   <div class="kpis">
+                    <div class="kv"><span class="k">اصل وام</span><span class="v">@FmtMoney(l.Principal)</span></div>
+                    <div class="kv"><span class="k">سود وام</span><span class="v">@FmtMoney(totalInterest)</span></div>
+                    <div class="kv"><span class="k">جمع کل وام</span><span class="v">@FmtMoney(totalLoan)</span></div>
                     <div class="kv"><span class="k">مدت</span><span class="v">@l.TermMonths ماه</span></div>
                     <div class="kv"><span class="k">قسط ماهانه</span><span class="v">@FmtMoney(l.EmiAmount)</span></div>
                     @{

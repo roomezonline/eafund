@@ -30,6 +30,7 @@ namespace MiniBank.Web.Infrastructure.Repositories
             public long MemberId { get; set; }
             public string? MemberCode { get; set; }
             public string MemberFullName { get; set; } = string.Empty;
+            public string? FatherName { get; set; }
             public string? MobileNumber { get; set; }
 
             public int DaysToDue { get; set; }
@@ -58,6 +59,7 @@ SELECT TOP (@take)
     m.MemberId,
     l.MemberCode,
     LTRIM(RTRIM(CONCAT(ISNULL(m.FirstName, N''), N' ', ISNULL(m.LastName, N'')))) AS MemberFullName,
+    m.FatherName,
     m.MobileNumber,
 
     DATEDIFF(day, CAST(@today AS date), CAST(i.DueDate AS date)) AS DaysToDue,
